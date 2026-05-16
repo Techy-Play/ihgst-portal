@@ -1,13 +1,16 @@
 'use client';
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Users, Target, ArrowRight, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Target, ArrowRight, Trash2, AlertTriangle, Search } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Skeletons';
+import CustomDropdown from '@/components/ui/CustomDropdown';
 import { useToast } from '@/components/ui/Toast';
 
 export default function ManagerPage() {
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [filterDept, setFilterDept] = useState('all');
   const transform = useCallback((d) => d, []);
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/manager/team', { transform });
   const { data: cleanupData, refresh: refreshCleanup } = useDataFetcher('/api/goals/cleanup', { transform });
@@ -17,7 +20,16 @@ export default function ManagerPage() {
   const toast = useToast();
 
   const team = data?.team || [];
-  const filtered = filter === 'all' ? team : team.filter(m => m.goalSheet?.status === filter);
+  
+  const depts = ['all', ...new Set(team.map(m => m.department).filter(Boolean))].sort();
+  
+  const filtered = team.filter(m => {
+    const matchStatus = filter === 'all' || m.goalSheet?.status === filter;
+    const matchDept = filterDept === 'all' || m.department === filterDept;
+    const matchSearch = search ? (m.name.toLowerCase().includes(search.toLowerCase()) || m.department?.toLowerCase().includes(search.toLowerCase())) : true;
+    return matchStatus && matchDept && matchSearch;
+  });
+
   const draftCycles = (cleanupData?.cycles || []).filter(c => !c.isActive);
 
   const handleBulkDelete = async (cycleId, cycleName) => {
@@ -54,12 +66,29 @@ export default function ManagerPage() {
       <PageHeader title="Team Review" subtitle="Review and approve team goals."
         onRefresh={refresh} lastUpdated={lastUpdated} loading={loading} />
 
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
         {['all', 'Submitted', 'Approved', 'Returned', 'Draft'].map(f => (
           <button key={f} className={`tab-btn ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
             {f === 'all' ? 'All' : f} {f !== 'all' && `(${team.filter(m => m.goalSheet?.status === f).length})`}
           </button>
         ))}
+      </div>
+
+      {/* Search & Filters */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+          <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input className="input-dark" placeholder="Search team members by name or department..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: '38px', width: '100%' }} />
+        </div>
+        {depts.length > 2 && (
+          <div style={{ width: '180px' }}>
+            <CustomDropdown 
+              options={depts.map(d => ({ value: d, label: d === 'all' ? 'All Departments' : d }))} 
+              value={filterDept} 
+              onChange={setFilterDept} 
+            />
+          </div>
+        )}
       </div>
 
       {loading && !data ? <SkeletonGoalCards count={3} /> : filtered.length === 0 ? (

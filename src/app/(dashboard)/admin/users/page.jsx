@@ -30,6 +30,8 @@ export default function AdminUsersPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [filterDept, setFilterDept] = useState('all');
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', role: 'Employee', department: '', employeeId: '', managerId: '' });
   const [editForm, setEditForm] = useState({});
@@ -40,9 +42,12 @@ export default function AdminUsersPage() {
 
   const users = data?.users || [];
   const managers = users.filter(u => u.role === 'Manager' || u.role === 'Admin');
-  const filtered = search
-    ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()) || u.department?.toLowerCase().includes(search.toLowerCase()))
-    : users;
+  const filtered = users.filter(u => {
+    const matchSearch = search ? (u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()) || u.department?.toLowerCase().includes(search.toLowerCase())) : true;
+    const matchRole = filterRole === 'all' || u.role === filterRole;
+    const matchDept = filterDept === 'all' || u.department === filterDept;
+    return matchSearch && matchRole && matchDept;
+  });
 
   const managerOptions = [
     { value: '', label: 'No Manager', description: 'Direct report to org' },
@@ -131,10 +136,26 @@ export default function AdminUsersPage() {
         )}
       </AnimatePresence>
 
-      {/* Search */}
-      <div style={{ marginBottom: '16px', position: 'relative' }}>
-        <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-        <input className="input-dark" placeholder="Search users by name, email, or department..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: '38px' }} />
+      {/* Search & Filters */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: '200px', position: 'relative' }}>
+          <Search size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input className="input-dark" placeholder="Search users by name, email, or department..." value={search} onChange={e => setSearch(e.target.value)} style={{ paddingLeft: '38px', width: '100%' }} />
+        </div>
+        <div style={{ width: '180px' }}>
+          <CustomDropdown 
+            options={[{ value: 'all', label: 'All Roles' }, ...roleOptions]} 
+            value={filterRole} 
+            onChange={setFilterRole} 
+          />
+        </div>
+        <div style={{ width: '180px' }}>
+          <CustomDropdown 
+            options={[{ value: 'all', label: 'All Departments' }, ...deptOptions]} 
+            value={filterDept} 
+            onChange={setFilterDept} 
+          />
+        </div>
       </div>
 
       {/* Users Table */}
