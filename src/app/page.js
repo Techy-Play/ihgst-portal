@@ -46,9 +46,16 @@ function LandingContent() {
     finally { setLoading(false); }
   };
 
-  const fillCreds = (email) => {
-    setEmail(email);
-    setPassword('Employee@123'.replace('Employee', email.split('@')[0].includes('admin') ? 'Admin' : email.split('@')[0].includes('manager') ? 'Manager' : 'Employee'));
+  const fillCreds = (role) => {
+    const creds = {
+      Admin: { email: 'admin@ihgst.com', pass: 'Admin@123' },
+      Manager: { email: 'manager@ihgst.com', pass: 'Manager@123' },
+      Employee1: { email: 'employee1@ihgst.com', pass: 'Employee@123' },
+      Employee2: { email: 'employee2@ihgst.com', pass: 'Employee@123' },
+      Employee3: { email: 'employee3@ihgst.com', pass: 'Employee@123' },
+    };
+    setEmail(creds[role].email);
+    setPassword(creds[role].pass);
   };
 
   if (status === 'loading' || status === 'authenticated') {
@@ -136,16 +143,10 @@ function LandingContent() {
             <div style={{ marginTop: '20px', padding: '14px', borderRadius: '10px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)' }}>
               <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Credentials</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {[
-                  { role: 'Admin', email: 'admin@ihgst.com' }, 
-                  { role: 'Manager', email: 'manager@ihgst.com' }, 
-                  { role: 'Employee 1', email: 'employee1@ihgst.com' },
-                  { role: 'Employee 2', email: 'employee2@ihgst.com' },
-                  { role: 'Employee 3', email: 'employee3@ihgst.com' }
-                ].map((cred) => (
-                  <button key={cred.email} type="button" onClick={() => fillCreds(cred.email)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cred.role}</span>
-                    <span>{cred.email}</span>
+                {Object.keys(creds).map((role) => (
+                  <button key={role} type="button" onClick={() => fillCreds(role)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{role}</span>
+                    <span>{creds[role].email}</span>
                   </button>
                 ))}
               </div>

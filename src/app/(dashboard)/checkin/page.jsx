@@ -149,9 +149,9 @@ export default function CheckInPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {quarterStatuses[selectedQ] === 'upcoming' && (
+          {quarterStatuses[selectedQ] !== 'active' && (
             <div style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={16} /> Check-ins for {selectedQ} are not active yet.
+              <Clock size={16} /> Check-ins for {selectedQ} are locked (only the active quarter is editable).
             </div>
           )}
           {goals.map((goal, gi) => {
@@ -225,7 +225,7 @@ export default function CheckInPage() {
                         value={ca}
                         onChange={(v) => handleUpdate(goal._id, 'achievement', v)}
                         placeholder="Select date..."
-                        disabled={quarterStatuses[selectedQ] === 'upcoming'}
+                        disabled={quarterStatuses[selectedQ] !== 'active'}
                         minDate={quarterDates[selectedQ]?.start ? new Date(quarterDates[selectedQ].start).toISOString().split('T')[0] : undefined}
                         maxDate={quarterDates[selectedQ]?.end ? new Date(quarterDates[selectedQ].end).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                       />
@@ -237,7 +237,7 @@ export default function CheckInPage() {
                         onChange={e => handleUpdate(goal._id, 'achievement', e.target.value)}
                         placeholder={`Target: ${goal.target}`}
                         style={{ marginBottom: goal.uom === 'Percentage' && ca !== '' ? '8px' : 0 }}
-                        disabled={quarterStatuses[selectedQ] === 'upcoming'}
+                        disabled={quarterStatuses[selectedQ] !== 'active'}
                       />
                     )}
                     {goal.uom === 'Percentage' && ca !== '' && (
@@ -246,7 +246,7 @@ export default function CheckInPage() {
                           type="range" className="range-slider" min={0} max={100}
                           value={ca || 0}
                           onChange={e => handleUpdate(goal._id, 'achievement', e.target.value)}
-                          disabled={quarterStatuses[selectedQ] === 'upcoming'}
+                          disabled={quarterStatuses[selectedQ] !== 'active'}
                         />
                         <span className="slider-value-badge">{ca}%</span>
                       </div>
@@ -260,14 +260,14 @@ export default function CheckInPage() {
                       options={statusOptions}
                       value={cs}
                       onChange={(v) => handleUpdate(goal._id, 'status', v)}
-                      disabled={quarterStatuses[selectedQ] === 'upcoming'}
+                      disabled={quarterStatuses[selectedQ] !== 'active'}
                     />
                   </div>
 
                   {/* Comment */}
                   <div>
                     <label className="dropdown-label">Comment</label>
-                    <input className="input-dark" value={updates[goal._id]?.comment ?? ex?.employeeComment ?? ''} onChange={e => handleUpdate(goal._id, 'comment', e.target.value)} placeholder="Add a note..." disabled={quarterStatuses[selectedQ] === 'upcoming'} />
+                    <input className="input-dark" value={updates[goal._id]?.comment ?? ex?.employeeComment ?? ''} onChange={e => handleUpdate(goal._id, 'comment', e.target.value)} placeholder="Add a note..." disabled={quarterStatuses[selectedQ] !== 'active'} />
                   </div>
                 </div>
 
@@ -275,7 +275,7 @@ export default function CheckInPage() {
                   <div className="progress-bar" style={{ flex: 1, marginRight: '16px' }}>
                     <div className="progress-bar-fill" style={{ width: `${prog}%`, background: prog >= 80 ? 'linear-gradient(90deg,#10b981,#34d399)' : prog >= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#ef4444,#f87171)' }} />
                   </div>
-                  <button onClick={() => handleSave(goal)} disabled={saving[goal._id] || quarterStatuses[selectedQ] === 'upcoming'} className="btn-glow" style={{ fontSize: '13px', padding: '8px 18px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button onClick={() => handleSave(goal)} disabled={saving[goal._id] || quarterStatuses[selectedQ] !== 'active'} className="btn-glow" style={{ fontSize: '13px', padding: '8px 18px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Save size={14} />{saving[goal._id] ? '...' : 'Save'}
                   </button>
                 </div>

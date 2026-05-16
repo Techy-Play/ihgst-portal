@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 
+// Read .env.local file if it exists
 const envPath = path.resolve(__dirname, '../../.env.local');
 if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, 'utf-8');
@@ -98,8 +99,7 @@ async function seed() {
   ]);
 
   // ===== Create Users =====
-  console.log('👤 Creating users...');
-  
+  console.log('👤 Creating Users (1 Admin, 2 Managers, 3 Employees)...');
   const adminPw = await bcrypt.hash('Admin@123', 10);
   const managerPw = await bcrypt.hash('Manager@123', 10);
   const employeePw = await bcrypt.hash('Employee@123', 10);
@@ -109,13 +109,11 @@ async function seed() {
     role: 'Admin', department: 'Human Resources', employeeId: 'EMP-A001',
   });
 
-  // User requested 2 managers
   const managers = await User.insertMany([
     { name: 'Rahul Sharma', email: 'manager@ihgst.com', password: managerPw, role: 'Manager', department: 'Engineering', employeeId: 'EMP-M001' },
-    { name: 'Anita Desai', email: 'manager2@ihgst.com', password: managerPw, role: 'Manager', department: 'Marketing', employeeId: 'EMP-M002' }
+    { name: 'Anita Desai', email: 'manager2@ihgst.com', password: managerPw, role: 'Manager', department: 'Marketing', employeeId: 'EMP-M002' },
   ]);
 
-  // User requested 3 employees
   const employees = await User.insertMany([
     { name: 'Priya Patel', email: 'employee1@ihgst.com', password: employeePw, role: 'Employee', department: 'Engineering', managerId: managers[0]._id, employeeId: 'EMP-E001' },
     { name: 'Amit Kumar', email: 'employee2@ihgst.com', password: employeePw, role: 'Employee', department: 'Engineering', managerId: managers[0]._id, employeeId: 'EMP-E002' },
@@ -125,50 +123,32 @@ async function seed() {
   const allUsersWithGoals = [...managers, ...employees];
 
   // ===== Create Cycles =====
-  console.log('📅 Creating FY 2025-26 and FY 2026-27 cycles...');
+  console.log('📅 Creating FY 2025-26 and FY 2026-27 cycles (March - Feb)...');
   
-  // FY 25-26 (Mar 1, 2025 - Feb 28, 2026)
   const cycle2526 = await Cycle.create({
-    name: 'FY 2025-26', goalSettingStart: new Date('2025-03-01T00:00:00Z'), goalSettingEnd: new Date('2025-03-31T23:59:59Z'),
+    name: 'FY 2025-26', goalSettingStart: new Date('2025-02-15'), goalSettingEnd: new Date('2025-03-31'),
     quarters: [
-      { label: 'Q1 Check-in', start: new Date('2025-03-01T00:00:00Z'), end: new Date('2025-05-31T23:59:59Z') },
-      { label: 'Q2 Check-in', start: new Date('2025-06-01T00:00:00Z'), end: new Date('2025-08-31T23:59:59Z') },
-      { label: 'Q3 Check-in', start: new Date('2025-09-01T00:00:00Z'), end: new Date('2025-11-30T23:59:59Z') },
-      { label: 'Q4 Check-in', start: new Date('2025-12-01T00:00:00Z'), end: new Date('2026-02-28T23:59:59Z') },
+      { label: 'Q1 Check-in', start: new Date('2025-03-01'), end: new Date('2025-05-31') },
+      { label: 'Q2 Check-in', start: new Date('2025-06-01'), end: new Date('2025-08-31') },
+      { label: 'Q3 Check-in', start: new Date('2025-09-01'), end: new Date('2025-11-30') },
+      { label: 'Q4 / Annual Review', start: new Date('2025-12-01'), end: new Date('2026-02-28') },
     ], isActive: false, createdBy: admin._id,
   });
 
-  // FY 26-27 (Mar 1, 2026 - Feb 28, 2027)
   const cycle2627 = await Cycle.create({
-    name: 'FY 2026-27', goalSettingStart: new Date('2026-03-01T00:00:00Z'), goalSettingEnd: new Date('2026-03-31T23:59:59Z'),
+    name: 'FY 2026-27', goalSettingStart: new Date('2026-02-15'), goalSettingEnd: new Date('2026-03-31'),
     quarters: [
-      { label: 'Q1 Check-in', start: new Date('2026-03-01T00:00:00Z'), end: new Date('2026-05-31T23:59:59Z') },
-      { label: 'Q2 Check-in', start: new Date('2026-06-01T00:00:00Z'), end: new Date('2026-08-31T23:59:59Z') },
-      { label: 'Q3 Check-in', start: new Date('2026-09-01T00:00:00Z'), end: new Date('2026-11-30T23:59:59Z') },
-      { label: 'Q4 Check-in', start: new Date('2026-12-01T00:00:00Z'), end: new Date('2027-02-28T23:59:59Z') },
+      { label: 'Q1 Check-in', start: new Date('2026-03-01'), end: new Date('2026-05-31') },
+      { label: 'Q2 Check-in', start: new Date('2026-06-01'), end: new Date('2026-08-31') },
+      { label: 'Q3 Check-in', start: new Date('2026-09-01'), end: new Date('2026-11-30') },
+      { label: 'Q4 / Annual Review', start: new Date('2026-12-01'), end: new Date('2027-02-28') },
     ], isActive: true, createdBy: admin._id,
   });
 
   // ===== Helper for Generating Goals and Check-ins =====
   const thrustAreas = ['Revenue Growth', 'Cost Optimization', 'Quality Improvement', 'Innovation', 'People Development', 'Customer Satisfaction', 'Compliance'];
-  const now = new Date();
-
+  
   const seedGoals = async (cycle, users, isPast) => {
-    // Determine which quarters to seed based on current date
-    let quartersToSeed = [];
-    if (isPast) {
-      quartersToSeed = ['Q1', 'Q2', 'Q3', 'Q4'];
-    } else {
-      for (let i = 0; i < cycle.quarters.length; i++) {
-        if (now >= cycle.quarters[i].start) {
-          quartersToSeed.push(`Q${i+1}`);
-        }
-      }
-    }
-
-    // Number of goals: 3 for past, 2 for current (smaller dataset as requested)
-    const numGoals = isPast ? 3 : 2;
-
     for (const u of users) {
       const sheet = await GoalSheet.create({
         userId: u._id, cycleId: cycle._id, status: 'Approved',
@@ -177,39 +157,42 @@ async function seed() {
         approvedBy: u.managerId || admin._id
       });
 
-      const weightages = [40, 30, 30];
-      for (let i = 0; i < numGoals; i++) {
+      // Total weightage must be 100%. We'll create 4 goals per user with weightages 30, 30, 20, 20.
+      const weightages = [30, 30, 20, 20];
+      for (let i = 0; i < 4; i++) {
         const tArea = thrustAreas[randomInt(0, thrustAreas.length-1)];
         const targetVal = randomInt(50, 100);
         
         const goal = await Goal.create({
           userId: u._id, goalSheetId: sheet._id, thrustArea: tArea,
-          title: `${tArea} Goal ${i+1}`, description: `Strategic objective for ${tArea}`,
-          uom: 'Percentage', uomDirection: 'Min', target: targetVal, weightage: weightages[i], status: 'Approved',
-          achievements: [] 
+          title: `${tArea} Initiative ${i+1}`, description: `Focus on ${tArea} for ${cycle.name}`,
+          uom: 'Numeric', uomDirection: 'Min', target: targetVal, weightage: weightages[i], status: 'Approved',
+          achievements: []
         });
 
         const achievements = [];
-        let cumulative = 0;
+        // The active quarter logic: Today is May 2026. This falls into FY 2026-27 Q1 (Mar 1 - May 31).
+        // For the past cycle (FY 2025-26), fill all quarters.
+        // For the active cycle (FY 2026-27), fill ONLY Q1.
+        const quarters = isPast ? ['Q1', 'Q2', 'Q3', 'Q4'] : ['Q1'];
         
-        for (let qIdx = 0; qIdx < quartersToSeed.length; qIdx++) {
-          const q = quartersToSeed[qIdx];
-          const cycleQuarter = cycle.quarters.find(cq => cq.label.startsWith(q));
-          
+        let cumulative = 0;
+        for (let qIdx = 0; qIdx < quarters.length; qIdx++) {
+          const q = quarters[qIdx];
+          const cycleQuarter = cycle.quarters[qIdx];
           const step = Math.ceil(targetVal / 4);
-          cumulative += randomInt(step - 5, step + 10);
+          cumulative += randomInt(step - 5, step + 5);
           if (cumulative < 0) cumulative = 0;
-          if (q === 'Q4' && isPast) cumulative = randomInt(targetVal - 5, targetVal + 5); 
+          if (q === 'Q4' && isPast) cumulative = randomInt(targetVal - 5, targetVal + 5);
           
-          let status = cumulative >= (targetVal * ((qIdx+1)/4)) ? 'On Track' : 'Needs Attention';
-          if (q === 'Q4' && isPast && cumulative >= targetVal) status = 'Completed';
+          const status = cumulative >= (targetVal * ((qIdx+1)/4)) ? 'On Track' : 'Needs Attention';
           
           await CheckIn.create({
             goalId: goal._id, userId: u._id, quarter: q, achievement: cumulative,
-            status: status === 'Needs Attention' ? 'Not Started' : (status === 'Completed' ? 'Completed' : 'On Track'),
-            employeeComment: `Progress logged for ${q}`,
-            managerComment: `Manager reviewed ${q}`,
-            createdAt: new Date(cycleQuarter.start.getTime() + 86400000*15) // 15 days into quarter
+            status: status === 'On Track' ? 'Completed' : 'On Track',
+            employeeComment: `Progress update for ${q}`,
+            managerComment: `Reviewed ${q}`,
+            createdAt: new Date(cycleQuarter.start.getTime() + 86400000*15) // Mid quarter check-in
           });
 
           achievements.push({
@@ -224,13 +207,16 @@ async function seed() {
     }
   };
 
-  console.log('🎯 Seeding FY 2025-26 (Past Year - 3 goals each)...');
+  console.log('🎯 Seeding FY 2025-26 (Past Year - 4 Goals each, Q1-Q4)...');
   await seedGoals(cycle2526, allUsersWithGoals, true);
 
-  console.log('🎯 Seeding FY 2026-27 (Current Year - 2 goals each)...');
+  console.log('🎯 Seeding FY 2026-27 (Current Year - 4 Goals each, Q1 ONLY)...');
   await seedGoals(cycle2627, allUsersWithGoals, false);
 
-  console.log('\n✅ SEED COMPLETE!');
+  console.log('\n✅ ========================================');
+  console.log('   SEED COMPLETE! NEW STRUCTURE READY.');
+  console.log('   ========================================');
+  
   await mongoose.disconnect();
   process.exit(0);
 }
