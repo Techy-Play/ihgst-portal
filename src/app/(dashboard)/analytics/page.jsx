@@ -22,11 +22,11 @@ const tooltipStyle = { background: '#1e1e2d', border: '1px solid #33334d', borde
 
 function ChartLegend({ items }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 10px', justifyContent: 'center', marginTop: '8px', padding: '0 4px' }}>
       {items.map((item, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-          <div style={{ width: 10, height: 10, borderRadius: 2, background: item.color, flexShrink: 0 }} />
-          <span>{item.label}</span>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', lineHeight: 1 }}>
+          <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
+          <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
         </div>
       ))}
     </div>
@@ -251,14 +251,16 @@ export default function AnalyticsPage() {
 
   // Clickable chart wrapper
   const ChartCard = ({ title, onClick, children, style }) => (
-    <div className="glass-card" onClick={onClick} style={{ padding: '20px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative', ...style }}
+    <div className="glass-card" onClick={onClick} style={{ padding: '20px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative', overflow: 'hidden', ...style }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = ''; }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: 600 }}>{title}</h3>
         <Maximize2 size={13} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
       </div>
-      {children}
+      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 32px)', overflow: 'hidden' }}>
+        {children}
+      </div>
     </div>
   );
 
@@ -311,7 +313,7 @@ export default function AnalyticsPage() {
           </ChartCard>
           <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2))}>
             {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></>
+              <><ResponsiveContainer width="100%" height={200} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={40} outerRadius={72} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><div style={{ maxHeight: '52px', overflowY: 'auto', flexShrink: 0 }}><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></div></>
             )}
           </ChartCard>
         </div>
