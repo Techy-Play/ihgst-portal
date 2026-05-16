@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonChart, ErrorDisplay } from '@/components/ui/Skeletons';
-import { User, Users, Building2, Mail, Send, X, ArrowRight, Target, CheckSquare, Maximize2 } from 'lucide-react';
+import { User, Users, Building2, Mail, Send, X, ArrowRight, Target, CheckSquare, Maximize2, AlertTriangle, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import Link from 'next/link';
@@ -55,7 +55,7 @@ function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, 
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
         </div>
         <div style={{ height: 280, marginBottom: '20px' }}>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             {chartType === 'pie' ? (
               <PieChart><Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={100} paddingAngle={4} dataKey={dataKey || 'value'} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{chartData.map((_, i) => <Cell key={i} fill={(colors || COLORS)[i % (colors || COLORS).length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
             ) : (
@@ -86,6 +86,114 @@ function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, 
   );
 }
 
+// Incomplete Goals drill-down modal
+function IncompleteGoalsModal({ open, onClose, goals, scope, onExport }) {
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterThrust, setFilterThrust] = useState('all');
+  const [expanded, setExpanded] = useState(null);
+  if (!open) return null;
+
+  const statuses = ['all', ...new Set(goals.map(g => g.status))];
+  const thrustAreas = ['all', ...new Set(goals.map(g => g.thrustArea))];
+  const filtered = goals.filter(g => (filterStatus === 'all' || g.status === filterStatus) && (filterThrust === 'all' || g.thrustArea === filterThrust));
+
+  const statusStyle = (s) => {
+    const m = { Draft: { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af' }, Submitted: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa' }, Returned: { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24' } };
+    return m[s] || m.Draft;
+  };
+
+  return (
+    <PortalModal open={open} onClose={onClose}>
+      <div className="glass-card animate-fadeIn" style={{ padding: '28px', maxWidth: '800px', width: '95%', maxHeight: '85vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}><AlertTriangle size={18} style={{ color: '#fbbf24' }} /> Incomplete Goals ({filtered.length})</h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Goals not yet approved or locked — {scope} scope</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button onClick={onExport} style={{ fontSize: '11px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#34d399', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}><Mail size={12} /> Export</button>
+            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          <div style={{ width: '180px' }}><CustomDropdown options={statuses.map(s => ({ value: s, label: s === 'all' ? 'All Statuses' : s }))} value={filterStatus} onChange={v => setFilterStatus(v)} placeholder="Filter status..." /></div>
+          <div style={{ width: '200px' }}><CustomDropdown options={thrustAreas.map(t => ({ value: t, label: t === 'all' ? 'All Thrust Areas' : t }))} value={filterThrust} onChange={v => setFilterThrust(v)} placeholder="Filter thrust..." /></div>
+        </div>
+        {filtered.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}><CheckSquare size={32} style={{ opacity: 0.3, marginBottom: '8px' }} /><p>No incomplete goals match the filters</p></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {filtered.map((g, i) => {
+              const isOpen = expanded === i;
+              const sc = statusStyle(g.status);
+              return (
+                <div key={g._id || i} style={{ borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                  <div onClick={() => setExpanded(isOpen ? null : i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer', background: isOpen ? 'rgba(255,255,255,0.03)' : 'transparent', transition: 'background 0.15s' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{g.title}</span>
+                        <span className="badge" style={{ background: sc.bg, color: sc.color, fontSize: '9px', padding: '1px 6px' }}>{g.status}</span>
+                        {g.isShared && <span className="badge" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', fontSize: '9px', padding: '1px 6px' }}>Shared</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: '12px', fontSize: '11px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                        <span>{g.employee}</span>{g.department && <span>• {g.department}</span>}<span>• {g.thrustArea}</span><span>• {g.uom}: {g.target}</span><span>• {g.weightage}%</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                      <div style={{ width: '80px' }}>
+                        <div style={{ height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.06)' }}><div style={{ height: '100%', borderRadius: '3px', width: `${Math.min(g.progress, 100)}%`, background: g.progress >= 80 ? '#10b981' : g.progress >= 40 ? '#f59e0b' : '#ef4444', transition: 'width 0.3s' }} /></div>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{g.progress}%</span>
+                      </div>
+                      {isOpen ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+                    </div>
+                  </div>
+                  {isOpen && (
+                    <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--border-color)' }}>
+                      {g.description && <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '12px 0', lineHeight: 1.5 }}>{g.description}</p>}
+                      {g.achievements?.length > 0 && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>Quarterly Achievements</p>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                            {['Q1', 'Q2', 'Q3', 'Q4'].map(q => { const ach = g.achievements.find(a => a.quarter === q); return (
+                              <div key={q} style={{ padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>{q}</span>
+                                <p style={{ fontSize: '14px', fontWeight: 700, color: ach ? '#34d399' : 'var(--text-muted)', marginTop: '2px' }}>{ach ? ach.value : '—'}</p>
+                                {ach?.status && <span style={{ fontSize: '9px', color: ach.status === 'Completed' ? '#34d399' : ach.status === 'On Track' ? '#60a5fa' : '#9ca3af' }}>{ach.status}</span>}
+                              </div>
+                            ); })}
+                          </div>
+                        </div>
+                      )}
+                      {g.checkins?.length > 0 && (
+                        <div>
+                          <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px', textTransform: 'uppercase' }}>Check-in History</p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {g.checkins.map((c, ci) => (
+                              <div key={ci} style={{ padding: '8px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', fontSize: '11px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.quarter} — {c.status}</span>
+                                  <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}><Clock size={9} />{c.date ? new Date(c.date).toLocaleDateString() : ''}</span>
+                                </div>
+                                {c.employeeComment && <p style={{ color: 'var(--text-secondary)' }}>💬 {c.employeeComment}</p>}
+                                {c.managerComment && <p style={{ color: '#818cf8' }}>📝 {c.managerComment}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {!g.achievements?.length && !g.checkins?.length && <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', margin: '8px 0' }}>No achievements or check-ins recorded yet.</p>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </PortalModal>
+  );
+}
+
 export default function AnalyticsPage() {
   const { data: session } = useSession();
   const [selectedCycle, setSelectedCycle] = useState('');
@@ -94,8 +202,10 @@ export default function AnalyticsPage() {
   const [showExport, setShowExport] = useState(false);
   const [exportEmail, setExportEmail] = useState('');
   const [exportFormat, setExportFormat] = useState('csv');
+  const [exportCycleId, setExportCycleId] = useState('');
   const [exporting, setExporting] = useState(false);
   const [detailModal, setDetailModal] = useState(null);
+  const [showIncomplete, setShowIncomplete] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -112,7 +222,7 @@ export default function AnalyticsPage() {
     if (!exportEmail) return;
     setExporting(true);
     try {
-      const res = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: exportEmail, format: exportFormat }) });
+      const res = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: exportEmail, format: exportFormat, cycleId: exportCycleId || selectedCycle }) });
       const result = await res.json();
       if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowExport(false); }
       else toast(result.error || 'Failed', 'error');
@@ -167,10 +277,14 @@ export default function AnalyticsPage() {
 
       {/* Stats */}
       {loading && !data ? <SkeletonStatCards count={3} /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{scope === 'personal' ? (data?.totalGoals || 0) : (data?.totalEmployees || 0)}</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat1Label}</p></div>
           <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{scope === 'personal' ? `${data?.totalWeightage || 0}%` : (data?.totalGoals || 0)}</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat2Label}</p></div>
           <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{latestQProgress}%</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat3Label}</p></div>
+          <div className="stat-card" onClick={() => setShowIncomplete(true)} style={{ cursor: 'pointer', borderColor: (data?.incompleteCount || 0) > 0 ? 'rgba(245,158,11,0.3)' : undefined }}>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: (data?.incompleteCount || 0) > 0 ? '#fbbf24' : 'var(--text-primary)' }}>{data?.incompleteCount || 0}</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> Incomplete Goals</p>
+          </div>
         </div>
       )}
 
@@ -181,12 +295,12 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           <ChartCard title="Goal Status Distribution" style={{ height: '320px' }} onClick={() => openDetail('Goal Status Distribution', data?.statusDistribution, 'pie')}>
             {(data?.statusDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height="75%"><PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
+              <><ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
             )}
           </ChartCard>
           <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2))}>
             {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height="75%"><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name }) => name} fontSize={11}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></>
+              <><ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name }) => name} fontSize={11}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></>
             )}
           </ChartCard>
         </div>
@@ -199,12 +313,12 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           <ChartCard title="Target vs Actual" style={{ height: '320px' }} onClick={() => openDetail('Target vs Actual', data?.targetVsActual, 'bar', ['#3b82f6'], 'target')}>
             {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height="78%"><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="name" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
+              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="name" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
             )}
           </ChartCard>
           <ChartCard title={scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'} style={{ height: '320px' }} onClick={() => openDetail('Quarterly Progress', data?.quarterProgress, 'bar', ['#8b5cf6'], 'avgProgress', 'quarter')}>
             {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height="78%"><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="quarter" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
+              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="quarter" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
             )}
           </ChartCard>
         </div>
@@ -215,7 +329,7 @@ export default function AnalyticsPage() {
         <div style={{ marginBottom: '20px' }}>
           <ChartCard title={cfg.chart4Title} style={{ height: '300px' }} onClick={() => openDetail(cfg.chart4Title, data?.completionByDept, 'bar', ['#10b981'], 'rate', 'department')}>
             {(data?.completionByDept || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height="80%"><BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33334d" horizontal={false} /><XAxis type="number" stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><YAxis dataKey="department" type="category" stroke="#9ca3af" axisLine={false} tickLine={false} width={90} fontSize={11} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} /></>
+              <><ResponsiveContainer width="100%" height={200} minWidth={0}><BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33334d" horizontal={false} /><XAxis type="number" stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><YAxis dataKey="department" type="category" stroke="#9ca3af" axisLine={false} tickLine={false} width={90} fontSize={11} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} /></>
             )}
           </ChartCard>
         </div>
@@ -223,6 +337,9 @@ export default function AnalyticsPage() {
 
       {/* Chart Detail Modal */}
       <ChartDetailModal open={!!detailModal} onClose={() => setDetailModal(null)} {...(detailModal || {})} />
+
+      {/* Incomplete Goals Detail Modal */}
+      <IncompleteGoalsModal open={showIncomplete} onClose={() => setShowIncomplete(false)} goals={data?.incompleteGoals || []} scope={scope} onExport={() => { setShowIncomplete(false); setShowExport(true); }} />
 
       {/* Export Modal — Portal based */}
       <PortalModal open={showExport} onClose={() => setShowExport(false)}>
@@ -241,6 +358,15 @@ export default function AnalyticsPage() {
                   <button key={f} type="button" onClick={() => setExportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: exportFormat === f ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)', border: exportFormat === f ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)', color: exportFormat === f ? '#818cf8' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
                 ))}
               </div>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Cycle Year</label>
+              <CustomDropdown
+                options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' (Active)' : ''}` }))}
+                value={exportCycleId || selectedCycle}
+                onChange={v => setExportCycleId(v)}
+                placeholder="Select cycle..."
+              />
             </div>
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>

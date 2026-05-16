@@ -14,13 +14,19 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { email, format } = await request.json();
+    const { email, format, cycleId } = await request.json();
     if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
 
     await dbConnect();
-    const { Cycle } = await import('@/models/Cycle');
-    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
-    const query = activeCycle ? { cycleId: activeCycle._id } : {};
+    const Cycle = (await import('@/models/Cycle')).default;
+    const mongoose = (await import('mongoose')).default;
+    let targetCycle;
+    if (cycleId && mongoose.Types.ObjectId.isValid(cycleId)) {
+      targetCycle = await Cycle.findById(new mongoose.Types.ObjectId(cycleId)).lean();
+    }
+    if (!targetCycle) targetCycle = await Cycle.findOne({ isActive: true }).lean();
+    const cycleName = targetCycle?.name || 'All Cycles';
+    const query = targetCycle ? { cycleId: targetCycle._id } : {};
     const goals = await Goal.find(query).populate('userId', 'name department').lean();
 
     const rows = goals.map(g => ({
@@ -84,7 +90,8 @@ export async function POST(request) {
       scope: 'organization',
       recipientEmail: email,
       recordCount: rows.length,
-      description: `Organization-wide ${format.toUpperCase()} report exported to ${email}`,
+      cycleName,
+      description: `Organization-wide ${format.toUpperCase()} report (${cycleName}) exported to ${email}`,
     });
 
     await AuditLog.create({

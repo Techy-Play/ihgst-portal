@@ -15,15 +15,22 @@ export async function POST(request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const { email, format } = await request.json();
+    const { email, format, cycleId } = await request.json();
     if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
 
     const role = session.user.role;
     const userId = session.user.id;
     let goals, scope;
 
-    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
-    const query = activeCycle ? { cycleId: activeCycle._id } : {};
+    // Resolve target cycle — use provided cycleId or fall back to active
+    let targetCycle;
+    if (cycleId) {
+      const mongoose = (await import('mongoose')).default;
+      targetCycle = await Cycle.findById(new mongoose.Types.ObjectId(cycleId)).lean();
+    }
+    if (!targetCycle) targetCycle = await Cycle.findOne({ isActive: true }).lean();
+    const query = targetCycle ? { cycleId: targetCycle._id } : {};
+    const cycleName = targetCycle?.name || 'All Cycles';
 
     if (role === 'Admin') {
       goals = await Goal.find(query).populate('userId', 'name department').lean();
@@ -62,7 +69,7 @@ export async function POST(request) {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Goals Report');
       buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      filename = `${scopeLabel}_goals_report.xlsx`;
+      filename = `${scopeLabel}_goals_${cycleName.replace(/\s+/g, '_')}.xlsx`;
       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
     } else {
       const headers = Object.keys(rows[0] || {});
@@ -71,13 +78,13 @@ export async function POST(request) {
         ...rows.map(r => headers.map(h => `"${r[h]}"`).join(','))
       ];
       buffer = Buffer.from(csvLines.join('\n'), 'utf-8');
-      filename = `${scopeLabel}_goals_report.csv`;
+      filename = `${scopeLabel}_goals_${cycleName.replace(/\s+/g, '_')}.csv`;
       contentType = 'text/csv';
     }
 
     await sendEmail({
       to: email,
-      subject: `IHGST Portal — ${scope.charAt(0).toUpperCase() + scope.slice(1)} Goals Report`,
+      subject: `IHGST Portal — ${scope.charAt(0).toUpperCase() + scope.slice(1)} Goals Report (${cycleName})`,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
           <h2 style="color:#6366f1;">IHGST Portal — Goals Report</h2>
@@ -100,7 +107,8 @@ export async function POST(request) {
       scope,
       recipientEmail: email,
       recordCount: rows.length,
-      description: `${scope} ${format.toUpperCase()} report exported to ${email}`,
+      cycleName,
+      description: `${scope} ${format.toUpperCase()} report (${cycleName}) exported to ${email}`,
     });
 
     await AuditLog.create({

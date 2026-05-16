@@ -72,7 +72,14 @@ export default function CreateGoalPage() {
   const maxWeightage = Math.min(remaining, 100);
   const weightageColor = remaining <= 0 ? 'danger' : remaining <= 20 ? 'warning' : '';
 
-  const handleChange = (field, value) => { setForm(prev => ({ ...prev, [field]: value })); setError(''); };
+  const handleChange = (field, value) => {
+    setForm(prev => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'uom' && value !== prev.uom) updated.target = '';
+      return updated;
+    });
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -6,8 +6,37 @@ import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
 import User from '@/models/User';
 import Cycle from '@/models/Cycle';
+import CheckIn from '@/models/CheckIn';
 import mongoose from 'mongoose';
 import { calculateProgress } from '@/lib/progress';
+
+// Build rich incomplete goals details
+async function buildIncompleteGoals(goals) {
+  const incomplete = goals.filter(g => !['Approved', 'Locked'].includes(g.status));
+  const goalIds = incomplete.map(g => g._id);
+  const checkins = await CheckIn.find({ goalId: { $in: goalIds } }).lean();
+  return incomplete.map(g => {
+    const gCheckins = checkins.filter(c => c.goalId.toString() === g._id.toString());
+    const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
+    const progress = latestAch ? calculateProgress(g, latestAch.value) : 0;
+    return {
+      _id: g._id,
+      title: g.title,
+      description: g.description,
+      thrustArea: g.thrustArea,
+      uom: g.uom,
+      target: g.target,
+      weightage: g.weightage,
+      status: g.status,
+      isShared: g.isShared || false,
+      progress: Math.round(progress),
+      employee: g.userId?.name || g.userId?.toString() || 'Unknown',
+      department: g.userId?.department || '',
+      achievements: g.achievements || [],
+      checkins: gCheckins.map(c => ({ quarter: c.quarter, achievement: c.achievement, status: c.status, employeeComment: c.employeeComment, managerComment: c.managerComment, date: c.createdAt })),
+    };
+  });
+}
 
 export async function GET(request) {
   try {
@@ -62,6 +91,8 @@ export async function GET(request) {
         };
       });
 
+      const incompleteGoals = await buildIncompleteGoals(goals);
+
       return NextResponse.json({
         scope: 'personal',
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
@@ -73,6 +104,8 @@ export async function GET(request) {
         totalWeightage,
         completionByDept: [],
         totalEmployees: 1,
+        incompleteGoals,
+        incompleteCount: incompleteGoals.length,
       });
     }
 
@@ -121,6 +154,8 @@ export async function GET(request) {
         };
       });
 
+      const incompleteGoals = await buildIncompleteGoals(goals);
+
       return NextResponse.json({
         scope: 'team',
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
@@ -130,6 +165,8 @@ export async function GET(request) {
         completionByDept: memberCompletion,
         totalGoals: goals.length,
         totalEmployees: teamMembers.length,
+        incompleteGoals,
+        incompleteCount: incompleteGoals.length,
       });
     }
 
@@ -170,6 +207,8 @@ export async function GET(request) {
       };
     });
 
+    const incompleteGoals = await buildIncompleteGoals(goals);
+
     return NextResponse.json({
       scope: 'organization',
       statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
@@ -179,6 +218,8 @@ export async function GET(request) {
       completionByDept: Object.entries(completionByDept).map(([dept, { total, completed }]) => ({ department: dept, total, completed, rate: Math.round((completed / total) * 100) })),
       totalGoals: goals.length,
       totalEmployees: users.length,
+      incompleteGoals,
+      incompleteCount: incompleteGoals.length,
     });
   } catch (error) {
     console.error('Analytics error:', error);

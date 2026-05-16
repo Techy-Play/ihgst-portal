@@ -8,6 +8,7 @@ const ExportLogSchema = new mongoose.Schema({
   scope: { type: String, enum: ['organization', 'team', 'personal'], default: 'organization' },
   recipientEmail: { type: String, required: true },
   recordCount: { type: Number, default: 0 },
+  cycleName: { type: String, default: '' },
   description: { type: String },
 }, { timestamps: true });
 

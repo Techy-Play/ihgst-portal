@@ -1,9 +1,10 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
-import { Mail, X, Send, Clock, FileText, Download } from 'lucide-react';
+import { Mail, X, Send, Clock, FileText, Download, Calendar } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonTable, ErrorDisplay } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
+import CustomDropdown from '@/components/ui/CustomDropdown';
 import { motion } from 'framer-motion';
 
 function timeAgo(date) {
@@ -26,6 +27,8 @@ export default function AdminReportsPage() {
   const [emailTo, setEmailTo] = useState('');
   const [sending, setSending] = useState(false);
   const [exportLogs, setExportLogs] = useState([]);
+  const [cycles, setCycles] = useState([]);
+  const [exportCycleId, setExportCycleId] = useState('');
 
   const transform = useCallback((d) => d, []);
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/admin/reports', { transform });
@@ -34,10 +37,10 @@ export default function AdminReportsPage() {
 
   // Load export history
   useEffect(() => {
-    fetch('/api/admin/export-logs')
-      .then(r => r.json())
-      .then(d => setExportLogs(d.logs || []))
-      .catch(() => {});
+    fetch('/api/admin/export-logs').then(r => r.json()).then(d => setExportLogs(d.logs || [])).catch(() => {});
+    fetch('/api/admin/cycles').then(r => r.json()).then(d => {
+      if (d.cycles) { setCycles(d.cycles); const a = d.cycles.find(c => c.isActive); if (a) setExportCycleId(a._id); }
+    }).catch(() => {});
   }, []);
 
   const refreshExportLogs = () => {
@@ -53,7 +56,7 @@ export default function AdminReportsPage() {
     try {
       const res = await fetch('/api/admin/reports/email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailTo, format: exportFormat }),
+        body: JSON.stringify({ email: emailTo, format: exportFormat, cycleId: exportCycleId }),
       });
       const result = await res.json();
       if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowEmailModal(false); refreshExportLogs(); }
@@ -108,7 +111,8 @@ export default function AdminReportsPage() {
                       {log.format?.toUpperCase()} report ({log.recordCount} records)
                     </p>
                     <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      by <strong>{log.userName}</strong> ({log.userEmail}) → {log.recipientEmail}
+                      by <strong>{log.userName}</strong> → {log.recipientEmail}
+                      {log.cycleName && <span className="badge" style={{ marginLeft: '8px', background: 'rgba(99,102,241,0.1)', color: '#818cf8', borderColor: 'rgba(99,102,241,0.2)', fontSize: '9px', padding: '1px 6px' }}><Calendar size={8} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '3px' }} />{log.cycleName}</span>}
                     </p>
                   </div>
                 </div>
@@ -154,6 +158,15 @@ export default function AdminReportsPage() {
               <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Enter email to receive the report</p>
             </div>
             <form onSubmit={handleSendEmail}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Cycle Year</label>
+                <CustomDropdown
+                  options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' (Active)' : ''}` }))}
+                  value={exportCycleId}
+                  onChange={v => setExportCycleId(v)}
+                  placeholder="Select cycle..."
+                />
+              </div>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
                 <div style={{ position: 'relative' }}><Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} /><input type="email" className="input-dark" placeholder="recipient@company.com" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} required style={{ paddingLeft: '38px' }} /></div>

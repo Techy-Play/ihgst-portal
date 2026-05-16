@@ -114,7 +114,8 @@ export async function POST(request) {
       userId: session.user.id, cycleId: activeCycle._id, goalSheetId: goalSheet._id,
       cycleName: activeCycle.name,
       thrustArea: body.thrustArea, title: body.title, description: body.description,
-      uom: body.uom, uomDirection: body.uomDirection || 'Min', target: body.target,
+      uom: body.uom, uomDirection: body.uomDirection || 'Min',
+      target: body.uom === 'Timeline' ? String(body.target) : Number(body.target),
       weightage: body.weightage, status: 'Draft', isShared: false,
     });
 

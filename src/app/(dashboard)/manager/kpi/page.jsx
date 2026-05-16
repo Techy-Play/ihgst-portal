@@ -84,7 +84,15 @@ export default function AssignKPIPage() {
     setSubmitting(false);
   };
 
-  const handleChange = (field, value) => { setForm(prev => ({ ...prev, [field]: value })); setFormError(''); };
+  const handleChange = (field, value) => {
+    setForm(prev => {
+      const updated = { ...prev, [field]: value };
+      // Clear target when switching UoM to prevent type mismatch
+      if (field === 'uom' && value !== prev.uom) updated.target = '';
+      return updated;
+    });
+    setFormError('');
+  };
 
   if (error) return (
     <div className="animate-fadeIn">
