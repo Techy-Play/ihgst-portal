@@ -53,8 +53,32 @@ export async function POST(request) {
       description: `User "${name}" (${role}) created with email ${email}`,
     });
 
+    try {
+      const { sendEmail } = await import('@/lib/mailer');
+      const loginUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+      await sendEmail({
+        to: email,
+        subject: 'Welcome to IHGST Portal - Your Account Details',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Welcome to IHGST Portal</h2>
+            <p>Hello ${name},</p>
+            <p>Your account has been successfully created. Here are your login details:</p>
+            <div style="background: #f4f4f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+              <p style="margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
+              <p style="margin: 0;"><strong>Temporary Password:</strong> Password123!</p>
+            </div>
+            <p style="color: #eab308; font-weight: bold;">⚠️ IMPORTANT: You must change this temporary password immediately after your first login.</p>
+            <a href="${loginUrl}/login" style="display: inline-block; padding: 10px 20px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin-top: 16px;">Login to Portal</a>
+          </div>
+        `
+      });
+    } catch (mailErr) {
+      console.error('Failed to send welcome email:', mailErr);
+    }
+
     const created = await User.findById(user._id).select('-password').populate('managerId', 'name email').lean();
-    return NextResponse.json({ user: created, message: 'User created successfully' }, { status: 201 });
+    return NextResponse.json({ user: created, message: 'User created successfully. Welcome email sent.' }, { status: 201 });
   } catch (error) {
     console.error('Create user error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

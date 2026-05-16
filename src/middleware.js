@@ -1,30 +1,38 @@
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
+// Route → allowed roles
+const routeRules = [
+  // Admin-only routes
+  { path: '/admin', roles: ['Admin'] },
+  // Manager + Admin routes
+  { path: '/manager', roles: ['Manager', 'Admin'] },
+];
+
 export async function middleware(request) {
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const { pathname } = request.nextUrl;
 
-  // Public routes — landing page, login, and auth API
-  if (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/api/auth')) {
+  // Public routes — landing page, login, auth API, unauthorized page
+  if (pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/api/auth') || pathname === '/unauthorized') {
     if (token && pathname === '/login') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
     return NextResponse.next();
   }
 
-  // Protect all other routes
+  // Protect all other routes — must be logged in
   if (!token) {
     return NextResponse.redirect(new URL('/?login=true', request.url));
   }
 
   // Role-based route protection
-  if (pathname.startsWith('/admin') && token.role !== 'Admin') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
-
-  if (pathname.startsWith('/manager') && token.role !== 'Manager' && token.role !== 'Admin') {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  for (const rule of routeRules) {
+    if (pathname.startsWith(rule.path) && !rule.roles.includes(token.role)) {
+      const url = new URL('/unauthorized', request.url);
+      url.searchParams.set('from', pathname);
+      return NextResponse.rewrite(url);
+    }
   }
 
   return NextResponse.next();

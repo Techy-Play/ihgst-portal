@@ -34,11 +34,13 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || session.user.id;
     const quarter = searchParams.get('quarter');
-    const goals = await Goal.find({ userId, status: { $in: ['Approved', 'Locked'] } }).lean();
+    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+    const query = activeCycle ? { cycleId: activeCycle._id } : {};
+    
+    const goals = await Goal.find({ userId, status: { $in: ['Approved', 'Locked'] }, ...query }).lean();
     let checkins = quarter ? await CheckIn.find({ userId, quarter }).lean() : await CheckIn.find({ userId }).lean();
     const goalsWithCheckins = goals.map(goal => ({ ...goal, checkins: checkins.filter(c => c.goalId.toString() === goal._id.toString()) }));
 
-    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
     const activeQuarter = getActiveQuarter(activeCycle);
     const quarterStatuses = {};
     ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => { quarterStatuses[q] = getQuarterStatus(activeCycle, q); });

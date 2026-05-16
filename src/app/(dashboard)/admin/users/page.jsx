@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback } from 'react';
-import { Plus, Edit3, X, Save, Users, Search, UserPlus } from 'lucide-react';
+import { Plus, Edit3, X, Save, Users, Search, UserPlus, ArrowRight } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonTable, ErrorDisplay } from '@/components/ui/Skeletons';
 import CustomDropdown from '@/components/ui/CustomDropdown';
@@ -141,7 +141,7 @@ export default function AdminUsersPage() {
       {loading && !data ? <SkeletonTable rows={5} cols={7} /> : (
         <div className="glass-card" style={{ overflow: 'auto' }}>
           <table className="table-dark">
-            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Manager</th><th>Employee ID</th><th style={{ width: '80px' }}>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Manager</th><th>Employee ID</th><th style={{ width: '100px' }}>Actions</th></tr></thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
@@ -155,22 +155,28 @@ export default function AdminUsersPage() {
                       <td><input className="input-dark" value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} style={{ fontSize: '13px', padding: '6px 10px' }} /></td>
                       <td style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{user.email}</td>
                       <td>
-                        <select className="input-dark" value={editForm.role} onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))} style={{ fontSize: '12px', padding: '4px 8px' }}>
-                          <option value="Employee">Employee</option>
-                          <option value="Manager">Manager</option>
-                          <option value="Admin">Admin</option>
-                        </select>
+                        <CustomDropdown
+                          options={[{ value: 'Employee', label: 'Employee' }, { value: 'Manager', label: 'Manager' }, { value: 'Admin', label: 'Admin' }]}
+                          value={editForm.role}
+                          onChange={v => setEditForm(p => ({ ...p, role: v }))}
+                          placeholder="Role"
+                        />
                       </td>
                       <td>
-                        <select className="input-dark" value={editForm.department} onChange={e => setEditForm(p => ({ ...p, department: e.target.value }))} style={{ fontSize: '12px', padding: '4px 8px' }}>
-                          {deptOptions.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                        </select>
+                        <CustomDropdown
+                          options={deptOptions}
+                          value={editForm.department}
+                          onChange={v => setEditForm(p => ({ ...p, department: v }))}
+                          placeholder="Department"
+                        />
                       </td>
                       <td>
-                        <select className="input-dark" value={editForm.managerId} onChange={e => setEditForm(p => ({ ...p, managerId: e.target.value }))} style={{ fontSize: '12px', padding: '4px 8px' }}>
-                          <option value="">No Manager</option>
-                          {managers.map(m => <option key={m._id} value={m._id}>{m.name}</option>)}
-                        </select>
+                        <CustomDropdown
+                          options={[{ value: '', label: 'No Manager' }, ...managers.map(m => ({ value: m._id, label: m.name }))]}
+                          value={editForm.managerId}
+                          onChange={v => setEditForm(p => ({ ...p, managerId: v }))}
+                          placeholder="Manager"
+                        />
                       </td>
                       <td><input className="input-dark" value={editForm.employeeId} onChange={e => setEditForm(p => ({ ...p, employeeId: e.target.value }))} style={{ fontSize: '13px', padding: '6px 10px' }} /></td>
                       <td>
@@ -182,16 +188,28 @@ export default function AdminUsersPage() {
                     </>
                   ) : (
                     <>
-                      <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{user.name}</td>
+                      <td style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--gradient-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '13px', flexShrink: 0 }}>{user.name?.charAt(0)?.toUpperCase()}</div>
+                          {user.name}
+                        </div>
+                      </td>
                       <td>{user.email}</td>
                       <td><span className="badge" style={{ background: `${roleColors[user.role]}15`, color: roleColors[user.role], borderColor: `${roleColors[user.role]}30` }}>{user.role}</span></td>
                       <td>{user.department}</td>
                       <td>{user.managerId?.name || '—'}</td>
                       <td>{user.employeeId || '—'}</td>
                       <td>
-                        <button onClick={() => handleEdit(user)} style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', color: '#818cf8', cursor: 'pointer' }}>
-                          <Edit3 size={12} />
-                        </button>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <button onClick={() => handleEdit(user)} style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', color: '#818cf8', cursor: 'pointer' }}>
+                            <Edit3 size={12} />
+                          </button>
+                          {user.role !== 'Admin' && (
+                            <button onClick={() => window.location.href = `/manager/review/${user._id}`} title="View goals" style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', color: '#34d399', cursor: 'pointer' }}>
+                              <ArrowRight size={12} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </>
                   )}

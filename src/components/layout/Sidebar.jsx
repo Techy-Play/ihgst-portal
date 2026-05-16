@@ -8,27 +8,33 @@ import { useState } from 'react';
 
 const navItems = {
   Employee: [
-    { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+    { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', exact: true },
     { href: '/goals', icon: <Target size={18} />, label: 'My Goals' },
-    { href: '/checkin', icon: <CheckSquare size={18} />, label: 'Check-ins' },
-    { href: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
+    { href: '/checkin', icon: <CheckSquare size={18} />, label: 'Check-ins', exact: true },
+    { href: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics', exact: true },
   ],
   Manager: [
-    { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-    { href: '/goals', icon: <Target size={18} />, label: 'My Goals' },
-    { href: '/manager', icon: <Users size={18} />, label: 'Team Review' },
-    { href: '/manager/checkins', icon: <CheckSquare size={18} />, label: 'Team Check-ins' },
-    { href: '/checkin', icon: <CheckSquare size={18} />, label: 'My Check-ins' },
-    { href: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
+    { type: 'header', label: 'Personal Section' },
+    { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', exact: true },
+    { href: '/goals', icon: <Target size={18} />, label: 'My KPIs' },
+    { href: '/checkin', icon: <CheckSquare size={18} />, label: 'My Check-ins', exact: true },
+    { href: '/analytics?scope=personal', icon: <BarChart3 size={18} />, label: 'My Analytics', exact: true },
+    { type: 'header', label: 'Team Management' },
+    { href: '/manager', icon: <Users size={18} />, label: 'Team Review', exact: true },
+    { href: '/manager/kpi', icon: <Target size={18} />, label: 'Assign KPIs', exact: true },
+    { href: '/manager/checkins', icon: <CheckSquare size={18} />, label: 'Team Check-ins', exact: true },
+    { href: '/analytics?scope=team', icon: <BarChart3 size={18} />, label: 'Team Analytics', exact: true },
   ],
   Admin: [
-    { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-    { href: '/admin', icon: <Shield size={18} />, label: 'Admin Panel' },
-    { href: '/admin/users', icon: <Users size={18} />, label: 'Users' },
-    { href: '/admin/cycles', icon: <Calendar size={18} />, label: 'Cycles' },
-    { href: '/admin/reports', icon: <FileText size={18} />, label: 'Reports' },
-    { href: '/admin/audit', icon: <History size={18} />, label: 'Audit Log' },
-    { href: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics' },
+    { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', exact: true },
+    { href: '/admin', icon: <Shield size={18} />, label: 'Admin Panel', exact: true },
+    { href: '/manager', icon: <Target size={18} />, label: 'Goal Approvals', exact: true },
+    { href: '/manager/kpi', icon: <Target size={18} />, label: 'Assign KPIs', exact: true },
+    { href: '/admin/users', icon: <Users size={18} />, label: 'Users', exact: true },
+    { href: '/admin/cycles', icon: <Calendar size={18} />, label: 'Cycles', exact: true },
+    { href: '/admin/reports', icon: <FileText size={18} />, label: 'Reports', exact: true },
+    { href: '/admin/audit', icon: <History size={18} />, label: 'Audit Log', exact: true },
+    { href: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics', exact: true },
   ],
 };
 
@@ -47,12 +53,23 @@ export default function Sidebar() {
         {!collapsed && <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '-0.02em' }}>IHGST</span>}
       </div>
       <nav style={{ padding: '12px 8px', flex: 1 }}>
-        {items.map(item => (
-          <Link key={item.href} href={item.href} className={`sidebar-link ${pathname === item.href ? 'active' : ''}`} style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 16px', marginBottom: '2px' }}>
-            {item.icon}
-            {!collapsed && <span>{item.label}</span>}
-          </Link>
-        ))}
+        {items.map((item, i) => {
+          if (item.type === 'header') {
+            return !collapsed ? (
+              <div key={`header-${i}`} style={{ padding: '16px 16px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {item.label}
+              </div>
+            ) : <div key={`header-spacer-${i}`} style={{ height: '16px' }} />;
+          }
+          const basePath = item.href.split('?')[0];
+          const isActive = item.exact ? (pathname === basePath) : (pathname === basePath || pathname.startsWith(`${basePath}/`));
+          return (
+            <Link key={item.href} href={item.href} className={`sidebar-link ${isActive ? 'active' : ''}`} style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 16px', marginBottom: '2px' }}>
+              {item.icon}
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
       </nav>
       <button onClick={() => setCollapsed(!collapsed)} style={{ position: 'absolute', top: '80px', right: '-14px', width: '28px', height: '28px', borderRadius: '50%', background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>
         {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}

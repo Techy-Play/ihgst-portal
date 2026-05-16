@@ -32,47 +32,84 @@ export async function GET() {
     const activeCycle = await Cycle.findOne({ isActive: true }).lean();
     const activeQuarter = getActiveQuarter(activeCycle);
 
+    // Quick backfill for legacy goals without cycleId (runs seamlessly)
+    if (activeCycle) {
+      await Goal.updateMany({ cycleId: { $exists: false } }, { $set: { cycleId: activeCycle._id } });
+    }
+
     let totalGoals = 0, approvedGoals = 0, pendingGoals = 0, avgProgress = 0, recentGoals = [];
     let pendingActions = [];
 
     if (role === 'Admin') {
-      totalGoals = await Goal.countDocuments();
-      approvedGoals = await Goal.countDocuments({ status: { $in: ['Approved', 'Locked'] } });
-      pendingGoals = await Goal.countDocuments({ status: 'Submitted' });
-      const allGoals = await Goal.find().sort({ updatedAt: -1 }).limit(5).lean();
+      const query = activeCycle ? { cycleId: activeCycle._id } : {};
+      totalGoals = await Goal.countDocuments(query);
+      approvedGoals = await Goal.countDocuments({ ...query, status: { $in: ['Approved', 'Locked'] } });
+      pendingGoals = await Goal.countDocuments({ ...query, status: 'Submitted' });
+      const allGoals = await Goal.find(query).sort({ updatedAt: -1 }).limit(5).lean();
       recentGoals = allGoals.map(g => ({ ...g, progress: calcGoalProgress(g) }));
 
       // Admin pending actions
-      if (pendingGoals > 0) pendingActions.push({ label: `${pendingGoals} goal sheet(s) pending approval`, link: '/admin/reports', type: 'warning' });
+      if (pendingGoals > 0) pendingActions.push({ label: `${pendingGoals} goal sheet(s) pending approval`, link: '/manager', type: 'warning' });
       if (!activeCycle) pendingActions.push({ label: 'No active cycle — configure one', link: '/admin/cycles', type: 'error' });
       const totalUsers = await User.countDocuments();
       pendingActions.push({ label: `${totalUsers} users in the system`, link: '/admin/users', type: 'info' });
+      // KPI CTA for admin
+      const adminKPIs = await Goal.countDocuments({ isShared: true, cycleId: activeCycle?._id });
+      if (adminKPIs === 0) pendingActions.push({ label: 'Assign KPIs to managers & employees', link: '/manager/kpi', type: 'info' });
 
     } else if (role === 'Manager') {
-      const ownGoals = await Goal.find({ userId }).lean();
-      const teamMembers = await User.find({ managerId: userId }).select('_id').lean();
-      const teamGoals = await Goal.find({ userId: { $in: teamMembers.map(m => m._id) } }).lean();
-      const allGoals = [...ownGoals, ...teamGoals];
-      totalGoals = allGoals.length;
-      approvedGoals = allGoals.filter(g => ['Approved', 'Locked'].includes(g.status)).length;
-      pendingGoals = allGoals.filter(g => g.status === 'Submitted').length;
-      recentGoals = allGoals.slice(0, 5).map(g => ({ ...g, progress: calcGoalProgress(g) }));
-
-      // Manager pending actions
-      if (pendingGoals > 0) pendingActions.push({ label: `${pendingGoals} goal(s) pending your review`, link: '/manager', type: 'warning' });
+      const query = activeCycle ? { cycleId: activeCycle._id } : {};
+      
+      // Personal stats (KPIs assigned to this manager)
+      const ownGoals = await Goal.find({ userId, ...query }).sort({ updatedAt: -1 }).lean();
+      const pTotal = ownGoals.length;
+      const pApproved = ownGoals.filter(g => ['Approved', 'Locked'].includes(g.status)).length;
+      const pPending = ownGoals.filter(g => g.status === 'Submitted').length;
+      const pRecent = ownGoals.slice(0, 5).map(g => ({ ...g, progress: calcGoalProgress(g) }));
+      const pAvg = pRecent.length > 0 ? Math.round(pRecent.reduce((sum, g) => sum + (g.progress || 0), 0) / pRecent.length) : 0;
+      
+      const pActions = [];
       const ownSheet = await GoalSheet.findOne({ userId, cycleId: activeCycle?._id }).lean();
-      if (ownSheet?.status === 'Draft') pendingActions.push({ label: 'Submit your own goals for review', link: '/goals', type: 'info' });
-      if (ownSheet?.status === 'Returned') pendingActions.push({ label: 'Rework your returned goals', link: '/goals', type: 'error' });
+      // Managers don't create goals — they receive KPIs
+      if (pTotal === 0) {
+        pActions.push({ label: 'No KPIs assigned to you yet', link: '/goals', type: 'info' });
+      } else if (!ownSheet || ownSheet.status === 'Draft') {
+        pActions.push({ label: 'Submit your KPIs for review', link: '/goals', type: 'warning' });
+      } else if (ownSheet.status === 'Returned') {
+        pActions.push({ label: 'Rework your returned KPIs', link: '/goals', type: 'error' });
+      }
       const ownApproved = ownGoals.filter(g => ['Approved', 'Locked'].includes(g.status));
       if (ownApproved.length > 0 && activeQuarter) {
         const checkins = await CheckIn.find({ userId, quarter: activeQuarter }).lean();
         const unchecked = ownApproved.filter(g => !checkins.some(c => c.goalId.toString() === g._id.toString()));
-        if (unchecked.length > 0) pendingActions.push({ label: `Complete ${activeQuarter} check-in for ${unchecked.length} goal(s)`, link: '/checkin', type: 'warning' });
+        if (unchecked.length > 0) pActions.push({ label: `Complete ${activeQuarter} check-in for ${unchecked.length} KPI(s)`, link: '/checkin', type: 'warning' });
       }
+
+      // Team stats
+      const teamMembers = await User.find({ managerId: userId }).select('_id').lean();
+      const teamGoals = await Goal.find({ userId: { $in: teamMembers.map(m => m._id) }, ...query }).sort({ updatedAt: -1 }).lean();
+      const tTotal = teamGoals.length;
+      const tApproved = teamGoals.filter(g => ['Approved', 'Locked'].includes(g.status)).length;
+      const tPending = teamGoals.filter(g => g.status === 'Submitted').length;
+      const tRecent = teamGoals.slice(0, 5).map(g => ({ ...g, progress: calcGoalProgress(g) }));
+      const tAvg = tRecent.length > 0 ? Math.round(tRecent.reduce((sum, g) => sum + (g.progress || 0), 0) / tRecent.length) : 0;
+      
+      const tActions = [];
+      if (tPending > 0) tActions.push({ label: `${tPending} goal(s) pending your review`, link: '/manager', type: 'warning' });
+      if (tTotal === 0 && teamMembers.length > 0) tActions.push({ label: 'Assign KPIs to your team', link: '/manager/kpi', type: 'info' });
+      tActions.push({ label: `${teamMembers.length} team member(s)`, link: '/manager', type: 'info' });
+
+      return NextResponse.json({
+        isManagerSplit: true,
+        personal: { totalGoals: pTotal, approvedGoals: pApproved, pendingGoals: pPending, avgProgress: pAvg, recentGoals: pRecent, pendingActions: pActions },
+        team: { totalGoals: tTotal, approvedGoals: tApproved, pendingGoals: tPending, avgProgress: tAvg, recentGoals: tRecent, pendingActions: tActions },
+        activeCycle, activeQuarter
+      });
 
     } else {
       // Employee
-      const goals = await Goal.find({ userId }).sort({ updatedAt: -1 }).lean();
+      const query = activeCycle ? { cycleId: activeCycle._id } : {};
+      const goals = await Goal.find({ userId, ...query }).sort({ updatedAt: -1 }).lean();
       totalGoals = goals.length;
       approvedGoals = goals.filter(g => ['Approved', 'Locked'].includes(g.status)).length;
       pendingGoals = goals.filter(g => g.status === 'Submitted').length;

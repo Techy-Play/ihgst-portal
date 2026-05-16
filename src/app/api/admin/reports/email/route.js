@@ -18,7 +18,10 @@ export async function POST(request) {
     if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
 
     await dbConnect();
-    const goals = await Goal.find().populate('userId', 'name department').lean();
+    const { Cycle } = await import('@/models/Cycle');
+    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+    const query = activeCycle ? { cycleId: activeCycle._id } : {};
+    const goals = await Goal.find(query).populate('userId', 'name department').lean();
 
     const rows = goals.map(g => ({
       Employee: g.userId?.name || 'Unknown',

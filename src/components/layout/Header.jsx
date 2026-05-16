@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bell, LogOut, ChevronDown, CheckCheck, X, Clock, Check, Trash2, BellOff } from 'lucide-react';
+import { Bell, LogOut, ChevronDown, CheckCheck, X, Clock, Check, Trash2, BellOff, ArrowRight, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -14,6 +14,7 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showAllPanel, setShowAllPanel] = useState(false);
+  const [expandedNotif, setExpandedNotif] = useState(null);
   const menuRef = useRef(null);
   const notifRef = useRef(null);
 
@@ -141,33 +142,85 @@ export default function Header() {
       shared_goal: <Bell size={14} />,
     };
     const icon = typeIcons[n.type] || <Bell size={14} />;
+    const isExpanded = expandedNotif === n._id;
+
+    const typeLabels = {
+      goal_created: 'Goal Created',
+      goal_approved: 'Goal Approved',
+      goal_returned: 'Goal Returned',
+      checkin_updated: 'Check-in Update',
+      shared_goal: 'Shared Goal',
+    };
+
     return (
       <motion.div
         key={n._id}
         layout
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, x: 20, height: 0, marginBottom: 0, padding: 0 }}
         transition={{ duration: 0.2 }}
-        className={`notif-item ${!n.read ? 'unread' : ''}`}
-        onClick={() => handleNotifClick(n)}
+        style={{
+          background: isExpanded ? 'rgba(99,102,241,0.06)' : (!n.read ? 'rgba(255,255,255,0.03)' : 'transparent'),
+          border: `1px solid ${isExpanded ? 'rgba(99,102,241,0.2)' : 'var(--border-color)'}`,
+          borderRadius: '12px', padding: '14px 16px', cursor: 'pointer',
+          transition: 'all 0.2s', marginBottom: '8px',
+        }}
+        onClick={() => {
+          if (!n.read) markAsRead(n._id);
+          setExpandedNotif(isExpanded ? null : n._id);
+        }}
       >
-        <div className="notif-avatar" style={{ background: tc.bg, color: tc.color }}>
-          {icon}
-        </div>
-        <div className="notif-content">
-          <p className="notif-item-title" style={{ color: n.read ? 'var(--text-secondary)' : 'var(--text-primary)' }}>{n.title}</p>
-          <p className="notif-item-message">{n.message}</p>
-          <div className="notif-item-time">
-            <Clock size={10} />
-            {timeAgo(n.createdAt)}
-            {n.read && <><Check size={10} style={{ marginLeft: 6 }} /> Read</>}
+        {/* Top row */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: tc.bg, color: tc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {icon}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+              <p style={{ fontSize: '14px', fontWeight: 600, color: n.read ? 'var(--text-secondary)' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.title}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                {!n.read && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-secondary)', flexShrink: 0 }} />}
+                <button onClick={(e) => clearNotification(e, n._id)} title="Dismiss" style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                  <X size={12} />
+                </button>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '100px', background: tc.bg, color: tc.color, fontWeight: 600 }}>{typeLabels[n.type] || n.type}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <Clock size={10} /> {timeAgo(n.createdAt)}
+              </span>
+            </div>
           </div>
         </div>
-        {!n.read && <div className="notif-unread-dot" />}
-        <button className="notif-clear-btn" onClick={(e) => clearNotification(e, n._id)} title="Dismiss">
-          <X size={12} />
-        </button>
+
+        {/* Expanded content */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '14px' }}>{n.message}</p>
+                {n.link && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); router.push(n.link); setShowNotifs(false); setShowAllPanel(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '10px', background: 'var(--accent-primary)', color: '#fff', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
+                    onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+                  >
+                    <ExternalLink size={14} /> View Details
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     );
   };

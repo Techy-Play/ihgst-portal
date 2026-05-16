@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
 import User from '@/models/User';
+import Cycle from '@/models/Cycle';
 import ExportLog from '@/models/ExportLog';
 import AuditLog from '@/models/AuditLog';
 import { sendEmail } from '@/lib/mailer';
@@ -21,16 +22,19 @@ export async function POST(request) {
     const userId = session.user.id;
     let goals, scope;
 
+    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+    const query = activeCycle ? { cycleId: activeCycle._id } : {};
+
     if (role === 'Admin') {
-      goals = await Goal.find().populate('userId', 'name department').lean();
+      goals = await Goal.find(query).populate('userId', 'name department').lean();
       scope = 'organization';
     } else if (role === 'Manager') {
       const teamMembers = await User.find({ managerId: userId }).select('_id').lean();
       const teamIds = [...teamMembers.map(m => m._id), userId];
-      goals = await Goal.find({ userId: { $in: teamIds } }).populate('userId', 'name department').lean();
+      goals = await Goal.find({ userId: { $in: teamIds }, ...query }).populate('userId', 'name department').lean();
       scope = 'team';
     } else {
-      goals = await Goal.find({ userId }).populate('userId', 'name department').lean();
+      goals = await Goal.find({ userId, ...query }).populate('userId', 'name department').lean();
       scope = 'personal';
     }
 

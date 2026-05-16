@@ -33,8 +33,11 @@ const directionOptions = [
   { value: 'Max', label: 'Lower is Better', description: 'Achievement decreases toward target' },
 ];
 
+import { useSession } from 'next-auth/react';
+
 export default function CreateGoalPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [form, setForm] = useState({ thrustArea: '', title: '', description: '', uom: 'Numeric', uomDirection: 'Min', target: '', weightage: 10 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -42,8 +45,16 @@ export default function CreateGoalPage() {
   const [goalCount, setGoalCount] = useState(0);
   const [fetching, setFetching] = useState(true);
 
+  const isManager = session?.user?.role === 'Manager';
+
+  // Redirect managers — they cannot create personal goals
+  useEffect(() => {
+    if (isManager) router.replace('/goals');
+  }, [isManager, router]);
+
   // Fetch existing goals to calculate used weightage
   useEffect(() => {
+    if (isManager) return;
     (async () => {
       try {
         const res = await fetch('/api/goals');
@@ -53,7 +64,9 @@ export default function CreateGoalPage() {
       } catch {}
       setFetching(false);
     })();
-  }, []);
+  }, [isManager]);
+
+  if (isManager) return null;
 
   const remaining = 100 - usedWeightage;
   const maxWeightage = Math.min(remaining, 100);

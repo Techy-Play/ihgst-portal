@@ -5,9 +5,11 @@ import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
 import User from '@/models/User';
+import Cycle from '@/models/Cycle';
+import mongoose from 'mongoose';
 import { calculateProgress } from '@/lib/progress';
 
-export async function GET() {
+export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -16,9 +18,23 @@ export async function GET() {
     const role = session.user.role;
     const userId = session.user.id;
 
+    const { searchParams } = new URL(request.url);
+    let cycleId = searchParams.get('cycleId');
+    if (!cycleId) {
+      const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+      if (activeCycle) cycleId = activeCycle._id.toString();
+    }
+
+    // Convert string to ObjectId for proper MongoDB matching
+    const cycleObjectId = cycleId && mongoose.Types.ObjectId.isValid(cycleId) ? new mongoose.Types.ObjectId(cycleId) : null;
+    const query = cycleObjectId ? { cycleId: cycleObjectId } : {};
+    const sheetQuery = cycleObjectId ? { cycleId: cycleObjectId } : {};
+
+    const reqScope = searchParams.get('scope');
+
     // ─── Employee: personal analytics only ───
-    if (role === 'Employee') {
-      const goals = await Goal.find({ userId }).lean();
+    if (role === 'Employee' || (role === 'Manager' && reqScope === 'personal')) {
+      const goals = await Goal.find({ userId, ...query }).lean();
       const statusDist = {};
       goals.forEach(g => { statusDist[g.status] = (statusDist[g.status] || 0) + 1; });
       const thrustDist = {};
@@ -67,8 +83,8 @@ export async function GET() {
       // Include manager's own goals too
       teamIds.push(userId);
 
-      const goals = await Goal.find({ userId: { $in: teamIds } }).populate('userId', 'name department').lean();
-      const goalSheets = await GoalSheet.find({ userId: { $in: teamIds } }).lean();
+      const goals = await Goal.find({ userId: { $in: teamIds }, ...query }).populate('userId', 'name department').lean();
+      const goalSheets = await GoalSheet.find({ userId: { $in: teamIds }, ...sheetQuery }).lean();
 
       const statusDist = {};
       goals.forEach(g => { statusDist[g.status] = (statusDist[g.status] || 0) + 1; });
@@ -118,8 +134,8 @@ export async function GET() {
     }
 
     // ─── Admin/HR: organization-wide analytics ───
-    const goals = await Goal.find().populate('userId', 'name department').lean();
-    const goalSheets = await GoalSheet.find().lean();
+    const goals = await Goal.find(query).populate('userId', 'name department').lean();
+    const goalSheets = await GoalSheet.find(sheetQuery).lean();
     const users = await User.find({ role: { $ne: 'Admin' } }).lean();
 
     const statusDist = {};

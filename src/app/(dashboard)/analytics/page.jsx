@@ -1,56 +1,24 @@
 'use client';
-import { useCallback, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonChart, ErrorDisplay } from '@/components/ui/Skeletons';
-import { User, Users, Building2, Mail, Send, X } from 'lucide-react';
+import { User, Users, Building2, Mail, Send, X, ArrowRight, Target, CheckSquare, Maximize2 } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import CustomDropdown from '@/components/ui/CustomDropdown';
+import Link from 'next/link';
+import ReactDOM from 'react-dom';
 
 const scopeConfig = {
-  personal: {
-    icon: <User size={16} />,
-    title: 'My Analytics',
-    subtitle: 'Your personal goal performance and progress.',
-    badge: 'Personal',
-    badgeColor: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', border: 'rgba(16,185,129,0.25)' },
-    stat1Label: 'My Goals',
-    stat2Label: 'Total Weightage',
-    stat3Label: 'Latest Quarter',
-    chart4Title: 'Goal Weightage Split',
-    showDeptChart: false,
-  },
-  team: {
-    icon: <Users size={16} />,
-    title: 'Team Analytics',
-    subtitle: 'Performance overview of your direct reports.',
-    badge: 'Team',
-    badgeColor: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: 'rgba(59,130,246,0.25)' },
-    stat1Label: 'Team Members',
-    stat2Label: 'Team Goals',
-    stat3Label: 'Latest Quarter',
-    chart4Title: 'Completion by Team Member',
-    showDeptChart: true,
-  },
-  organization: {
-    icon: <Building2 size={16} />,
-    title: 'Analytics Dashboard',
-    subtitle: 'Organization-wide performance and goal completion.',
-    badge: 'Organization',
-    badgeColor: { bg: 'rgba(239,68,68,0.12)', color: '#f87171', border: 'rgba(239,68,68,0.25)' },
-    stat1Label: 'Total Employees',
-    stat2Label: 'Total Goals',
-    stat3Label: 'Latest Quarter',
-    chart4Title: 'Completion Rate by Department (%)',
-    showDeptChart: true,
-  },
+  personal: { icon: <User size={16} />, title: 'My Analytics', subtitle: 'Your personal goal performance.', badge: 'Personal', badgeColor: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', border: 'rgba(16,185,129,0.25)' }, stat1Label: 'My Goals', stat2Label: 'Total Weightage', stat3Label: 'Latest Quarter', chart4Title: 'Goal Weightage Split', showDeptChart: false },
+  team: { icon: <Users size={16} />, title: 'Team Analytics', subtitle: 'Performance of your direct reports.', badge: 'Team', badgeColor: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: 'rgba(59,130,246,0.25)' }, stat1Label: 'Team Members', stat2Label: 'Team Goals', stat3Label: 'Latest Quarter', chart4Title: 'Completion by Team Member', showDeptChart: true },
+  organization: { icon: <Building2 size={16} />, title: 'Analytics Dashboard', subtitle: 'Organization-wide performance.', badge: 'Organization', badgeColor: { bg: 'rgba(239,68,68,0.12)', color: '#f87171', border: 'rgba(239,68,68,0.25)' }, stat1Label: 'Total Employees', stat2Label: 'Total Goals', stat3Label: 'Latest Quarter', chart4Title: 'Completion by Department (%)', showDeptChart: true },
 };
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
-
 const tooltipStyle = { background: '#1e1e2d', border: '1px solid #33334d', borderRadius: '8px', fontSize: '12px' };
 
-// Custom legend renderer
 function ChartLegend({ items }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
@@ -64,15 +32,77 @@ function ChartLegend({ items }) {
   );
 }
 
+// Portal-based modal to escape scroll containers
+function PortalModal({ open, onClose, children }) {
+  if (!open) return null;
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      {children}
+    </div>,
+    document.body
+  );
+}
+
+// Detail modal for chart drill-down
+function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, scope, dataKey, nameKey }) {
+  if (!open || !chartData?.length) return null;
+  const goalLink = scope === 'personal' ? '/goals' : scope === 'team' ? '/manager' : '/admin/reports';
+  return (
+    <PortalModal open={open} onClose={onClose}>
+      <div className="glass-card animate-fadeIn" style={{ padding: '28px', maxWidth: '640px', width: '92%', maxHeight: '80vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 700 }}>{title}</h2>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
+        </div>
+        <div style={{ height: 280, marginBottom: '20px' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {chartType === 'pie' ? (
+              <PieChart><Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={100} paddingAngle={4} dataKey={dataKey || 'value'} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{chartData.map((_, i) => <Cell key={i} fill={(colors || COLORS)[i % (colors || COLORS).length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+            ) : (
+              <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey={dataKey || 'value'} fill={(colors || COLORS)[0]} radius={[4, 4, 0, 0]} /></BarChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+        {/* Data Table */}
+        <div style={{ borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead><tr style={{ background: 'rgba(255,255,255,0.03)' }}><th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Name</th><th style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Value</th></tr></thead>
+            <tbody>
+              {chartData.map((item, i) => (
+                <tr key={i} style={{ borderTop: '1px solid var(--border-color)' }}>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: (colors || COLORS)[i % (colors || COLORS).length], flexShrink: 0 }} />{item[nameKey || 'name']}</td>
+                  <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{item[dataKey || 'value']}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
+          <Link href={goalLink} style={{ fontSize: '12px', color: 'var(--accent-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 14px', borderRadius: '8px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}><Target size={12} /> View Goals <ArrowRight size={12} /></Link>
+          <button onClick={onClose} style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Close</button>
+        </div>
+      </div>
+    </PortalModal>
+  );
+}
+
 export default function AnalyticsPage() {
   const { data: session } = useSession();
-  const transform = useCallback((d) => d, []);
-  const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/analytics', { transform });
+  const [selectedCycle, setSelectedCycle] = useState('');
+  const [cycles, setCycles] = useState([]);
+  const { data, loading, error, refresh, lastUpdated } = useDataFetcher(selectedCycle ? `/api/analytics?cycleId=${selectedCycle}` : '/api/analytics');
   const [showExport, setShowExport] = useState(false);
   const [exportEmail, setExportEmail] = useState('');
   const [exportFormat, setExportFormat] = useState('csv');
   const [exporting, setExporting] = useState(false);
+  const [detailModal, setDetailModal] = useState(null);
   const toast = useToast();
+
+  useEffect(() => {
+    fetch('/api/admin/cycles').then(r => r.json()).then(d => {
+      if (d.cycles) { setCycles(d.cycles); const a = d.cycles.find(c => c.isActive); if (a) setSelectedCycle(a._id); }
+    }).catch(console.error);
+  }, []);
 
   const scope = data?.scope || 'organization';
   const cfg = scopeConfig[scope] || scopeConfig.organization;
@@ -90,19 +120,30 @@ export default function AnalyticsPage() {
     setExporting(false);
   };
 
-  if (error) return (
-    <div className="animate-fadeIn">
-      <PageHeader title="Analytics" subtitle="Performance overview" />
-      <ErrorDisplay message={error} onRetry={refresh} />
-    </div>
-  );
+  if (error) return (<div className="animate-fadeIn"><PageHeader title="Analytics" subtitle="Performance overview" /><ErrorDisplay message={error} onRetry={refresh} /></div>);
 
   const latestQProgress = data?.quarterProgress?.[data.quarterProgress.length - 1]?.avgProgress || 0;
 
+  const openDetail = (title, chartData, chartType, colors, dataKey, nameKey) => {
+    setDetailModal({ title, chartData, chartType, colors: colors || COLORS, dataKey, nameKey, scope });
+  };
+
+  // Clickable chart wrapper
+  const ChartCard = ({ title, onClick, children, style }) => (
+    <div className="glass-card" onClick={onClick} style={{ padding: '20px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative', ...style }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = ''; }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 600 }}>{title}</h3>
+        <Maximize2 size={13} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+      </div>
+      {children}
+    </div>
+  );
+
   return (
     <div className="animate-fadeIn">
-      <PageHeader title={cfg.title} subtitle={cfg.subtitle}
-        onRefresh={refresh} lastUpdated={lastUpdated} loading={loading}>
+      <PageHeader title={cfg.title} subtitle={cfg.subtitle} onRefresh={refresh} lastUpdated={lastUpdated} loading={loading}>
         {!loading && data && (
           <button onClick={() => { setShowExport(true); setExportEmail(''); }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '10px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#34d399', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
             <Mail size={14} /> Export Report
@@ -110,161 +151,108 @@ export default function AnalyticsPage() {
         )}
       </PageHeader>
 
-      {/* Scope badge */}
+      {/* Filters */}
       {!loading && data && (
-        <div style={{ marginBottom: '20px' }}>
-          <span className="badge" style={{ background: cfg.badgeColor.bg, color: cfg.badgeColor.color, borderColor: cfg.badgeColor.border, fontSize: '12px', padding: '5px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-            {cfg.icon} {cfg.badge} View
-          </span>
+        <div className="glass-card" style={{ padding: '12px 16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="badge" style={{ ...cfg.badgeColor, fontSize: '11px', padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>{cfg.icon} {cfg.badge}</span>
+            {cycles.length > 0 && <div style={{ width: '200px' }}><CustomDropdown options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' ✓' : ''}` }))} value={selectedCycle} onChange={v => setSelectedCycle(v)} placeholder="Select Cycle" /></div>}
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Link href="/goals" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', color: '#34d399', fontSize: '12px', fontWeight: 500 }}><Target size={12} /> Goals</Link>
+            <Link href="/checkin" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', color: '#818cf8', fontSize: '12px', fontWeight: 500 }}><CheckSquare size={12} /> Check-ins</Link>
+          </div>
         </div>
       )}
 
       {/* Stats */}
       {loading && !data ? <SkeletonStatCards count={3} /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-          <div className="stat-card">
-            <p style={{ fontSize: '28px', fontWeight: 800 }}>
-              {scope === 'personal' ? (data?.totalGoals || 0) : (data?.totalEmployees || 0)}
-            </p>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat1Label}</p>
-          </div>
-          <div className="stat-card">
-            <p style={{ fontSize: '28px', fontWeight: 800 }}>
-              {scope === 'personal' ? `${data?.totalWeightage || 0}%` : (data?.totalGoals || 0)}
-            </p>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat2Label}</p>
-          </div>
-          <div className="stat-card">
-            <p style={{ fontSize: '28px', fontWeight: 800 }}>{latestQProgress}%</p>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat3Label}</p>
-          </div>
+          <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{scope === 'personal' ? (data?.totalGoals || 0) : (data?.totalEmployees || 0)}</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat1Label}</p></div>
+          <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{scope === 'personal' ? `${data?.totalWeightage || 0}%` : (data?.totalGoals || 0)}</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat2Label}</p></div>
+          <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{latestQProgress}%</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat3Label}</p></div>
         </div>
       )}
 
-      {/* Charts Row 1: Status + Thrust Area */}
+      {/* Charts Row 1 */}
       {loading && !data ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-          <SkeletonChart height={350} /><SkeletonChart height={350} />
-        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}><SkeletonChart height={280} /><SkeletonChart height={280} /></div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Goal Status Distribution</h3>
-            {(data?.statusDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <>
-                <ResponsiveContainer width="100%" height="75%">
-                  <PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{(data?.statusDistribution || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
-                </ResponsiveContainer>
-                <ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} />
-              </>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+          <ChartCard title="Goal Status Distribution" style={{ height: '320px' }} onClick={() => openDetail('Goal Status Distribution', data?.statusDistribution, 'pie')}>
+            {(data?.statusDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
+              <><ResponsiveContainer width="100%" height="75%"><PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
             )}
-          </div>
-          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Thrust Area Breakdown</h3>
-            {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <>
-                <ResponsiveContainer width="100%" height="75%">
-                  <PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name }) => name}>{(data?.thrustAreaDistribution || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
-                </ResponsiveContainer>
-                <ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} />
-              </>
+          </ChartCard>
+          <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2))}>
+            {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
+              <><ResponsiveContainer width="100%" height="75%"><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name }) => name} fontSize={11}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></>
             )}
-          </div>
+          </ChartCard>
         </div>
       )}
 
-      {/* Charts Row 2: Target vs Actual (NEW) + Quarterly Progress */}
+      {/* Charts Row 2 */}
       {loading && !data ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-          <SkeletonChart height={350} /><SkeletonChart height={350} />
-        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}><SkeletonChart height={280} /><SkeletonChart height={280} /></div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-          {/* TARGET vs ACTUAL — key enterprise chart */}
-          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Target vs Actual</h3>
-            {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <>
-                <ResponsiveContainer width="100%" height="75%">
-                  <BarChart data={data?.targetVsActual || []} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} />
-                    <XAxis dataKey="name" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={11} angle={-15} textAnchor="end" height={50} />
-                    <YAxis stroke="#9ca3af" axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} />
-                    <Bar dataKey="target" name="Target" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
-                    <Bar dataKey="actual" name="Actual" fill="#10b981" radius={[4, 4, 0, 0]} barSize={18} />
-                  </BarChart>
-                </ResponsiveContainer>
-                <ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} />
-              </>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+          <ChartCard title="Target vs Actual" style={{ height: '320px' }} onClick={() => openDetail('Target vs Actual', data?.targetVsActual, 'bar', ['#3b82f6'], 'target')}>
+            {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
+              <><ResponsiveContainer width="100%" height="78%"><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="name" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
             )}
-          </div>
-
-          {/* Quarterly Progress */}
-          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
-              {scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'}
-            </h3>
-            {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <>
-                <ResponsiveContainer width="100%" height="75%">
-                  <BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="quarter" stroke="#9ca3af" axisLine={false} tickLine={false} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[6, 6, 0, 0]} /></BarChart>
-                </ResponsiveContainer>
-                <ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} />
-              </>
+          </ChartCard>
+          <ChartCard title={scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'} style={{ height: '320px' }} onClick={() => openDetail('Quarterly Progress', data?.quarterProgress, 'bar', ['#8b5cf6'], 'avgProgress', 'quarter')}>
+            {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
+              <><ResponsiveContainer width="100%" height="78%"><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="quarter" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
             )}
-          </div>
+          </ChartCard>
         </div>
       )}
 
-      {/* Charts Row 3: Department/Team chart — only for Manager & Admin */}
+      {/* Row 3: Dept chart */}
       {cfg.showDeptChart && !loading && data && (
-        <div style={{ marginBottom: '24px' }}>
-          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>{cfg.chart4Title}</h3>
-            {(data?.completionByDept || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <>
-                <ResponsiveContainer width="100%" height="80%">
-                  <BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33334d" horizontal={false} /><XAxis type="number" stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} /><YAxis dataKey="department" type="category" stroke="#9ca3af" axisLine={false} tickLine={false} width={100} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 6, 6, 0]} /></BarChart>
-                </ResponsiveContainer>
-                <ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} />
-              </>
+        <div style={{ marginBottom: '20px' }}>
+          <ChartCard title={cfg.chart4Title} style={{ height: '300px' }} onClick={() => openDetail(cfg.chart4Title, data?.completionByDept, 'bar', ['#10b981'], 'rate', 'department')}>
+            {(data?.completionByDept || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
+              <><ResponsiveContainer width="100%" height="80%"><BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33334d" horizontal={false} /><XAxis type="number" stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><YAxis dataKey="department" type="category" stroke="#9ca3af" axisLine={false} tickLine={false} width={90} fontSize={11} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} /></>
             )}
-          </div>
+          </ChartCard>
         </div>
       )}
 
-      {/* Export Modal */}
-      {showExport && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowExport(false); }}>
-          <div className="email-modal animate-fadeIn">
-            <button onClick={() => setShowExport(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'var(--gradient-1)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
-              <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export {cfg.badge} Report</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Receive your {scope} goals report via email</p>
-            </div>
-            <form onSubmit={handleExport}>
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Format</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {['csv', 'excel'].map(f => (
-                    <button key={f} type="button" onClick={() => setExportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: exportFormat === f ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)', border: exportFormat === f ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)', color: exportFormat === f ? '#818cf8' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
-                  ))}
-                </div>
-              </div>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
-                <input type="email" className="input-dark" placeholder="your@email.com" value={exportEmail} onChange={(e) => setExportEmail(e.target.value)} required />
-              </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" onClick={() => setShowExport(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" className="btn-glow" disabled={exporting} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px' }}>{exporting ? 'Sending...' : <><Send size={16} /> Send</>}</button>
-              </div>
-            </form>
+      {/* Chart Detail Modal */}
+      <ChartDetailModal open={!!detailModal} onClose={() => setDetailModal(null)} {...(detailModal || {})} />
+
+      {/* Export Modal — Portal based */}
+      <PortalModal open={showExport} onClose={() => setShowExport(false)}>
+        <div className="email-modal animate-fadeIn">
+          <button onClick={() => setShowExport(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'var(--gradient-1)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export {cfg.badge} Report</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Receive your {scope} goals report via email</p>
           </div>
+          <form onSubmit={handleExport}>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Format</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {['csv', 'excel'].map(f => (
+                  <button key={f} type="button" onClick={() => setExportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: exportFormat === f ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)', border: exportFormat === f ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)', color: exportFormat === f ? '#818cf8' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+              <input type="email" className="input-dark" placeholder="your@email.com" value={exportEmail} onChange={(e) => setExportEmail(e.target.value)} required />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button type="button" onClick={() => setShowExport(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
+              <button type="submit" className="btn-glow" disabled={exporting} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px' }}>{exporting ? 'Sending...' : <><Send size={16} /> Send</>}</button>
+            </div>
+          </form>
         </div>
-      )}
+      </PortalModal>
     </div>
   );
 }

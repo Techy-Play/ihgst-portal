@@ -55,6 +55,7 @@ export async function POST(request) {
 
       const goal = await Goal.create({
         userId: user._id,
+        cycleId: activeCycle._id,
         goalSheetId: goalSheet._id,
         thrustArea, title, description,
         uom, uomDirection: uomDirection || 'Min',

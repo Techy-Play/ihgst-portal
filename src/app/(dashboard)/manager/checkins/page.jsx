@@ -1,6 +1,7 @@
 'use client';
 import { useCallback } from 'react';
-import { CheckSquare } from 'lucide-react';
+import Link from 'next/link';
+import { CheckSquare, ArrowRight } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonTable, ErrorDisplay } from '@/components/ui/Skeletons';
 
@@ -30,11 +31,19 @@ export default function ManagerCheckinsPage() {
       ) : (
         <div className="glass-card" style={{ overflow: 'hidden' }}>
           <table className="table-dark">
-            <thead><tr><th>Employee</th><th>Department</th><th>Goals</th><th>Weightage</th><th>Status</th></tr></thead>
+            <thead><tr><th>Employee</th><th>Department</th><th>Goals</th><th>Weightage</th><th>Status</th><th style={{ width: '60px' }}></th></tr></thead>
             <tbody>
               {team.map(m => (
-                <tr key={m._id}>
-                  <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{m.name}</td>
+                <tr key={m._id} style={{ cursor: 'pointer' }} onClick={() => window.location.href = `/manager/review/${m._id}`}>
+                  <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--gradient-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '13px', flexShrink: 0 }}>{m.name?.charAt(0)?.toUpperCase()}</div>
+                      <div>
+                        <p style={{ fontWeight: 500 }}>{m.name}</p>
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{m.email}</p>
+                      </div>
+                    </div>
+                  </td>
                   <td>{m.department}</td>
                   <td>{m.goalCount}</td>
                   <td>
@@ -46,6 +55,7 @@ export default function ManagerCheckinsPage() {
                     </div>
                   </td>
                   <td><span className="badge" style={{ background: m.goalSheet?.status === 'Approved' ? 'rgba(16,185,129,0.12)' : 'rgba(107,114,128,0.12)', color: m.goalSheet?.status === 'Approved' ? '#34d399' : '#9ca3af' }}>{m.goalSheet?.status || 'No Sheet'}</span></td>
+                  <td><ArrowRight size={14} style={{ color: 'var(--text-muted)' }} /></td>
                 </tr>
               ))}
             </tbody>

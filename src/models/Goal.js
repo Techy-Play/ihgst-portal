@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const GoalSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  cycleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cycle' },
+  cycleName: { type: String },
   goalSheetId: { type: mongoose.Schema.Types.ObjectId, ref: 'GoalSheet', required: true },
   thrustArea: { type: String, required: true },
   title: { type: String, required: true },
