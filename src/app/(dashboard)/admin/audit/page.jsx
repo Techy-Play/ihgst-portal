@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Skeletons';
 import { motion } from 'framer-motion';
-import { Plus, Edit3, ArrowRight, CheckCircle, RotateCcw, Trash2, Target, Link2, Clock, Unlock, FileText } from 'lucide-react';
+import { Plus, Edit3, ArrowRight, CheckCircle, RotateCcw, Trash2, Target, Link2, Clock, Unlock, FileText, Download, Power } from 'lucide-react';
 
 const actionConfig = {
   created: { icon: Plus, color: '#34d399', bg: 'rgba(16,185,129,0.12)', label: 'Created' },
@@ -16,6 +16,9 @@ const actionConfig = {
   unlocked: { icon: Unlock, color: '#06b6d4', bg: 'rgba(6,182,212,0.12)', label: 'Unlocked' },
   checkin_updated: { icon: Target, color: '#38bdf8', bg: 'rgba(56,189,248,0.12)', label: 'Check-in' },
   shared_goal_created: { icon: Link2, color: '#c084fc', bg: 'rgba(168,85,247,0.12)', label: 'Shared Goal' },
+  report_exported: { icon: Download, color: '#f472b6', bg: 'rgba(244,114,182,0.12)', label: 'Export' },
+  activated: { icon: Power, color: '#34d399', bg: 'rgba(16,185,129,0.12)', label: 'Activated' },
+  deactivated: { icon: Power, color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Deactivated' },
 };
 
 function timeAgo(date) {

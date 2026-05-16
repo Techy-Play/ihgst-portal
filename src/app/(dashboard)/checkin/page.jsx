@@ -38,10 +38,10 @@ export default function CheckInPage() {
     { transform, enabled: !!selectedQ }
   );
 
-  // Auto-detect active quarter on first load
+  // Auto-detect active quarter from cycle dates (lightweight call)
   useEffect(() => {
     if (initialized) return;
-    fetch('/api/checkins?quarter=Q1')
+    fetch('/api/dashboard')
       .then(r => r.json())
       .then(d => {
         const aq = d.activeQuarter || 'Q1';

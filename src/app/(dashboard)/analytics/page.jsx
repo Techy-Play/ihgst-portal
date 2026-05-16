@@ -1,10 +1,11 @@
 'use client';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonChart, ErrorDisplay } from '@/components/ui/Skeletons';
-import { User, Users, Building2 } from 'lucide-react';
+import { User, Users, Building2, Mail, Send, X } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 const scopeConfig = {
   personal: {
@@ -67,9 +68,27 @@ export default function AnalyticsPage() {
   const { data: session } = useSession();
   const transform = useCallback((d) => d, []);
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/analytics', { transform });
+  const [showExport, setShowExport] = useState(false);
+  const [exportEmail, setExportEmail] = useState('');
+  const [exportFormat, setExportFormat] = useState('csv');
+  const [exporting, setExporting] = useState(false);
+  const toast = useToast();
 
   const scope = data?.scope || 'organization';
   const cfg = scopeConfig[scope] || scopeConfig.organization;
+
+  const handleExport = async (e) => {
+    e.preventDefault();
+    if (!exportEmail) return;
+    setExporting(true);
+    try {
+      const res = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: exportEmail, format: exportFormat }) });
+      const result = await res.json();
+      if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowExport(false); }
+      else toast(result.error || 'Failed', 'error');
+    } catch { toast('Failed to send', 'error'); }
+    setExporting(false);
+  };
 
   if (error) return (
     <div className="animate-fadeIn">
@@ -83,7 +102,13 @@ export default function AnalyticsPage() {
   return (
     <div className="animate-fadeIn">
       <PageHeader title={cfg.title} subtitle={cfg.subtitle}
-        onRefresh={refresh} lastUpdated={lastUpdated} loading={loading} />
+        onRefresh={refresh} lastUpdated={lastUpdated} loading={loading}>
+        {!loading && data && (
+          <button onClick={() => { setShowExport(true); setExportEmail(''); }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '10px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#34d399', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>
+            <Mail size={14} /> Export Report
+          </button>
+        )}
+      </PageHeader>
 
       {/* Scope badge */}
       {!loading && data && (
@@ -205,6 +230,38 @@ export default function AnalyticsPage() {
                 <ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} />
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExport && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowExport(false); }}>
+          <div className="email-modal animate-fadeIn">
+            <button onClick={() => setShowExport(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'var(--gradient-1)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export {cfg.badge} Report</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Receive your {scope} goals report via email</p>
+            </div>
+            <form onSubmit={handleExport}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Format</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {['csv', 'excel'].map(f => (
+                    <button key={f} type="button" onClick={() => setExportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: exportFormat === f ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)', border: exportFormat === f ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)', color: exportFormat === f ? '#818cf8' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+                <input type="email" className="input-dark" placeholder="your@email.com" value={exportEmail} onChange={(e) => setExportEmail(e.target.value)} required />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setShowExport(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" className="btn-glow" disabled={exporting} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px' }}>{exporting ? 'Sending...' : <><Send size={16} /> Send</>}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

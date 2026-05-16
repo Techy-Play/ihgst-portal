@@ -1,9 +1,23 @@
 'use client';
-import { useState, useCallback } from 'react';
-import { Mail, X, Send } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { Mail, X, Send, Clock, FileText, Download } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonTable, ErrorDisplay } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
+import { motion } from 'framer-motion';
+
+function timeAgo(date) {
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  return new Date(date).toLocaleDateString();
+}
 
 export default function AdminReportsPage() {
   const toast = useToast();
@@ -11,11 +25,24 @@ export default function AdminReportsPage() {
   const [exportFormat, setExportFormat] = useState('csv');
   const [emailTo, setEmailTo] = useState('');
   const [sending, setSending] = useState(false);
+  const [exportLogs, setExportLogs] = useState([]);
 
   const transform = useCallback((d) => d, []);
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/admin/reports', { transform });
 
   const reportData = data?.data || [];
+
+  // Load export history
+  useEffect(() => {
+    fetch('/api/admin/export-logs')
+      .then(r => r.json())
+      .then(d => setExportLogs(d.logs || []))
+      .catch(() => {});
+  }, []);
+
+  const refreshExportLogs = () => {
+    fetch('/api/admin/export-logs').then(r => r.json()).then(d => setExportLogs(d.logs || [])).catch(() => {});
+  };
 
   const openEmailModal = (format) => { setExportFormat(format); setEmailTo(''); setShowEmailModal(true); };
 
@@ -29,7 +56,7 @@ export default function AdminReportsPage() {
         body: JSON.stringify({ email: emailTo, format: exportFormat }),
       });
       const result = await res.json();
-      if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowEmailModal(false); }
+      if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowEmailModal(false); refreshExportLogs(); }
       else toast(result.error || 'Failed to send', 'error');
     } catch { toast('Failed to send email', 'error'); }
     setSending(false);
@@ -55,6 +82,47 @@ export default function AdminReportsPage() {
         <button onClick={() => openEmailModal('excel')} className="btn-glow" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}><Mail size={16} /> Export Excel</button>
       </PageHeader>
 
+      {/* Export History */}
+      {exportLogs.length > 0 && (
+        <div className="glass-card" style={{ padding: '20px', marginBottom: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+            <Download size={14} /> Export History
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {exportLogs.slice(0, 5).map((log, i) => (
+              <motion.div
+                key={log._id || i}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.05 }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                  padding: '10px 14px', borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <FileText size={14} style={{ color: log.format === 'excel' ? '#34d399' : '#60a5fa', flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>
+                      {log.format?.toUpperCase()} report ({log.recordCount} records)
+                    </p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      by <strong>{log.userName}</strong> ({log.userEmail}) → {log.recipientEmail}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>
+                  <Clock size={10} />
+                  {timeAgo(log.createdAt)}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Report Data Table */}
       {loading && !data ? <SkeletonTable rows={5} cols={10} /> : (
         <div className="glass-card" style={{ overflow: 'auto' }}>
           <table className="table-dark">
@@ -75,6 +143,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
+      {/* Email Modal */}
       {showEmailModal && (
         <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowEmailModal(false); }}>
           <div className="email-modal animate-fadeIn">
@@ -98,7 +167,6 @@ export default function AdminReportsPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
