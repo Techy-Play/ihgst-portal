@@ -35,6 +35,17 @@ export default function AdminReportsPage() {
 
   const reportData = data?.data || [];
 
+  const [filterDept, setFilterDept] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  const departments = ['all', ...new Set(reportData.map(d => d.department).filter(Boolean))].sort();
+  const statuses = ['all', ...new Set(reportData.map(d => d.status).filter(Boolean))].sort();
+
+  const filteredData = reportData.filter(d => 
+    (filterDept === 'all' || d.department === filterDept) &&
+    (filterStatus === 'all' || d.status === filterStatus)
+  );
+
   // Load export history
   useEffect(() => {
     fetch('/api/admin/export-logs').then(r => r.json()).then(d => setExportLogs(d.logs || [])).catch(() => {});
@@ -128,13 +139,31 @@ export default function AdminReportsPage() {
 
       {/* Report Data Table */}
       {loading && !data ? <SkeletonTable rows={5} cols={10} /> : (
-        <div className="glass-card" style={{ overflow: 'auto' }}>
+        <div className="glass-card" style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', gap: '12px', padding: '16px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+            <div style={{ width: '200px' }}>
+              <CustomDropdown 
+                options={departments.map(d => ({ value: d, label: d === 'all' ? 'All Departments' : d }))} 
+                value={filterDept} 
+                onChange={v => setFilterDept(v)} 
+                placeholder="Filter department..." 
+              />
+            </div>
+            <div style={{ width: '180px' }}>
+              <CustomDropdown 
+                options={statuses.map(s => ({ value: s, label: s === 'all' ? 'All Statuses' : s }))} 
+                value={filterStatus} 
+                onChange={v => setFilterStatus(v)} 
+                placeholder="Filter status..." 
+              />
+            </div>
+          </div>
           <table className="table-dark">
             <thead><tr><th>Employee</th><th>Dept</th><th>Goal</th><th>Target</th><th>Weight</th><th>Status</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
             <tbody>
-              {reportData.length === 0 ? (
+              {filteredData.length === 0 ? (
                 <tr><td colSpan={10} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No data available</td></tr>
-              ) : reportData.map((d, i) => (
+              ) : filteredData.map((d, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{d.employeeName}</td>
                   <td>{d.department}</td><td>{d.title}</td><td>{d.target}</td><td>{d.weightage}%</td>
