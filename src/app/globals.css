@@ -1167,3 +1167,11 @@ input[type="number"].input-dark {
   border-radius: 0 0 12px 12px;
   opacity: 0.5;
 }
+
+/* Hero split login — hide right panel on mobile */
+@media (max-width: 768px) {
+  .landing-hero-right-panel {
+    display: none !important;
+  }
+}
+

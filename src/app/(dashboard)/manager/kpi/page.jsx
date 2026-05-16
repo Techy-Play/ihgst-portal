@@ -180,7 +180,7 @@ export default function AssignKPIPage() {
                           <button type="button" onClick={() => setFilterRole('Employee')} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: filterRole === 'Employee' ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)', border: filterRole === 'Employee' ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-color)', color: filterRole === 'Employee' ? '#34d399' : 'var(--text-muted)', cursor: 'pointer' }}>Employees</button>
                         </>
                       )}
-                      <button type="button" onClick={selectAll} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', cursor: 'pointer' }}>Select All</button>
+                      <button type="button" onClick={selectAll} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', cursor: 'pointer' }}>Select Shown</button>
                       {isAdmin && <button type="button" onClick={selectManagers} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', color: '#a78bfa', cursor: 'pointer' }}>All Managers</button>}
                       <button type="button" onClick={clearAll} style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer' }}>Clear</button>
                     </div>

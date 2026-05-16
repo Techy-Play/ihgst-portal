@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonChart, ErrorDisplay } from '@/components/ui/Skeletons';
@@ -196,9 +197,18 @@ function IncompleteGoalsModal({ open, onClose, goals, scope, onExport }) {
 
 export default function AnalyticsPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const urlScope = searchParams.get('scope');
   const [selectedCycle, setSelectedCycle] = useState('');
   const [cycles, setCycles] = useState([]);
-  const { data, loading, error, refresh, lastUpdated } = useDataFetcher(selectedCycle ? `/api/analytics?cycleId=${selectedCycle}` : '/api/analytics');
+  const apiUrl = (() => {
+    const params = new URLSearchParams();
+    if (selectedCycle) params.set('cycleId', selectedCycle);
+    if (urlScope) params.set('scope', urlScope);
+    const qs = params.toString();
+    return qs ? `/api/analytics?${qs}` : '/api/analytics';
+  })();
+  const { data, loading, error, refresh, lastUpdated } = useDataFetcher(apiUrl);
   const [showExport, setShowExport] = useState(false);
   const [exportEmail, setExportEmail] = useState('');
   const [exportFormat, setExportFormat] = useState('csv');
@@ -301,7 +311,7 @@ export default function AnalyticsPage() {
           </ChartCard>
           <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2))}>
             {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name }) => name} fontSize={11}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></>
+              <><ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></>
             )}
           </ChartCard>
         </div>

@@ -36,6 +36,11 @@ export async function POST(request) {
     }
 
     if (action === 'approve') {
+      // Validate total weightage equals 100% after any edits
+      const allGoals = await Goal.find({ goalSheetId: goalSheet._id }).lean();
+      const totalWeightage = allGoals.reduce((sum, g) => sum + g.weightage, 0);
+      if (totalWeightage !== 100) return NextResponse.json({ error: `Total weightage must equal 100%. Current: ${totalWeightage}%` }, { status: 400 });
+
       goalSheet.status = 'Approved'; goalSheet.approvedAt = new Date(); goalSheet.approvedBy = session.user.id;
       await goalSheet.save();
       await Goal.updateMany({ goalSheetId: goalSheet._id }, { $set: { status: 'Approved' } });

@@ -21,7 +21,7 @@ function LandingContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [showLogin, setShowLogin] = useState(false);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,9 +32,7 @@ function LandingContent() {
     if (status === 'authenticated') router.push('/dashboard');
   }, [status, router]);
 
-  useEffect(() => {
-    if (searchParams.get('login') === 'true') setShowLogin(true);
-  }, [searchParams]);
+
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -101,51 +99,79 @@ function LandingContent() {
             </div>
             <span className="landing-logo-text">IHGST <span className="landing-logo-accent">Portal</span></span>
           </div>
-          <button className="landing-login-btn" onClick={() => setShowLogin(true)} id="hero-login-btn">
+          <button className="landing-login-btn" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} id="hero-login-btn">
             <span>Login</span>
             <ArrowRight size={16} />
           </button>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="landing-hero">
-        <div className="landing-hero-content">
-          <div className="landing-hero-badge">
-            <Zap size={14} />
-            <span>Enterprise Goal Management Platform</span>
-          </div>
-          <h1 className="landing-hero-title">
-            <span className="landing-hero-line">Track Goals.</span>
-            <span className="landing-hero-line">
-              <span className="gradient-text">Drive Performance.</span>
-            </span>
-            <span className="landing-hero-line">Achieve Excellence.</span>
-          </h1>
-          <p className="landing-hero-subtitle">
-            A unified platform for setting, tracking, and reviewing employee performance goals
-            with structured approval workflows, quarterly check-ins, and real-time analytics.
-          </p>
-          <div className="landing-hero-actions">
-            <button className="btn-glow landing-hero-cta" onClick={() => setShowLogin(true)} id="hero-get-started-btn">
-              Get Started
-              <ArrowRight size={18} />
-            </button>
-            <a href="#features" className="landing-hero-secondary">
-              Explore Features
-              <ChevronRight size={16} />
-            </a>
-          </div>
-        </div>
-
-        {/* Stats Strip */}
-        <div className="landing-stats-strip">
-          {stats.map((s, i) => (
-            <div key={i} className="landing-stat-item">
-              <span className="landing-stat-value gradient-text">{s.value}</span>
-              <span className="landing-stat-label">{s.label}</span>
+      {/* Hero Section — Split Login */}
+      <section className="landing-hero" style={{ padding: '80px 24px 40px' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', borderRadius: '20px', overflow: 'hidden', border: '1px solid var(--border-color)', background: 'rgba(18,18,26,0.7)', backdropFilter: 'blur(20px)', minHeight: '560px' }}>
+          {/* Left — Login Form */}
+          <div style={{ flex: 1, padding: '48px 40px', display: 'flex', flexDirection: 'column', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <h1 style={{ fontSize: '32px', fontWeight: 800, marginBottom: '8px' }}>Sign <span className="gradient-text">In</span></h1>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Welcome to IHGST Performance Portal</p>
             </div>
-          ))}
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type="email" className="input-dark" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ paddingLeft: '38px' }} id="login-email" />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Password</label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type={showPassword ? 'text' : 'password'} className="input-dark" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ paddingLeft: '38px', paddingRight: '38px' }} id="login-password" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              {error && <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', fontSize: '12px' }}>{error}</div>}
+              <button type="submit" className="btn-glow" disabled={loading} id="login-submit" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '11px', opacity: loading ? 0.7 : 1 }}>
+                {loading ? <div className="spinner-sm" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
+              </button>
+            </form>
+            <div style={{ marginTop: '20px', padding: '14px', borderRadius: '10px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)' }}>
+              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Credentials</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {[{ role: 'Admin', email: 'admin@ihgst.com' }, { role: 'Manager', email: 'manager@ihgst.com' }, { role: 'Employee', email: 'employee1@ihgst.com' }].map((cred) => (
+                  <button key={cred.role} type="button" onClick={() => fillCreds(cred.role)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cred.role}</span>
+                    <span>{cred.email}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Right — Branding Panel */}
+          <div className="landing-hero-right-panel" style={{ flex: 1, background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 40px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(99,102,241,0.2), transparent 70%)', borderRadius: '50%' }} />
+            <div style={{ position: 'absolute', bottom: '-40px', left: '-40px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(139,92,246,0.15), transparent 70%)', borderRadius: '50%' }} />
+            <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
+              <div className="landing-hero-badge" style={{ marginBottom: '20px' }}><Zap size={14} /><span>Enterprise Goal Management</span></div>
+              <h2 style={{ fontSize: '28px', fontWeight: 800, lineHeight: 1.3, marginBottom: '16px' }}>
+                Track Goals.<br /><span className="gradient-text">Drive Performance.</span><br />Achieve Excellence.
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, maxWidth: '360px' }}>
+                A unified platform for setting, tracking, and reviewing performance goals with structured workflows and real-time analytics.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '32px' }}>
+                {stats.map((s, i) => (
+                  <div key={i} style={{ textAlign: 'center' }}>
+                    <span className="gradient-text" style={{ fontSize: '24px', fontWeight: 800, display: 'block' }}>{s.value}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -259,7 +285,7 @@ function LandingContent() {
           <p className="landing-section-subtitle" style={{ maxWidth: '500px', margin: '0 auto 32px' }}>
             Log in with your credentials and start tracking your goals today.
           </p>
-          <button className="btn-glow landing-hero-cta" onClick={() => setShowLogin(true)} id="cta-login-btn">
+          <button className="btn-glow landing-hero-cta" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} id="cta-login-btn">
             Login Now
             <ArrowRight size={18} />
           </button>
@@ -284,62 +310,7 @@ function LandingContent() {
         </div>
       </footer>
 
-      {/* Login Modal */}
-      {showLogin && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
-          <div className="login-modal animate-fadeIn">
-            <button className="login-modal-close" onClick={() => setShowLogin(false)} id="login-modal-close">
-              <X size={20} />
-            </button>
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px', boxShadow: '0 8px 32px rgba(99,102,241,0.3)' }}>
-                <img src="/logo.png" alt="IHGST" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              </div>
-              <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '6px' }}><span className="gradient-text">IHGST</span> Portal</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Sign in to your account</p>
-            </div>
-            <form onSubmit={handleLogin}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
-                <div style={{ position: 'relative' }}>
-                  <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type="email" className="input-dark" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ paddingLeft: '38px', fontSize: '13px' }} id="login-email" />
-                </div>
-              </div>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Password</label>
-                <div style={{ position: 'relative' }}>
-                  <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                  <input type={showPassword ? 'text' : 'password'} className="input-dark" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ paddingLeft: '38px', paddingRight: '38px', fontSize: '13px' }} id="login-password" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}>
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-              {error && <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', fontSize: '12px', marginBottom: '16px' }}>{error}</div>}
-              <button type="submit" className="btn-glow" disabled={loading} id="login-submit" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '11px', opacity: loading ? 0.7 : 1 }}>
-                {loading ? <div className="spinner-sm" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
-              </button>
-            </form>
-            <div style={{ marginTop: '20px', padding: '14px', borderRadius: '10px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)' }}>
-              <p style={{ fontSize: '11px', fontWeight: '600', color: 'var(--accent-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Credentials</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {[
-                  { role: 'Admin', email: 'admin@ihgst.com' },
-                  { role: 'Manager', email: 'manager@ihgst.com' },
-                  { role: 'Employee', email: 'employee1@ihgst.com' },
-                ].map((cred) => (
-                  <button key={cred.role} type="button" onClick={() => fillCreds(cred.role)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cred.role}</span>
-                    <span>{cred.email}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

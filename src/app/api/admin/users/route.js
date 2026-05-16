@@ -94,9 +94,15 @@ export async function PUT(request) {
     const { userId, name, role, department, managerId, employeeId } = await request.json();
     if (!userId) return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
 
+    // Bug #5: Prevent admin from changing their own role
+    if (userId === session.user.id && role && role !== session.user.role) {
+      return NextResponse.json({ error: 'You cannot change your own role.' }, { status: 400 });
+    }
+
     const user = await User.findById(userId);
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
+    const oldRole = user.role;
     const changes = {};
     if (name && name !== user.name) { changes.name = { old: user.name, new: name }; user.name = name; }
     if (role && role !== user.role) { changes.role = { old: user.role, new: role }; user.role = role; }
@@ -109,6 +115,11 @@ export async function PUT(request) {
     }
 
     await user.save();
+
+    // Bug #6: If demoted from Manager to Employee, unassign their direct reports
+    if (oldRole === 'Manager' && role === 'Employee') {
+      await User.updateMany({ managerId: userId }, { $unset: { managerId: 1 } });
+    }
 
     if (Object.keys(changes).length > 0) {
       await AuditLog.create({

@@ -78,7 +78,7 @@ export default function GoalsPage() {
   );
 
   // Admins cannot create/view personal goals — only KPIs assigned to them
-  if (isAdmin && !loading && goals.length === 0) {
+  if (isAdmin && !loading && data && goals.length === 0) {
     return (
       <div className="animate-fadeIn">
         <PageHeader title="My KPIs" subtitle="View KPIs assigned to you." />

@@ -32,7 +32,7 @@ const quickActions = {
     { href: '/admin/users', label: 'Manage Users', icon: Users, color: '#818cf8', bg: 'rgba(99,102,241,0.06)', border: 'rgba(99,102,241,0.12)' },
     { href: '/admin/cycles', label: 'Cycles', icon: Calendar, color: '#fbbf24', bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.12)' },
     { href: '/analytics', label: 'Org Analytics', icon: BarChart3, color: '#06b6d4', bg: 'rgba(6,182,212,0.06)', border: 'rgba(6,182,212,0.12)' },
-    { href: '/admin/reports', label: 'Reports', icon: Shield, color: '#34d399', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.12)' },
+    { href: '/admin', label: 'Reports & Export', icon: Shield, color: '#34d399', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.12)' },
   ],
 };
 
