@@ -1260,29 +1260,8 @@ input[type="number"].input-dark {
   }
 }
 
-@media (max-width: 768px) {
-  main {
-    padding: 16px !important;
-  }
-  .stat-card {
-    padding: 16px;
-  }
-  .glass-card {
-    border-radius: 12px;
-  }
-  .modal-content {
-    padding: 24px;
-    border-radius: 16px;
-  }
-  .table-dark thead th {
-    padding: 10px 12px;
-    font-size: 11px;
-  }
-  .table-dark tbody td {
-    padding: 10px 12px;
-    font-size: 13px;
-  }
-}
+
+
 
 /* ===== Empty state polish ===== */
 .empty-state {
@@ -1336,18 +1315,246 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* ===== Sidebar overlay on mobile ===== */
+/* ========== MOBILE BOTTOM NAVIGATION ========== */
+
+/* Desktop sidebar wrapper — visible on desktop, hidden on mobile */
+.desktop-sidebar {
+  display: contents; /* pass-through on desktop */
+}
+
+/* Bottom nav — hidden on desktop */
+.bottom-nav {
+  display: none;
+}
+
+.bottom-nav-overlay,
+.bottom-nav-sheet {
+  display: none;
+}
+
+/* ===== Mobile breakpoint ===== */
 @media (max-width: 768px) {
-  .sidebar-mobile-overlay {
+  /* Hide desktop sidebar entirely */
+  .desktop-sidebar {
+    display: none !important;
+  }
+
+  /* Main content — add bottom padding for bottom nav */
+  .dashboard-main {
+    padding: 16px 16px 88px 16px !important;
+  }
+
+  /* Header — compact on mobile */
+  header {
+    padding: 0 16px !important;
+    height: 56px !important;
+  }
+
+  /* Show bottom nav */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(14, 14, 22, 0.95);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    justify-content: space-around;
+    align-items: center;
+    z-index: 100;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Tab item */
+  .bottom-nav-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 0;
+    flex: 1;
+    text-decoration: none;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+
+  .bottom-nav-tab.active {
+    color: var(--accent-secondary);
+  }
+
+  .bottom-nav-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+  }
+
+  /* Active dot indicator (like Instagram) */
+  .bottom-nav-dot {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--accent-secondary);
+  }
+
+  .bottom-nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    margin-top: 2px;
+  }
+
+  /* Overlay for "More" sheet */
+  .bottom-nav-overlay {
+    display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.55);
     backdrop-filter: blur(4px);
-    z-index: 40;
+    z-index: 99;
+    animation: fadeIn 0.2s ease-out;
   }
-  aside {
+
+  /* "More" bottom sheet */
+  .bottom-nav-sheet {
+    display: block;
+    position: fixed;
+    bottom: 64px;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    right: 8px;
+    background: rgba(22, 22, 38, 0.98);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 20px 20px 0 0;
+    padding: 8px 8px 12px;
+    z-index: 101;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+    animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* Sheet drag handle */
+  .bottom-nav-sheet-handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.15);
+    margin: 4px auto 12px;
+  }
+
+  /* Sheet menu item */
+  .bottom-nav-sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+
+  .bottom-nav-sheet-item:active {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .bottom-nav-sheet-item.active {
+    color: var(--accent-secondary);
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  .bottom-nav-sheet-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .bottom-nav-sheet-item.active .bottom-nav-sheet-icon {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.2);
+  }
+
+  /* Stat cards — 2 columns on mobile */
+  .stat-card {
+    padding: 16px;
+  }
+
+  .glass-card {
+    border-radius: 12px;
+  }
+
+  .modal-content {
+    padding: 24px;
+    border-radius: 16px;
+  }
+
+  .table-dark thead th {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+
+  .table-dark tbody td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  /* Notification panel — full width on mobile */
+  .notif-slide-panel {
+    width: 100% !important;
+  }
+  /* Show mobile logo */
+  .mobile-logo {
+    display: flex !important;
+  }
+
+  /* Fix dropdowns clipping off screen */
+  .notif-dropdown,
+  .user-dropdown {
     position: fixed !important;
-    z-index: 50 !important;
-    height: 100vh;
+    top: 64px !important;
+    right: 16px !important;
+    left: auto !important;
+    width: calc(100vw - 32px) !important;
+    max-width: 400px !important;
+  }
+}
+
+/* Small phones */
+@media (max-width: 380px) {
+  .bottom-nav-label {
+    font-size: 9px;
+  }
+  .dashboard-main {
+    padding: 12px 12px 84px 12px !important;
   }
 }

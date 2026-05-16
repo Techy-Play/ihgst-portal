@@ -227,7 +227,16 @@ export default function Header() {
 
   return (
     <>
-      <header style={{ height: '72px', borderBottom: '1px solid var(--border-color)', background: 'rgba(18,18,26,0.8)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '0 32px', gap: '16px', position: 'sticky', top: 0, zIndex: 30 }}>
+      <header className="main-header" style={{ height: '72px', borderBottom: '1px solid var(--border-color)', background: 'rgba(18,18,26,0.8)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', gap: '16px', position: 'sticky', top: 0, zIndex: 30 }}>
+        {/* Mobile Logo */}
+        <div className="mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '10px' }}>
+          <img src="/logo.png" alt="IHGST" style={{ width: '30px', height: '30px', borderRadius: '8px', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+          <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--gradient-1)', display: 'none', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: '12px' }}>IG</div>
+          <span style={{ fontWeight: 700, fontSize: '16px', letterSpacing: '-0.02em' }}>IHGST</span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
+
         {/* Notification bell */}
         <div ref={notifRef} style={{ position: 'relative' }}>
           <button onClick={() => setShowNotifs(!showNotifs)} style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'all 0.2s' }}
@@ -248,6 +257,7 @@ export default function Header() {
           <AnimatePresence>
             {showNotifs && (
               <motion.div
+                className="notif-dropdown"
                 initial={{ opacity: 0, y: -10, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.97 }}
@@ -312,6 +322,7 @@ export default function Header() {
           <AnimatePresence>
             {showMenu && (
               <motion.div
+                className="user-dropdown"
                 initial={{ opacity: 0, y: -8, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.97 }}
@@ -329,6 +340,7 @@ export default function Header() {
               </motion.div>
             )}
           </AnimatePresence>
+        </div>
         </div>
       </header>
 

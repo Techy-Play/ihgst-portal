@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
+import BottomNav from '@/components/layout/BottomNav';
 
 export default function DashboardLayout({ children }) {
   const { status } = useSession({ required: true, onUnauthenticated() { redirect('/login'); } });
@@ -17,11 +18,16 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
-      <Sidebar />
+      {/* Desktop sidebar — hidden on mobile via CSS */}
+      <div className="desktop-sidebar">
+        <Sidebar />
+      </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, height: '100vh', overflowY: 'auto' }}>
         <Header />
-        <main style={{ flex: 1, padding: '28px 32px' }}>{children}</main>
+        <main className="dashboard-main" style={{ flex: 1, padding: '28px 32px' }}>{children}</main>
       </div>
+      {/* Mobile bottom nav — shown only on mobile via CSS */}
+      <BottomNav />
     </div>
   );
 }
