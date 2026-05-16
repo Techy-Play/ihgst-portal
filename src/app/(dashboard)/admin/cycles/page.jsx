@@ -4,11 +4,12 @@ import { Plus } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Skeletons';
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
+import { useToast } from '@/components/ui/Toast';
 
 export default function AdminCyclesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', goalSettingStart: '', goalSettingEnd: '', isActive: true, quarters: [{ label: 'Q1', start: '', end: '' }, { label: 'Q2', start: '', end: '' }, { label: 'Q3', start: '', end: '' }, { label: 'Q4', start: '', end: '' }] });
-  const [toast, setToast] = useState(null);
+  const toast = useToast();
   const [creating, setCreating] = useState(false);
 
   const transform = useCallback((d) => d, []);
@@ -18,16 +19,16 @@ export default function AdminCyclesPage() {
 
   const handleCreate = async () => {
     if (!form.name || !form.goalSettingStart || !form.goalSettingEnd) {
-      setToast({ msg: 'Name and dates are required', type: 'error' }); setTimeout(() => setToast(null), 3000); return;
+      toast('Name and dates are required', 'error'); return;
     }
     setCreating(true);
     try {
       const res = await fetch('/api/admin/cycles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const result = await res.json();
-      if (res.ok) { setToast({ msg: 'Cycle created!', type: 'success' }); setShowForm(false); refresh(); }
-      else setToast({ msg: result.error || 'Failed', type: 'error' });
-    } catch { setToast({ msg: 'Failed to create cycle', type: 'error' }); }
-    setCreating(false); setTimeout(() => setToast(null), 3000);
+      if (res.ok) { toast('Cycle created!', 'success'); setShowForm(false); refresh(); }
+      else toast(result.error || 'Failed', 'error');
+    } catch { toast('Failed to create cycle', 'error'); }
+    setCreating(false);
   };
 
   if (error) return (
@@ -73,7 +74,7 @@ export default function AdminCyclesPage() {
           ))}
         </div>
       )}
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.msg}</div>}
+
     </div>
   );
 }

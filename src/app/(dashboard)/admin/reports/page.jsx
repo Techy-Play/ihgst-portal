@@ -3,9 +3,10 @@ import { useState, useCallback } from 'react';
 import { Mail, X, Send } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonTable, ErrorDisplay } from '@/components/ui/Skeletons';
+import { useToast } from '@/components/ui/Toast';
 
 export default function AdminReportsPage() {
-  const [toast, setToast] = useState(null);
+  const toast = useToast();
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [exportFormat, setExportFormat] = useState('csv');
   const [emailTo, setEmailTo] = useState('');
@@ -28,10 +29,10 @@ export default function AdminReportsPage() {
         body: JSON.stringify({ email: emailTo, format: exportFormat }),
       });
       const result = await res.json();
-      if (res.ok) { setToast({ msg: result.message || 'Report sent!', type: 'success' }); setShowEmailModal(false); }
-      else setToast({ msg: result.error || 'Failed to send', type: 'error' });
-    } catch { setToast({ msg: 'Failed to send email', type: 'error' }); }
-    setSending(false); setTimeout(() => setToast(null), 4000);
+      if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowEmailModal(false); }
+      else toast(result.error || 'Failed to send', 'error');
+    } catch { toast('Failed to send email', 'error'); }
+    setSending(false);
   };
 
   const getSt = (s) => {
@@ -97,7 +98,7 @@ export default function AdminReportsPage() {
           </div>
         </div>
       )}
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.msg}</div>}
+
     </div>
   );
 }

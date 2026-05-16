@@ -7,6 +7,7 @@ import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Skeletons';
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
+import { useToast } from '@/components/ui/Toast';
 
 const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
 
@@ -21,7 +22,7 @@ export default function CheckInPage() {
   const [selectedQ, setSelectedQ] = useState('Q1');
   const [saving, setSaving] = useState({});
   const [updates, setUpdates] = useState({});
-  const [toast, setToast] = useState(null);
+  const toast = useToast();
 
   const transform = useCallback((d) => d, []);
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher(`/api/checkins?quarter=${selectedQ}`, { transform });
@@ -32,13 +33,12 @@ export default function CheckInPage() {
 
   const handleSave = async (goal) => {
     const u = updates[goal._id];
-    if (!u) { setToast({ msg: 'No changes to save.', type: 'error' }); setTimeout(() => setToast(null), 3000); return; }
+    if (!u) { toast('No changes to save.', 'error'); return; }
 
     // Validate achievement is provided
     const achievement = u.achievement;
     if (achievement === undefined || achievement === null || achievement === '') {
-      setToast({ msg: 'Please enter an achievement value before saving.', type: 'error' });
-      setTimeout(() => setToast(null), 4000);
+      toast('Please enter an achievement value before saving.', 'error');
       return;
     }
 
@@ -46,13 +46,11 @@ export default function CheckInPage() {
     if (goal.uom !== 'Timeline') {
       const numVal = Number(achievement);
       if (isNaN(numVal)) {
-        setToast({ msg: 'Achievement must be a valid number.', type: 'error' });
-        setTimeout(() => setToast(null), 4000);
+        toast('Achievement must be a valid number.', 'error');
         return;
       }
       if (numVal < 0) {
-        setToast({ msg: 'Achievement cannot be negative.', type: 'error' });
-        setTimeout(() => setToast(null), 4000);
+        toast('Achievement cannot be negative.', 'error');
         return;
       }
     }
@@ -69,10 +67,10 @@ export default function CheckInPage() {
           comment: u.comment || '',
         }),
       });
-      if (res.ok) { setToast({ msg: 'Check-in saved!', type: 'success' }); setUpdates(p => { const n = { ...p }; delete n[goal._id]; return n; }); refresh(); }
-      else { const d = await res.json().catch(() => ({})); setToast({ msg: d.error || 'Failed to save check-in.', type: 'error' }); }
-    } catch { setToast({ msg: 'Network error — please try again.', type: 'error' }); }
-    setSaving(p => ({ ...p, [goal._id]: false })); setTimeout(() => setToast(null), 3000);
+      if (res.ok) { toast('Check-in saved!', 'success'); setUpdates(p => { const n = { ...p }; delete n[goal._id]; return n; }); refresh(); }
+      else { const d = await res.json().catch(() => ({})); toast(d.error || 'Failed to save check-in.', 'error'); }
+    } catch { toast('Network error — please try again.', 'error'); }
+    setSaving(p => ({ ...p, [goal._id]: false }));
   };
 
   if (error) return (
@@ -189,7 +187,7 @@ export default function CheckInPage() {
           })}
         </div>
       )}
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.msg}</div>}
+
     </div>
   );
 }

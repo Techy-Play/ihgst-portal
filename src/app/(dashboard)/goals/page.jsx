@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { Target, Plus, Send } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay, SkeletonBox } from '@/components/ui/Skeletons';
+import { useToast } from '@/components/ui/Toast';
 
 export default function GoalsPage() {
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState(null);
+  const toast = useToast();
   const transform = useCallback((d) => d, []);
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/goals', { transform });
 
@@ -17,15 +18,15 @@ export default function GoalsPage() {
   const totalWeightage = data?.totalWeightage || 0;
 
   const handleSubmit = async () => {
-    if (totalWeightage !== 100) { setToast({ msg: 'Total weightage must equal 100%.', type: 'error' }); setTimeout(() => setToast(null), 4000); return; }
+    if (totalWeightage !== 100) { toast('Total weightage must equal 100%.', 'error'); return; }
     setSubmitting(true);
     try {
       const res = await fetch('/api/goals/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goalSheetId: goalSheet._id }) });
       const d = await res.json();
-      if (res.ok) { setToast({ msg: 'Goals submitted for review!', type: 'success' }); refresh(); }
-      else setToast({ msg: d.error, type: 'error' });
-    } catch { setToast({ msg: 'Failed to submit', type: 'error' }); }
-    setSubmitting(false); setTimeout(() => setToast(null), 4000);
+      if (res.ok) { toast('Goals submitted for review!', 'success'); refresh(); }
+      else toast(d.error, 'error');
+    } catch { toast('Failed to submit', 'error'); }
+    setSubmitting(false);
   };
 
   const statusStyles = { Draft: { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af', border: 'rgba(107,114,128,0.25)' }, Submitted: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: 'rgba(59,130,246,0.25)' }, Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', border: 'rgba(16,185,129,0.25)' }, Returned: { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: 'rgba(245,158,11,0.25)' }, Locked: { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: 'rgba(139,92,246,0.25)' } };
@@ -80,7 +81,7 @@ export default function GoalsPage() {
           ); })}
         </div>
       )}
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.msg}</div>}
+
     </div>
   );
 }

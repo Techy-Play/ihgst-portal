@@ -88,7 +88,7 @@ export function SkeletonChart({ height = 300 }) {
 
 /* ── Refresh Button ── */
 
-export function RefreshButton({ onClick, lastUpdated, loading }) {
+export function RefreshButton({ onClick, loading }) {
   return (
     <button
       onClick={onClick}
@@ -99,10 +99,9 @@ export function RefreshButton({ onClick, lastUpdated, loading }) {
         color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
         transition: 'all 0.2s',
       }}
-      title={lastUpdated ? `Last updated: ${lastUpdated.toLocaleTimeString()}` : 'Refresh data'}
     >
       <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-      {lastUpdated && <span>{lastUpdated.toLocaleTimeString()}</span>}
+      <span>{loading ? 'Refreshing...' : 'Refresh Data'}</span>
     </button>
   );
 }

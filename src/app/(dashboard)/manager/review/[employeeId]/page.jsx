@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/components/ui/Toast';
 
 export default function ReviewPage({ params }) {
   const { employeeId } = use(params);
@@ -15,7 +16,7 @@ export default function ReviewPage({ params }) {
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetch(`/api/manager/review/${employeeId}`)
@@ -29,15 +30,15 @@ export default function ReviewPage({ params }) {
   };
 
   const handleAction = async (action) => {
-    if (action === 'return' && !comment.trim()) { setToast({ msg: 'Please add a comment when returning.', type: 'error' }); setTimeout(() => setToast(null), 4000); return; }
+    if (action === 'return' && !comment.trim()) { toast('Please add a comment when returning.', 'error'); return; }
     setSubmitting(true);
     const goalEdits = Object.entries(edits).map(([goalId, fields]) => ({ goalId, ...fields }));
     try {
       const res = await fetch('/api/manager/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ goalSheetId: goalSheet._id, action, comment, goalEdits }) });
       const data = await res.json();
-      if (res.ok) { setToast({ msg: `Goals ${action}d successfully!`, type: 'success' }); setTimeout(() => router.push('/manager'), 1500); }
-      else setToast({ msg: data.error, type: 'error' });
-    } catch { setToast({ msg: 'Failed to process', type: 'error' }); }
+      if (res.ok) { toast(`Goals ${action}d successfully!`, 'success'); setTimeout(() => router.push('/manager'), 1500); }
+      else toast(data.error, 'error');
+    } catch { toast('Failed to process', 'error'); }
     setSubmitting(false);
   };
 
@@ -82,7 +83,6 @@ export default function ReviewPage({ params }) {
           </div>
         </div>
       )}
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.msg}</div>}
     </div>
   );
 }
