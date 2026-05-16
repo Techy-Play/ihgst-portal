@@ -30,7 +30,13 @@ export function SkeletonCard({ height = 120, style = {} }) {
 export function SkeletonStatCards({ count = 4 }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-      {Array.from({ length: count }).map((_, i) => <SkeletonCard key={i} />)}
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="glass-card" style={{ padding: 24, animationDelay: `${i * 80}ms` }}>
+          <SkeletonBox width={40} height={40} radius={10} style={{ marginBottom: 16 }} />
+          <SkeletonBox height={32} width={80} style={{ marginBottom: 8 }} />
+          <SkeletonBox height={12} width={100} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -76,12 +82,13 @@ export function SkeletonGoalCards({ count = 3 }) {
 export function SkeletonChart({ height = 300 }) {
   return (
     <div className="glass-card" style={{ padding: 24, height }}>
-      <SkeletonBox width={180} height={18} style={{ marginBottom: 20 }} />
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: height - 100 }}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonBox key={i} width={40} height={`${30 + Math.random() * 60}%`} radius={4} style={{ flex: 1 }} />
+      <SkeletonBox width={180} height={18} style={{ marginBottom: 24 }} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, height: height - 110, paddingBottom: 12 }}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <SkeletonBox key={i} width={36} height={`${25 + Math.random() * 65}%`} radius={6} style={{ flex: 1 }} />
         ))}
       </div>
+      <SkeletonBox height={1} style={{ opacity: 0.3, marginTop: 8 }} />
     </div>
   );
 }
@@ -123,10 +130,12 @@ export function RefreshButton({ onClick, loading, lastUpdated }) {
 
 export function ErrorDisplay({ message, onRetry }) {
   return (
-    <div className="glass-card" style={{ padding: 48, textAlign: 'center' }}>
-      <AlertTriangle size={40} style={{ color: '#f87171', margin: '0 auto 16px' }} />
+    <div className="glass-card animate-scaleIn" style={{ padding: 48, textAlign: 'center' }}>
+      <div className="empty-state-icon" style={{ margin: '0 auto 16px', background: 'rgba(239,68,68,0.08)', borderColor: 'rgba(239,68,68,0.15)' }}>
+        <AlertTriangle size={28} style={{ color: '#f87171' }} />
+      </div>
       <p style={{ color: '#fca5a5', fontSize: 15, fontWeight: 600, marginBottom: 8 }}>Something went wrong</p>
-      <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 20 }}>{message}</p>
+      <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>{message}</p>
       {onRetry && (
         <button onClick={onRetry} className="btn-glow" style={{ fontSize: 13, padding: '8px 20px' }}>
           <RefreshCw size={14} style={{ marginRight: 6, display: 'inline' }} /> Try Again
@@ -140,10 +149,10 @@ export function ErrorDisplay({ message, onRetry }) {
 
 export function PageHeader({ title, subtitle, children, onRefresh, lastUpdated, loading }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
       <div>
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 4 }}><span className="gradient-text">{title}</span></h1>
-        {subtitle && <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>{subtitle}</p>}
+        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 6, letterSpacing: '-0.02em' }}><span className="gradient-text">{title}</span></h1>
+        {subtitle && <p style={{ color: 'var(--text-secondary)', fontSize: 14, lineHeight: 1.5 }}>{subtitle}</p>}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {onRefresh && <RefreshButton onClick={onRefresh} lastUpdated={lastUpdated} loading={loading} />}

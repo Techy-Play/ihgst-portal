@@ -128,23 +128,29 @@ export default function DashboardPage() {
       {loading && !data ? <SkeletonStatCards count={4} /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
           {stats.map((s, i) => (
-            <div key={i} className="stat-card">
+            <motion.div
+              key={i}
+              className="stat-card"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: i * 0.08, ease: [0.4, 0, 0.2, 1] }}
+            >
               <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: '12px' }}>{s.icon}</div>
-              <p style={{ fontSize: '28px', fontWeight: 800, marginBottom: '4px' }}>{s.value}</p>
+              <p style={{ fontSize: '28px', fontWeight: 800, marginBottom: '4px', letterSpacing: '-0.02em' }}>{s.value}</p>
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{s.label}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
 
       {/* Content Grid */}
       {loading && !data ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="dashboard-content-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           <SkeletonGoalCards count={3} />
           <SkeletonGoalCards count={2} />
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="dashboard-content-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           {/* Recent Goals with Target vs Actual */}
           <div className="glass-card" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -173,13 +179,16 @@ export default function DashboardPage() {
             ) : (
               (activeData?.recentGoals || []).map((g, i) => (
                 <Link key={g._id || i} href={`/goals/${g._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{ padding: '12px 0', borderBottom: i < activeData.recentGoals.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <div style={{ padding: '14px 0', borderBottom: i < activeData.recentGoals.length - 1 ? '1px solid var(--border-color)' : 'none', transition: 'background 0.15s', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                       <p style={{ fontSize: '14px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         {g.title}
                         {g.isShared && <span style={{ fontSize: '10px', color: '#a78bfa', background: 'rgba(139,92,246,0.12)', padding: '1px 6px', borderRadius: '4px' }}>KPI</span>}
                       </p>
                       <span style={{ fontSize: '13px', fontWeight: 700, color: (g.progress || 0) >= 80 ? '#34d399' : (g.progress || 0) >= 50 ? '#fbbf24' : '#f87171' }}>{g.progress || 0}%</span>
+                    </div>
+                    <div className="progress-bar" style={{ height: '4px', marginBottom: '6px' }}>
+                      <div className="progress-bar-fill" style={{ width: `${Math.min(g.progress || 0, 100)}%`, background: (g.progress || 0) >= 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : (g.progress || 0) >= 50 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #ef4444, #f87171)' }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
                       <span>{g.thrustArea} • {g.weightage}%</span>
