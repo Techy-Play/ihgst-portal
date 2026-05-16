@@ -59,7 +59,7 @@ export default function Sidebar() {
               <div key={`header-${i}`} style={{ padding: '16px 16px 8px', fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 {item.label}
               </div>
-            ) : <div key={`header-spacer-${i}`} style={{ height: '16px' }} />;
+            ) : <div key={`header-spacer-${i}`} style={{ height: '1px', background: 'var(--border-color)', margin: '8px 4px' }} />;
           }
           const basePath = item.href.split('?')[0];
           const isActive = item.exact ? (pathname === basePath) : (pathname === basePath || pathname.startsWith(`${basePath}/`));

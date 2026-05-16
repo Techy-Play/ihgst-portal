@@ -66,7 +66,7 @@ export default function ReviewPage({ params }) {
         <div className="glass-card" style={{ padding: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon size={16} style={{ color: '#6366f1' }}/> Weightage Distribution</h3>
           {goals.length > 0 ? (
-            <div style={{ height: '220px', width: '100%' }}>
+            <div style={{ height: '220px', width: '100%', minHeight: '200px' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <PieChart>
                   <Pie data={weightageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
@@ -83,7 +83,7 @@ export default function ReviewPage({ params }) {
         <div className="glass-card" style={{ padding: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={16} style={{ color: '#10b981' }}/> Goals by Thrust Area</h3>
           {goals.length > 0 ? (
-            <div style={{ height: '220px', width: '100%' }}>
+            <div style={{ height: '220px', width: '100%', minHeight: '200px' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={thrustData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />

@@ -30,6 +30,9 @@ export default function AdminReportsPage() {
   const [cycles, setCycles] = useState([]);
   const [exportCycleId, setExportCycleId] = useState('');
   const [viewCycleId, setViewCycleId] = useState('');
+  const [showAllLogs, setShowAllLogs] = useState(false);  // U4
+  const [page, setPage] = useState(1);                     // U3
+  const PAGE_SIZE = 20;
 
   const transform = useCallback((d) => d, []);
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher(viewCycleId ? `/api/admin/reports?cycleId=${viewCycleId}` : '/api/admin/reports', { transform });
@@ -42,10 +45,12 @@ export default function AdminReportsPage() {
   const departments = ['all', ...new Set(reportData.map(d => d.department).filter(Boolean))].sort();
   const statuses = ['all', ...new Set(reportData.map(d => d.status).filter(Boolean))].sort();
 
-  const filteredData = reportData.filter(d => 
+  const filteredData = reportData.filter(d =>
     (filterDept === 'all' || d.department === filterDept) &&
     (filterStatus === 'all' || d.status === filterStatus)
   );
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  const pagedData = filteredData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Load export history
   useEffect(() => {
@@ -113,7 +118,7 @@ export default function AdminReportsPage() {
             <Download size={14} /> Export History
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {exportLogs.slice(0, 5).map((log, i) => (
+            {(showAllLogs ? exportLogs : exportLogs.slice(0, 5)).map((log, i) => (
               <motion.div
                 key={log._id || i}
                 initial={{ opacity: 0, x: -8 }}
@@ -144,12 +149,18 @@ export default function AdminReportsPage() {
               </motion.div>
             ))}
           </div>
+          {exportLogs.length > 5 && (
+            <button onClick={() => setShowAllLogs(v => !v)} style={{ marginTop: '8px', fontSize: '12px', color: 'var(--accent-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+              {showAllLogs ? 'Show less ▲' : `View all ${exportLogs.length} exports ▼`}
+            </button>
+          )}
         </div>
       )}
 
       {/* Report Data Table */}
       {loading && !data ? <SkeletonTable rows={5} cols={10} /> : (
-        <div className="glass-card" style={{ overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ overflowX: 'auto' }}>  {/* U10: horizontal scroll wrapper */}
           <div style={{ display: 'flex', gap: '12px', padding: '16px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
             <div style={{ width: '200px' }}>
               <CustomDropdown 
@@ -181,9 +192,9 @@ export default function AdminReportsPage() {
           <table className="table-dark">
             <thead><tr><th>Employee</th><th>Dept</th><th>Goal</th><th>Target</th><th>Weight</th><th>Status</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
             <tbody>
-              {filteredData.length === 0 ? (
+              {pagedData.length === 0 ? (
                 <tr><td colSpan={10} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>No data available</td></tr>
-              ) : filteredData.map((d, i) => (
+              ) : pagedData.map((d, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{d.employeeName}</td>
                   <td>{d.department}</td><td>{d.title}</td><td>{d.target}</td><td>{d.weightage}%</td>
@@ -193,6 +204,18 @@ export default function AdminReportsPage() {
               ))}
             </tbody>
           </table>
+          </div>
+          {/* U3: Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderTop: '1px solid var(--border-color)', fontSize: '13px' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Showing {(page-1)*PAGE_SIZE+1}–{Math.min(page*PAGE_SIZE, filteredData.length)} of {filteredData.length}</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1} style={{ padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}>← Prev</button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => { const p = i + Math.max(1, page - 2); if (p > totalPages) return null; return <button key={p} onClick={() => setPage(p)} style={{ padding: '4px 10px', borderRadius: '6px', background: p === page ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.04)', border: p === page ? '1px solid rgba(99,102,241,0.4)' : '1px solid var(--border-color)', color: p === page ? '#818cf8' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: p === page ? 700 : 400 }}>{p}</button>; })}
+                <button onClick={() => setPage(p => Math.min(totalPages, p+1))} disabled={page === totalPages} style={{ padding: '4px 12px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: page === totalPages ? 'not-allowed' : 'pointer', opacity: page === totalPages ? 0.4 : 1 }}>Next →</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -76,6 +76,15 @@ export async function POST(request) {
     const goal = await Goal.findById(goalId);
     if (!goal) return NextResponse.json({ error: 'Goal not found.' }, { status: 404 });
 
+    // Bug #7: Enforce quarter lock — block editing completed quarters
+    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+    if (activeCycle?.quarters?.length) {
+      const quarterDef = activeCycle.quarters.find(q => q.label === quarter);
+      if (quarterDef?.end && new Date() > new Date(quarterDef.end)) {
+        return NextResponse.json({ error: `${quarter} is locked. Quarter ended on ${new Date(quarterDef.end).toLocaleDateString()}.` }, { status: 403 });
+      }
+    }
+
     let checkin = await CheckIn.findOne({ goalId, userId: session.user.id, quarter });
     if (checkin) { checkin.achievement = achievement; checkin.status = checkinStatus; checkin.employeeComment = comment || ''; await checkin.save(); }
     else { checkin = await CheckIn.create({ goalId, userId: session.user.id, quarter, achievement, status: checkinStatus, employeeComment: comment || '' }); }
