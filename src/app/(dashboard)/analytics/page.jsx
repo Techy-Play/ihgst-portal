@@ -206,6 +206,7 @@ export default function AnalyticsPage() {
   const [exporting, setExporting] = useState(false);
   const [detailModal, setDetailModal] = useState(null);
   const [showIncomplete, setShowIncomplete] = useState(false);
+  const [exportType, setExportType] = useState('all');
   const toast = useToast();
 
   useEffect(() => {
@@ -222,7 +223,7 @@ export default function AnalyticsPage() {
     if (!exportEmail) return;
     setExporting(true);
     try {
-      const res = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: exportEmail, format: exportFormat, cycleId: exportCycleId || selectedCycle }) });
+      const res = await fetch('/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: exportEmail, format: exportFormat, cycleId: exportCycleId || selectedCycle, type: exportType }) });
       const result = await res.json();
       if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowExport(false); }
       else toast(result.error || 'Failed', 'error');
@@ -339,7 +340,7 @@ export default function AnalyticsPage() {
       <ChartDetailModal open={!!detailModal} onClose={() => setDetailModal(null)} {...(detailModal || {})} />
 
       {/* Incomplete Goals Detail Modal */}
-      <IncompleteGoalsModal open={showIncomplete} onClose={() => setShowIncomplete(false)} goals={data?.incompleteGoals || []} scope={scope} onExport={() => { setShowIncomplete(false); setShowExport(true); }} />
+      <IncompleteGoalsModal open={showIncomplete} onClose={() => setShowIncomplete(false)} goals={data?.incompleteGoals || []} scope={scope} onExport={() => { setExportType('incomplete'); setShowIncomplete(false); setShowExport(true); }} />
 
       {/* Export Modal — Portal based */}
       <PortalModal open={showExport} onClose={() => setShowExport(false)}>
@@ -347,7 +348,7 @@ export default function AnalyticsPage() {
           <button onClick={() => setShowExport(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
           <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'var(--gradient-1)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
-            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export {cfg.badge} Report</h2>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export {exportType === 'incomplete' ? 'Incomplete ' : ''}{cfg.badge} Report</h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Receive your {scope} goals report via email</p>
           </div>
           <form onSubmit={handleExport}>

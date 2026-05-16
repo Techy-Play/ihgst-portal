@@ -15,7 +15,7 @@ export async function POST(request) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const { email, format, cycleId } = await request.json();
+    const { email, format, cycleId, type } = await request.json();
     if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
 
     const role = session.user.role;
@@ -43,6 +43,10 @@ export async function POST(request) {
     } else {
       goals = await Goal.find({ userId, ...query }).populate('userId', 'name department').lean();
       scope = 'personal';
+    }
+
+    if (type === 'incomplete') {
+      goals = goals.filter(g => !['Approved', 'Locked'].includes(g.status));
     }
 
     const rows = goals.map(g => ({
@@ -98,6 +102,8 @@ export async function POST(request) {
       attachments: [{ filename, content: buffer, contentType }],
     });
 
+    const descriptionPrefix = type === 'incomplete' ? 'Incomplete ' : '';
+
     // Log the export
     await ExportLog.create({
       userId: session.user.id,
@@ -108,7 +114,7 @@ export async function POST(request) {
       recipientEmail: email,
       recordCount: rows.length,
       cycleName,
-      description: `${scope} ${format.toUpperCase()} report (${cycleName}) exported to ${email}`,
+      description: `${descriptionPrefix}${scope} ${format.toUpperCase()} report (${cycleName}) exported to ${email}`,
     });
 
     await AuditLog.create({
@@ -117,7 +123,7 @@ export async function POST(request) {
       action: 'report_exported',
       changedBy: session.user.id,
       changedByName: session.user.name,
-      description: `${scope} ${format.toUpperCase()} report (${rows.length} records) exported to ${email}`,
+      description: `${descriptionPrefix}${scope} ${format.toUpperCase()} report (${rows.length} records) exported to ${email}`,
     });
 
     return NextResponse.json({ message: `Report sent successfully to ${email}` });

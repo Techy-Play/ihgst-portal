@@ -29,9 +29,10 @@ export default function AdminReportsPage() {
   const [exportLogs, setExportLogs] = useState([]);
   const [cycles, setCycles] = useState([]);
   const [exportCycleId, setExportCycleId] = useState('');
+  const [viewCycleId, setViewCycleId] = useState('');
 
   const transform = useCallback((d) => d, []);
-  const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/admin/reports', { transform });
+  const { data, loading, error, refresh, lastUpdated } = useDataFetcher(viewCycleId ? `/api/admin/reports?cycleId=${viewCycleId}` : '/api/admin/reports', { transform });
 
   const reportData = data?.data || [];
 
@@ -50,7 +51,16 @@ export default function AdminReportsPage() {
   useEffect(() => {
     fetch('/api/admin/export-logs').then(r => r.json()).then(d => setExportLogs(d.logs || [])).catch(() => {});
     fetch('/api/admin/cycles').then(r => r.json()).then(d => {
-      if (d.cycles) { setCycles(d.cycles); const a = d.cycles.find(c => c.isActive); if (a) setExportCycleId(a._id); }
+      if (d.cycles) { 
+        setCycles(d.cycles); 
+        const a = d.cycles.find(c => c.isActive); 
+        if (a) { 
+          setExportCycleId(a._id); 
+          setViewCycleId(a._id);
+        } else if (d.cycles.length > 0) {
+          setViewCycleId(d.cycles[0]._id);
+        }
+      }
     }).catch(() => {});
   }, []);
 
@@ -157,6 +167,16 @@ export default function AdminReportsPage() {
                 placeholder="Filter status..." 
               />
             </div>
+            {cycles.length > 0 && (
+              <div style={{ width: '180px' }}>
+                <CustomDropdown 
+                  options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' ✓' : ''}` }))}
+                  value={viewCycleId} 
+                  onChange={v => setViewCycleId(v)} 
+                  placeholder="Select Cycle..." 
+                />
+              </div>
+            )}
           </div>
           <table className="table-dark">
             <thead><tr><th>Employee</th><th>Dept</th><th>Goal</th><th>Target</th><th>Weight</th><th>Status</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th></tr></thead>
