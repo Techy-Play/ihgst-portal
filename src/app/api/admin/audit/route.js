@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import AuditLog from '@/models/AuditLog';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET(request) {
   try {
@@ -13,5 +14,5 @@ export async function GET(request) {
     const limit = parseInt(searchParams.get('limit')) || 50;
     const logs = await AuditLog.find().sort({ createdAt: -1 }).limit(limit).lean();
     return NextResponse.json({ logs });
-  } catch (error) { return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
+  } catch (error) { return handleApiError(error, 'audit route.js'); }
 }

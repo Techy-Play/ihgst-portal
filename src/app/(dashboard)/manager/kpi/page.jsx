@@ -10,6 +10,7 @@ import CustomDatePicker from '@/components/ui/CustomDatePicker';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, ErrorDisplay, SkeletonGoalCards } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
+import { safeFetch } from '@/lib/safeFetch';
 
 const thrustAreaOptions = [
   { value: 'Revenue Growth', label: 'Revenue Growth', description: 'Sales, revenue targets & market expansion' },
@@ -69,19 +70,18 @@ export default function AssignKPIPage() {
     setSubmitting(true);
     setFormError('');
     try {
-      const res = await fetch('/api/kpi', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const { data: d, error } = await safeFetch('/api/kpi', {
+        method: 'POST',
         body: JSON.stringify({ ...form, target: form.uom === 'Timeline' ? form.target : Number(form.target), employeeIds: selectedEmployees }),
       });
-      const d = await res.json();
-      if (res.ok) {
+      if (d) {
         toast(d.message, 'success');
         setShowForm(false);
         setForm({ thrustArea: '', title: '', description: '', uom: 'Numeric', uomDirection: 'Min', target: '', defaultWeightage: 20 });
         setSelectedEmployees([]);
         refresh();
-      } else { setFormError(d.error); }
-    } catch { setFormError('Failed to assign KPI'); }
+      } else { setFormError(error || 'Failed to assign KPI'); }
+    } catch { setFormError('Failed to assign KPI. Please try again.'); }
     setSubmitting(false);
   };
 

@@ -8,6 +8,7 @@ import { PageHeader, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Ske
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
 import { useToast } from '@/components/ui/Toast';
+import { safeFetch } from '@/lib/safeFetch';
 
 const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
 
@@ -41,14 +42,16 @@ export default function CheckInPage() {
   // Auto-detect active quarter from cycle dates (lightweight call)
   useEffect(() => {
     if (initialized) return;
-    fetch('/api/dashboard')
-      .then(r => r.json())
-      .then(d => {
-        const aq = d.activeQuarter || 'Q1';
-        setSelectedQ(aq);
+    safeFetch('/api/dashboard')
+      .then(({ data, error }) => {
+        if (data) {
+          setSelectedQ(data.activeQuarter || 'Q1');
+        } else {
+          console.warn('Dashboard fetch failed:', error);
+          setSelectedQ('Q1');
+        }
         setInitialized(true);
-      })
-      .catch(() => { setSelectedQ('Q1'); setInitialized(true); });
+      });
   }, [initialized]);
 
   const goals = data?.goals || [];
@@ -75,8 +78,8 @@ export default function CheckInPage() {
 
     setSaving(p => ({ ...p, [goal._id]: true }));
     try {
-      const res = await fetch('/api/checkins', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const { data, error } = await safeFetch('/api/checkins', {
+        method: 'POST',
         body: JSON.stringify({
           goalId: goal._id,
           quarter: selectedQ,
@@ -85,10 +88,16 @@ export default function CheckInPage() {
           comment: u.comment || '',
         }),
       });
-      if (res.ok) { toast('Check-in saved!', 'success'); setUpdates(p => { const n = { ...p }; delete n[goal._id]; return n; }); refresh(); }
-      else { const d = await res.json().catch(() => ({})); toast(d.error || 'Failed to save check-in.', 'error'); }
-    } catch { toast('Network error — please try again.', 'error'); }
-    setSaving(p => ({ ...p, [goal._id]: false }));
+      if (data) {
+        toast('Check-in saved!', 'success');
+        setUpdates(p => { const n = { ...p }; delete n[goal._id]; return n; });
+        refresh();
+      } else {
+        toast(error || 'Failed to save check-in.', 'error');
+      }
+    } finally {
+      setSaving(p => ({ ...p, [goal._id]: false }));
+    }
   };
 
   if (error) return (

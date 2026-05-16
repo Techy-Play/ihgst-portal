@@ -5,6 +5,7 @@ import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import AuditLog from '@/models/AuditLog';
 import bcrypt from 'bcryptjs';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -13,7 +14,7 @@ export async function GET() {
     await dbConnect();
     const users = await User.find().select('-password').populate('managerId', 'name email').sort({ createdAt: -1 }).lean();
     return NextResponse.json({ users });
-  } catch (error) { return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
+  } catch (error) { return handleApiError(error, 'admin/users GET'); }
 }
 
 export async function POST(request) {
@@ -22,7 +23,9 @@ export async function POST(request) {
     if (!session || session.user.role !== 'Admin') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const { name, email, role, department, managerId, employeeId } = await request.json();
+    const { data: bodyParsed, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
+    const { name, email, role, department, managerId, employeeId } = bodyParsed;
 
     if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     if (!email?.trim()) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -81,7 +84,7 @@ export async function POST(request) {
     return NextResponse.json({ user: created, message: 'User created successfully. Welcome email sent.' }, { status: 201 });
   } catch (error) {
     console.error('Create user error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'admin/users POST');
   }
 }
 
@@ -91,7 +94,9 @@ export async function PUT(request) {
     if (!session || session.user.role !== 'Admin') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
 
-    const { userId, name, role, department, managerId, employeeId } = await request.json();
+    const { data: bodyParsed2, error: parseErr2 } = await parseBody(request);
+    if (parseErr2) return parseErr2;
+    const { userId, name, role, department, managerId, employeeId } = bodyParsed2;
     if (!userId) return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
 
     // Bug #5: Prevent admin from changing their own role
@@ -137,6 +142,6 @@ export async function PUT(request) {
     return NextResponse.json({ user: updated, message: 'User updated successfully' });
   } catch (error) {
     console.error('Update user error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'admin/users PUT');
   }
 }

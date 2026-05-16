@@ -6,6 +6,7 @@ import GoalSheet from '@/models/GoalSheet';
 import Goal from '@/models/Goal';
 import AuditLog from '@/models/AuditLog';
 import Notification from '@/models/Notification';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function POST(request) {
   try {
@@ -20,5 +21,5 @@ export async function POST(request) {
     await AuditLog.create({ entityType: 'GoalSheet', entityId: goalSheet._id, action: 'unlocked', changedBy: session.user.id, changedByName: session.user.name, description: 'Goal sheet unlocked by admin' });
     await Notification.create({ userId: goalSheet.userId, type: 'goal_unlocked', title: 'Goals Unlocked', message: 'Your goal sheet has been unlocked by an administrator.', link: '/goals' });
     return NextResponse.json({ message: 'Goal sheet unlocked successfully' });
-  } catch (error) { return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
+  } catch (error) { return handleApiError(error, 'unlock route.js'); }
 }

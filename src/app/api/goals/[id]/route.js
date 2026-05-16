@@ -5,6 +5,7 @@ import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
 import AuditLog from '@/models/AuditLog';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET(request, { params }) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request, { params }) {
     const managerComments = goalSheet?.comments || [];
     return NextResponse.json({ goal, auditLogs, managerComments, goalSheetStatus: goalSheet?.status });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'goals/[id] GET');
   }
 }
 
@@ -29,7 +30,8 @@ export async function PUT(request, { params }) {
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
     const { id } = await params;
-    const body = await request.json();
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
     const goal = await Goal.findById(id);
     if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
     if (!['Draft', 'Returned'].includes(goal.status)) return NextResponse.json({ error: 'Goal is locked and cannot be edited.' }, { status: 400 });
@@ -72,7 +74,7 @@ export async function PUT(request, { params }) {
     }
     return NextResponse.json({ goal, message: 'Goal updated' });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'goals/[id] PUT');
   }
 }
 
@@ -89,6 +91,6 @@ export async function DELETE(request, { params }) {
     await AuditLog.create({ entityType: 'Goal', entityId: id, action: 'deleted', changedBy: session.user.id, changedByName: session.user.name, description: `Goal "${goal.title}" deleted` });
     return NextResponse.json({ message: 'Goal deleted' });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'goals/[id] DELETE');
   }
 }

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Notification from '@/models/Notification';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -14,7 +15,7 @@ export async function GET() {
     const unreadCount = await Notification.countDocuments({ userId: session.user.id, read: false, cleared: { $ne: true } });
     return NextResponse.json({ notifications, unreadCount });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'notifications route.js');
   }
 }
 
@@ -34,7 +35,7 @@ export async function PATCH(request) {
     const unreadCount = await Notification.countDocuments({ userId: session.user.id, read: false, cleared: { $ne: true } });
     return NextResponse.json({ message: 'Updated', unreadCount });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'notifications route.js');
   }
 }
 
@@ -55,6 +56,6 @@ export async function DELETE(request) {
     const unreadCount = await Notification.countDocuments({ userId: session.user.id, read: false, cleared: { $ne: true } });
     return NextResponse.json({ message: 'Cleared', unreadCount });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'notifications route.js');
   }
 }

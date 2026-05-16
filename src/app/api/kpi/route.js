@@ -8,6 +8,7 @@ import User from '@/models/User';
 import Cycle from '@/models/Cycle';
 import AuditLog from '@/models/AuditLog';
 import Notification from '@/models/Notification';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 // GET: List KPIs assigned by this manager/admin
 export async function GET(request) {
@@ -56,7 +57,7 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error('KPI GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'kpi GET');
   }
 }
 
@@ -68,7 +69,8 @@ export async function POST(request) {
     if (!['Manager', 'Admin'].includes(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     await dbConnect();
-    const body = await request.json();
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
 
     // Validate
     if (!body.title?.trim()) return NextResponse.json({ error: 'KPI title is required.' }, { status: 400 });
@@ -150,6 +152,6 @@ export async function POST(request) {
     }, { status: 201 });
   } catch (error) {
     console.error('KPI POST error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'kpi POST');
   }
 }

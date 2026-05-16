@@ -8,6 +8,7 @@ import Cycle from '@/models/Cycle';
 import User from '@/models/User';
 import CheckIn from '@/models/CheckIn';
 import { calculateProgress } from '@/lib/progress';
+import { handleApiError } from '@/lib/apiError';
 
 function getActiveQuarter(cycle) {
   if (!cycle?.quarters?.length) return null;
@@ -135,7 +136,7 @@ export async function GET() {
     return NextResponse.json({ totalGoals, approvedGoals, pendingGoals, avgProgress, recentGoals, activeCycle, activeQuarter, pendingActions });
   } catch (error) {
     console.error('Dashboard error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'dashboard GET');
   }
 }
 

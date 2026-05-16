@@ -9,6 +9,7 @@ import Cycle from '@/models/Cycle';
 import CheckIn from '@/models/CheckIn';
 import mongoose from 'mongoose';
 import { calculateProgress } from '@/lib/progress';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 // Build rich incomplete goals details
 async function buildIncompleteGoals(goals) {
@@ -223,6 +224,6 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error('Analytics error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'analytics route.js');
   }
 }

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
+import { safeFetch } from '@/lib/safeFetch';
 
 const thrustAreaOptions = [
   { value: 'Revenue Growth', label: 'Revenue Growth', description: 'Sales, revenue targets & market expansion' },
@@ -58,12 +59,16 @@ export default function CreateGoalPage() {
     if (isManager || isAdmin) return;
     (async () => {
       try {
-        const res = await fetch('/api/goals');
-        const data = await res.json();
-        if (data.totalWeightage !== undefined) setUsedWeightage(data.totalWeightage);
-        if (data.goals) setGoalCount(data.goals.length);
-      } catch {}
-      setFetching(false);
+        const { data, error } = await safeFetch('/api/goals');
+        if (data) {
+          if (data.totalWeightage !== undefined) setUsedWeightage(data.totalWeightage);
+          if (data.goals) setGoalCount(data.goals.length);
+        } else {
+          console.warn('Failed to fetch goal weightage:', error);
+        }
+      } finally {
+        setFetching(false);
+      }
     })();
   }, [isManager, isAdmin]);
 
@@ -100,13 +105,12 @@ export default function CreateGoalPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/goals', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      const { data, error } = await safeFetch('/api/goals', {
+        method: 'POST',
         body: JSON.stringify({ ...form, weightage, target: form.uom === 'Timeline' ? form.target : Number(form.target) }),
       });
-      const data = await res.json();
-      if (res.ok) router.push('/goals');
-      else setError(data.error);
+      if (data) router.push('/goals');
+      else setError(error || 'Failed to create goal');
     } catch { setError('Failed to create goal'); }
     setLoading(false);
   };

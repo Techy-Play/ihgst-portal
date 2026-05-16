@@ -7,6 +7,7 @@ import GoalSheet from '@/models/GoalSheet';
 import Cycle from '@/models/Cycle';
 import mongoose from 'mongoose';
 import AuditLog from '@/models/AuditLog';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET(request) {
   try {
@@ -63,7 +64,7 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error('Goals GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'goals GET');
   }
 }
 
@@ -78,7 +79,8 @@ export async function POST(request) {
     }
 
     await dbConnect();
-    const body = await request.json();
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
 
     // Validate required fields
     if (!body.thrustArea?.trim()) return NextResponse.json({ error: 'Thrust area is required.' }, { status: 400 });
@@ -130,6 +132,6 @@ export async function POST(request) {
     return NextResponse.json({ goal, message: 'Goal created successfully' }, { status: 201 });
   } catch (error) {
     console.error('Goals POST error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'goals POST');
   }
 }

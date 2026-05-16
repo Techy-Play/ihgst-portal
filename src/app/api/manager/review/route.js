@@ -6,6 +6,7 @@ import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
 import AuditLog from '@/models/AuditLog';
 import Notification from '@/models/Notification';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function POST(request) {
   try {
@@ -14,8 +15,12 @@ export async function POST(request) {
     if (session.user.role !== 'Manager' && session.user.role !== 'Admin') return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
 
     await dbConnect();
-    const body = await request.json();
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
     const { goalSheetId, action, comment, goalEdits } = body;
+
+    if (!goalSheetId) return NextResponse.json({ error: 'Goal sheet ID is required.' }, { status: 400 });
+    if (!action || !['approve', 'return'].includes(action)) return NextResponse.json({ error: 'Action must be "approve" or "return".' }, { status: 400 });
 
     const goalSheet = await GoalSheet.findById(goalSheetId);
     if (!goalSheet) return NextResponse.json({ error: 'Goal sheet not found' }, { status: 404 });
@@ -58,6 +63,6 @@ export async function POST(request) {
     return NextResponse.json({ message: `Goal sheet ${action}ed successfully` });
   } catch (error) {
     console.error('Review error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'manager review POST');
   }
 }

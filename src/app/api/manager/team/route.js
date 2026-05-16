@@ -6,6 +6,7 @@ import User from '@/models/User';
 import GoalSheet from '@/models/GoalSheet';
 import Goal from '@/models/Goal';
 import Cycle from '@/models/Cycle';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -36,6 +37,6 @@ export async function GET() {
     return NextResponse.json({ team: membersWithGoals });
   } catch (error) {
     console.error('Manager team error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'team route.js');
   }
 }

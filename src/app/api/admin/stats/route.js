@@ -6,6 +6,7 @@ import User from '@/models/User';
 import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
 import Cycle from '@/models/Cycle';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -21,5 +22,5 @@ export async function GET() {
     const approvedSheets = await GoalSheet.countDocuments({ ...sheetQuery, status: { $in: ['Approved', 'Locked'] } });
     const pendingSheets = await GoalSheet.countDocuments({ ...sheetQuery, status: 'Submitted' });
     return NextResponse.json({ totalUsers, totalGoals, approvedSheets, pendingSheets });
-  } catch (error) { return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
+  } catch (error) { return handleApiError(error, 'stats route.js'); }
 }

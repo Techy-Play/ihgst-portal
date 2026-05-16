@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Cycle from '@/models/Cycle';
 import AuditLog from '@/models/AuditLog';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -12,7 +13,7 @@ export async function GET() {
     await dbConnect();
     const cycles = await Cycle.find().sort({ createdAt: -1 }).lean();
     return NextResponse.json({ cycles });
-  } catch (error) { return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
+  } catch (error) { return handleApiError(error, 'cycles route.js'); }
 }
 
 export async function POST(request) {
@@ -25,7 +26,7 @@ export async function POST(request) {
     const cycle = await Cycle.create({ ...body, createdBy: session.user.id });
     await AuditLog.create({ entityType: 'Cycle', entityId: cycle._id, action: 'created', changedBy: session.user.id, changedByName: session.user.name, description: `Cycle "${cycle.name}" created` });
     return NextResponse.json({ cycle, message: 'Cycle created' }, { status: 201 });
-  } catch (error) { return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
+  } catch (error) { return handleApiError(error, 'cycles route.js'); }
 }
 
 export async function PUT(request) {
@@ -55,5 +56,5 @@ export async function PUT(request) {
     });
 
     return NextResponse.json({ cycle, message: `Cycle ${isActive ? 'activated' : 'deactivated'}` });
-  } catch (error) { return NextResponse.json({ error: 'Internal server error' }, { status: 500 }); }
+  } catch (error) { return handleApiError(error, 'cycles route.js'); }
 }

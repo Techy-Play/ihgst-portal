@@ -7,6 +7,7 @@ import GoalSheet from '@/models/GoalSheet';
 import AuditLog from '@/models/AuditLog';
 import Notification from '@/models/Notification';
 import User from '@/models/User';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function POST(request) {
   try {
@@ -36,6 +37,6 @@ export async function POST(request) {
     return NextResponse.json({ message: 'Goals submitted for review' });
   } catch (error) {
     console.error('Submit error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'submit route.js');
   }
 }

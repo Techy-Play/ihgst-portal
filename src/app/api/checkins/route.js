@@ -6,6 +6,7 @@ import Goal from '@/models/Goal';
 import CheckIn from '@/models/CheckIn';
 import AuditLog from '@/models/AuditLog';
 import Cycle from '@/models/Cycle';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 function getActiveQuarter(cycle) {
   if (!cycle?.quarters?.length) return 'Q1';
@@ -54,7 +55,7 @@ export async function GET(request) {
 
     return NextResponse.json({ goals: goalsWithCheckins, checkins, activeQuarter, quarterStatuses, quarterDates });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'checkins GET');
   }
 }
 
@@ -63,7 +64,8 @@ export async function POST(request) {
     const session = await getServerSession(authOptions);
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     await dbConnect();
-    const body = await request.json();
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
     const { goalId, quarter, achievement, status, comment } = body;
 
     // Validate required fields
@@ -104,8 +106,7 @@ export async function POST(request) {
     await AuditLog.create({ entityType: 'Goal', entityId: goalId, action: 'checkin_updated', changedBy: session.user.id, changedByName: session.user.name, description: `${quarter} check-in updated for "${goal.title}"` });
     return NextResponse.json({ checkin, message: 'Check-in saved successfully' });
   } catch (error) {
-    console.error('Check-in POST error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'checkins POST');
   }
 }
 

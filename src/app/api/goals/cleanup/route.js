@@ -6,6 +6,7 @@ import Goal from '@/models/Goal';
 import Cycle from '@/models/Cycle';
 import AuditLog from '@/models/AuditLog';
 import mongoose from 'mongoose';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 // GET: Get draft counts per old cycle
 export async function GET() {
@@ -49,7 +50,7 @@ export async function GET() {
     return NextResponse.json({ cycles: result });
   } catch (error) {
     console.error('Draft cleanup GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'cleanup route.js');
   }
 }
 
@@ -99,6 +100,6 @@ export async function DELETE(request) {
     });
   } catch (error) {
     console.error('Draft cleanup DELETE error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'cleanup route.js');
   }
 }

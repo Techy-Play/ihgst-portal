@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import ExportLog from '@/models/ExportLog';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -12,6 +13,6 @@ export async function GET() {
     const logs = await ExportLog.find().sort({ createdAt: -1 }).limit(50).lean();
     return NextResponse.json({ logs });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'export-logs route.js');
   }
 }

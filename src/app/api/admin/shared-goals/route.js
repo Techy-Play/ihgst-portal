@@ -8,6 +8,7 @@ import Cycle from '@/models/Cycle';
 import User from '@/models/User';
 import AuditLog from '@/models/AuditLog';
 import Notification from '@/models/Notification';
+import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
   try {
@@ -17,7 +18,7 @@ export async function GET() {
     const sharedGoals = await Goal.find({ isShared: true }).populate('userId', 'name department').sort({ createdAt: -1 }).lean();
     return NextResponse.json({ sharedGoals });
   } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'shared-goals route.js');
   }
 }
 
@@ -92,6 +93,6 @@ export async function POST(request) {
     }, { status: 201 });
   } catch (error) {
     console.error('Shared goals error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return handleApiError(error, 'shared-goals route.js');
   }
 }
