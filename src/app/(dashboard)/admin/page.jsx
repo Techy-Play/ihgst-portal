@@ -1,10 +1,11 @@
 'use client';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { Shield, Users, Calendar, FileText, Target, ArrowRight, Trash2, AlertTriangle } from 'lucide-react';
+import { Shield, Users, Calendar, FileText, Target, ArrowRight, Trash2, AlertTriangle, Mail, X, Download, Send } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, ErrorDisplay } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
+import CustomDropdown from '@/components/ui/CustomDropdown';
 
 export default function AdminPage() {
   const transform = useCallback((d) => d, []);
@@ -13,7 +14,35 @@ export default function AdminPage() {
   const [deleting, setDeleting] = useState({});
   const [confirmCycle, setConfirmCycle] = useState(null);
   const [includeReturned, setIncludeReturned] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportFormat, setReportFormat] = useState('csv');
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportCycleId, setReportCycleId] = useState('');
+  const [cycles, setCycles] = useState([]);
+  const [sendingReport, setSendingReport] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    fetch('/api/admin/cycles').then(r => r.json()).then(d => {
+      if (d.cycles) { setCycles(d.cycles); const a = d.cycles.find(c => c.isActive); if (a) setReportCycleId(a._id); }
+    }).catch(() => {});
+  }, []);
+
+  const handleSendReport = async (e) => {
+    e.preventDefault();
+    if (!reportEmail) return;
+    setSendingReport(true);
+    try {
+      const res = await fetch('/api/admin/reports/email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: reportEmail, format: reportFormat, cycleId: reportCycleId }),
+      });
+      const result = await res.json();
+      if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowReportModal(false); }
+      else toast(result.error || 'Failed to send', 'error');
+    } catch { toast('Failed to send email', 'error'); }
+    setSendingReport(false);
+  };
 
   const handleBulkDelete = async (cycleId, cycleName) => {
     setDeleting(p => ({ ...p, [cycleId]: true }));
@@ -74,7 +103,6 @@ export default function AdminPage() {
         {[
           { title: 'User Management', desc: 'Manage users, roles, and hierarchy', href: '/admin/users', icon: <Users size={20} />, grad: 'var(--gradient-1)' },
           { title: 'Cycle Management', desc: 'Configure performance cycles', href: '/admin/cycles', icon: <Calendar size={20} />, grad: 'var(--gradient-2)' },
-          { title: 'Reports & Export', desc: 'Generate CSV/Excel reports via email', href: '/admin/reports', icon: <FileText size={20} />, grad: 'linear-gradient(135deg, #10b981, #059669)' },
           { title: 'Audit Log', desc: 'View all system changes', href: '/admin/audit', icon: <Shield size={20} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)' },
         ].map(item => (
           <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
@@ -85,6 +113,14 @@ export default function AdminPage() {
             </div>
           </Link>
         ))}
+        {/* Reports & Export — popup instead of navigation */}
+        <div onClick={() => setShowReportModal(true)} style={{ cursor: 'pointer' }}>
+          <div className="glass-card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '44px', height: '44px', minWidth: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><FileText size={20} /></div>
+            <div style={{ flex: 1 }}><p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>Reports & Export</p><p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Generate CSV/Excel reports via email</p></div>
+            <ArrowRight size={16} style={{ color: 'var(--text-muted)' }} />
+          </div>
+        </div>
       </div>
 
       {/* Draft Cleanup Section */}
@@ -160,6 +196,47 @@ export default function AdminPage() {
                 <Trash2 size={13} /> {deleting[confirmCycle.cycleId] ? 'Deleting...' : 'Delete Drafts'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Export Modal */}
+      {showReportModal && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowReportModal(false); }}>
+          <div className="email-modal animate-fadeIn">
+            <button onClick={() => setShowReportModal(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #10b981, #059669)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export Report</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Choose format and receive via email</p>
+            </div>
+            <form onSubmit={handleSendReport}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Format</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {['csv', 'excel'].map(f => (
+                    <button key={f} type="button" onClick={() => setReportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: reportFormat === f ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)', border: reportFormat === f ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-color)', color: reportFormat === f ? '#34d399' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
+                  ))}
+                </div>
+              </div>
+              {cycles.length > 0 && (
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Cycle Year</label>
+                  <CustomDropdown options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' (Active)' : ''}` }))} value={reportCycleId} onChange={v => setReportCycleId(v)} placeholder="Select cycle..." />
+                </div>
+              )}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+                <div style={{ position: 'relative' }}><Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} /><input type="email" className="input-dark" placeholder="recipient@company.com" value={reportEmail} onChange={(e) => setReportEmail(e.target.value)} required style={{ paddingLeft: '38px' }} /></div>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setShowReportModal(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={sendingReport} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: sendingReport ? 0.7 : 1 }}>{sendingReport ? <div className="spinner-sm" /> : <><Send size={16} /> Send Report</>}</button>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                <Link href="/admin/reports" style={{ fontSize: '12px', color: 'var(--text-muted)', textDecoration: 'none' }}>View report history & data →</Link>
+              </div>
+            </form>
           </div>
         </div>
       )}

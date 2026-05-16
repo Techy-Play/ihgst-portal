@@ -46,15 +46,16 @@ export default function CreateGoalPage() {
   const [fetching, setFetching] = useState(true);
 
   const isManager = session?.user?.role === 'Manager';
+  const isAdmin = session?.user?.role === 'Admin';
 
-  // Redirect managers — they cannot create personal goals
+  // Redirect managers and admins — they cannot create personal goals
   useEffect(() => {
-    if (isManager) router.replace('/goals');
-  }, [isManager, router]);
+    if (isManager || isAdmin) router.replace('/goals');
+  }, [isManager, isAdmin, router]);
 
   // Fetch existing goals to calculate used weightage
   useEffect(() => {
-    if (isManager) return;
+    if (isManager || isAdmin) return;
     (async () => {
       try {
         const res = await fetch('/api/goals');
@@ -64,9 +65,9 @@ export default function CreateGoalPage() {
       } catch {}
       setFetching(false);
     })();
-  }, [isManager]);
+  }, [isManager, isAdmin]);
 
-  if (isManager) return null;
+  if (isManager || isAdmin) return null;
 
   const remaining = 100 - usedWeightage;
   const maxWeightage = Math.min(remaining, 100);

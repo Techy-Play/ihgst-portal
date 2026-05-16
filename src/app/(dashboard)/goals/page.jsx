@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/Toast';
 
 export default function GoalsPage() {
   const { data: session } = useSession();
+  const isAdmin = session?.user?.role === 'Admin';
   const isManager = session?.user?.role === 'Manager';
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState({});
@@ -37,7 +38,7 @@ export default function GoalsPage() {
   // When data loads for first time, set the default selected cycle
   const effectiveCycle = selectedCycle || data?.selectedCycleId || '';
 
-  const canEdit = !isManager && isActiveCycle && (!goalSheet || ['Draft', 'Returned'].includes(goalSheet?.status));
+  const canEdit = !isManager && !isAdmin && isActiveCycle && (!goalSheet || ['Draft', 'Returned'].includes(goalSheet?.status));
 
   const handleSubmit = async () => {
     if (totalWeightage !== 100) { toast('Total weightage must equal 100%.', 'error'); return; }
@@ -76,9 +77,23 @@ export default function GoalsPage() {
     </div>
   );
 
+  // Admins cannot create/view personal goals — only KPIs assigned to them
+  if (isAdmin && !loading && goals.length === 0) {
+    return (
+      <div className="animate-fadeIn">
+        <PageHeader title="My KPIs" subtitle="View KPIs assigned to you." />
+        <div className="glass-card" style={{ padding: '48px', textAlign: 'center' }}>
+          <Target size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 16px' }} />
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '8px' }}>Admins do not create personal goals.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Shared KPIs assigned to you will appear here.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fadeIn">
-      <PageHeader title={isManager ? 'My KPIs' : 'My Goals'} subtitle={isManager ? 'Performance KPIs assigned to you.' : 'Manage your performance goals.'}
+      <PageHeader title={isAdmin ? 'My KPIs' : isManager ? 'My KPIs' : 'My Goals'} subtitle={isAdmin || isManager ? 'Performance KPIs assigned to you.' : 'Manage your performance goals.'}
         onRefresh={refresh} lastUpdated={lastUpdated} loading={loading}>
         {!loading && canEdit && <Link href="/goals/create" className="btn-glow" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', fontSize: '14px' }}><Plus size={16} /> Add Goal</Link>}
         {!loading && canEdit && goals.length > 0 && <button onClick={handleSubmit} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}><Send size={16} /> {submitting ? 'Submitting...' : 'Submit for Review'}</button>}

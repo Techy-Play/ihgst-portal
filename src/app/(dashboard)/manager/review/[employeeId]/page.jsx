@@ -2,9 +2,10 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/Toast';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function ReviewPage({ params }) {
   const { employeeId } = use(params);
@@ -47,6 +48,12 @@ export default function ReviewPage({ params }) {
   const totalWeightage = goals.reduce((sum, g) => sum + (edits[g._id]?.weightage ?? g.weightage), 0);
   const canApprove = goalSheet?.status === 'Submitted';
 
+  const weightageData = goals.map(g => ({ name: g.title.length > 20 ? g.title.substring(0,20)+'...' : g.title, value: edits[g._id]?.weightage ?? g.weightage }));
+  const thrustDist = {};
+  goals.forEach(g => thrustDist[g.thrustArea] = (thrustDist[g.thrustArea] || 0) + 1);
+  const thrustData = Object.keys(thrustDist).map(k => ({ name: k, count: thrustDist[k] }));
+  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+
   return (
     <div className="animate-fadeIn">
       <Link href="/manager" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> Back to Team</Link>
@@ -54,9 +61,43 @@ export default function ReviewPage({ params }) {
         <div><h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '4px' }}>Review: {employee?.name}</h1><p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{employee?.department} • {employee?.email}</p></div>
         <span className="badge" style={getStatusStyle(goalSheet?.status)}>{goalSheet?.status || 'No Sheet'}</span>
       </div>
-      <div className="glass-card" style={{ padding: '16px 20px', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}><span>Total Weightage</span><span style={{ fontWeight: 700, color: totalWeightage === 100 ? '#34d399' : '#fbbf24' }}>{totalWeightage}%</span></div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+        <div className="glass-card" style={{ padding: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon size={16} style={{ color: '#6366f1' }}/> Weightage Distribution</h3>
+          {goals.length > 0 ? (
+            <div style={{ height: '220px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <PieChart>
+                  <Pie data={weightageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                    {weightageData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '12px' }} itemStyle={{ color: '#f8fafc' }} formatter={(v) => [`${v}%`, 'Weightage']} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No goals available</p>}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}><span>Total Weightage</span><span style={{ fontWeight: 700, color: totalWeightage === 100 ? '#34d399' : '#fbbf24' }}>{totalWeightage}%</span></div>
+        </div>
+
+        <div className="glass-card" style={{ padding: '20px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={16} style={{ color: '#10b981' }}/> Goals by Thrust Area</h3>
+          {goals.length > 0 ? (
+            <div style={{ height: '220px', width: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                <BarChart data={thrustData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.length > 10 ? v.substring(0, 10) + '...' : v} />
+                  <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '12px' }} itemStyle={{ color: '#10b981' }} />
+                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No goals available</p>}
+        </div>
       </div>
+
       <div className="glass-card" style={{ overflow: 'hidden', marginBottom: '24px' }}>
         <table className="table-dark">
           <thead><tr><th>Goal</th><th>Thrust Area</th><th>UoM</th><th>Target</th><th>Weightage</th></tr></thead>
