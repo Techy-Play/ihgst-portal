@@ -24,7 +24,7 @@ function ChartLegend({ items }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 10px', justifyContent: 'center', marginTop: '8px', padding: '0 4px' }}>
       {items.map((item, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', lineHeight: 1 }}>
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-secondary)', lineHeight: 0.5 }}>
           <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
           <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
         </div>
@@ -243,7 +243,14 @@ export default function AnalyticsPage() {
 
   if (error) return (<div className="animate-fadeIn"><PageHeader title="Analytics" subtitle="Performance overview" /><ErrorDisplay message={error} onRetry={refresh} /></div>);
 
-  const latestQProgress = data?.quarterProgress?.[data.quarterProgress.length - 1]?.avgProgress || 0;
+  // Find latest quarter that has actual data (count > 0), not just Q4 which may be empty
+  const latestQProgress = (() => {
+    const qp = data?.quarterProgress || [];
+    for (let i = qp.length - 1; i >= 0; i--) {
+      if (qp[i].count > 0) return qp[i].avgProgress;
+    }
+    return 0;
+  })();
 
   const openDetail = (title, chartData, chartType, colors, dataKey, nameKey) => {
     setDetailModal({ title, chartData, chartType, colors: colors || COLORS, dataKey, nameKey, scope });

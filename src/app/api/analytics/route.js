@@ -39,6 +39,27 @@ async function buildIncompleteGoals(goals) {
   });
 }
 
+// Build target vs actual data for bar chart — uses progress % for non-numeric UoMs
+function buildTargetVsActual(goals) {
+  return goals.slice(0, 8).map(g => {
+    const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
+    const name = (g.title || '').length > 20 ? g.title.substring(0, 18) + '...' : g.title;
+
+    // For Timeline, Zero, Rating — use progress percentage (0-100)
+    if (['Timeline', 'Zero'].includes(g.uom) || typeof g.target !== 'number') {
+      const progress = latestAch ? calculateProgress(g, latestAch.value) : 0;
+      return { name, target: 100, actual: Math.round(progress) };
+    }
+
+    // For Numeric, Percentage — use raw values
+    return {
+      name,
+      target: g.target,
+      actual: latestAch ? (typeof latestAch.value === 'number' ? latestAch.value : 0) : 0,
+    };
+  });
+}
+
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -82,15 +103,7 @@ export async function GET(request) {
       const totalWeightage = goals.reduce((s, g) => s + (g.weightage || 0), 0);
       const approvedGoals = goals.filter(g => g.status === 'Approved').length;
 
-      // Target vs Actual per goal
-      const targetVsActual = goals.slice(0, 8).map(g => {
-        const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
-        return {
-          name: g.title.length > 20 ? g.title.substring(0, 18) + '...' : g.title,
-          target: typeof g.target === 'number' ? g.target : 100,
-          actual: latestAch ? (typeof latestAch.value === 'number' ? latestAch.value : 0) : 0,
-        };
-      });
+      const targetVsActual = buildTargetVsActual(goals);
 
       const incompleteGoals = await buildIncompleteGoals(goals);
 
@@ -146,14 +159,7 @@ export async function GET(request) {
         };
       });
 
-      const targetVsActual = goals.slice(0, 8).map(g => {
-        const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
-        return {
-          name: (g.title || '').length > 20 ? g.title.substring(0, 18) + '...' : g.title,
-          target: typeof g.target === 'number' ? g.target : 100,
-          actual: latestAch ? (typeof latestAch.value === 'number' ? latestAch.value : 0) : 0,
-        };
-      });
+      const targetVsActual = buildTargetVsActual(goals);
 
       const incompleteGoals = await buildIncompleteGoals(goals);
 
@@ -199,14 +205,7 @@ export async function GET(request) {
       if (sheet && ['Approved', 'Locked'].includes(sheet.status)) completionByDept[dept].completed++;
     });
 
-    const targetVsActual = goals.slice(0, 8).map(g => {
-      const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
-      return {
-        name: (g.title || '').length > 20 ? g.title.substring(0, 18) + '...' : g.title,
-        target: typeof g.target === 'number' ? g.target : 100,
-        actual: latestAch ? (typeof latestAch.value === 'number' ? latestAch.value : 0) : 0,
-      };
-    });
+    const targetVsActual = buildTargetVsActual(goals);
 
     const incompleteGoals = await buildIncompleteGoals(goals);
 
