@@ -1,65 +1,345 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect, Suspense } from 'react';
+import { useSession, signIn } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  Target, Lock, Mail, Eye, EyeOff, ArrowRight, X,
+  CheckCircle, BarChart3, Users, Shield, Clock, Zap,
+  TrendingUp, FileText, ChevronRight
+} from 'lucide-react';
+
+export default function LandingPage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
+    <Suspense fallback={<div className="landing-loader"><div className="spinner" /></div>}>
+      <LandingContent />
+    </Suspense>
+  );
+}
+
+function LandingContent() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [showLogin, setShowLogin] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === 'authenticated') router.push('/dashboard');
+  }, [status, router]);
+
+  useEffect(() => {
+    if (searchParams.get('login') === 'true') setShowLogin(true);
+  }, [searchParams]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await signIn('credentials', { email, password, redirect: false });
+      if (res?.error) setError(res.error);
+      else { router.push('/dashboard'); router.refresh(); }
+    } catch { setError('Something went wrong.'); }
+    finally { setLoading(false); }
+  };
+
+  const fillCreds = (role) => {
+    const creds = {
+      Admin: { email: 'admin@ihgst.com', pass: 'Admin@123' },
+      Manager: { email: 'manager@ihgst.com', pass: 'Manager@123' },
+      Employee: { email: 'employee1@ihgst.com', pass: 'Employee@123' },
+    };
+    setEmail(creds[role].email);
+    setPassword(creds[role].pass);
+  };
+
+  if (status === 'loading' || status === 'authenticated') {
+    return (
+      <div className="landing-loader">
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  const features = [
+    { icon: <Target size={24} />, title: 'Goal Setting', desc: 'Create and manage goals with thrust areas, targets, and weighted KPIs aligned to company objectives.' },
+    { icon: <CheckCircle size={24} />, title: 'Manager Approval', desc: 'Structured approval workflow — managers review, edit, approve, or return goals with inline feedback.' },
+    { icon: <Clock size={24} />, title: 'Quarterly Check-ins', desc: 'Track progress across Q1–Q4 with actual vs. planned metrics and automated progress calculation.' },
+    { icon: <BarChart3 size={24} />, title: 'Analytics Dashboard', desc: 'Real-time charts for goal distribution, quarterly trends, and department completion rates.' },
+    { icon: <Shield size={24} />, title: 'Audit Trail', desc: 'Complete change history — who modified what and when, ensuring full accountability.' },
+    { icon: <Users size={24} />, title: 'Shared Goals', desc: 'Push organization-wide KPIs to all employees — they customize weightage while title and target stay locked.' },
+  ];
+
+  const stats = [
+    { value: '100%', label: 'Weightage Validation' },
+    { value: '4', label: 'Quarterly Check-ins' },
+    { value: '3', label: 'User Roles' },
+    { value: '∞', label: 'Audit Records' },
+  ];
+
+  return (
+    <div className="landing-page">
+      {/* Animated background */}
+      <div className="landing-bg">
+        <div className="landing-bg-orb landing-bg-orb-1" />
+        <div className="landing-bg-orb landing-bg-orb-2" />
+        <div className="landing-bg-orb landing-bg-orb-3" />
+        <div className="landing-grid-pattern" />
+      </div>
+
+      {/* Navigation */}
+      <nav className="landing-nav">
+        <div className="landing-nav-inner">
+          <div className="landing-nav-brand">
+            <div className="landing-logo-icon" style={{ padding: 0, overflow: 'hidden' }}>
+              <img src="/logo.png" alt="IHGST" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <span className="landing-logo-text">IHGST <span className="landing-logo-accent">Portal</span></span>
+          </div>
+          <button className="landing-login-btn" onClick={() => setShowLogin(true)} id="hero-login-btn">
+            <span>Login</span>
+            <ArrowRight size={16} />
+          </button>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="landing-hero">
+        <div className="landing-hero-content">
+          <div className="landing-hero-badge">
+            <Zap size={14} />
+            <span>Enterprise Goal Management Platform</span>
+          </div>
+          <h1 className="landing-hero-title">
+            <span className="landing-hero-line">Track Goals.</span>
+            <span className="landing-hero-line">
+              <span className="gradient-text">Drive Performance.</span>
+            </span>
+            <span className="landing-hero-line">Achieve Excellence.</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="landing-hero-subtitle">
+            A unified platform for setting, tracking, and reviewing employee performance goals
+            with structured approval workflows, quarterly check-ins, and real-time analytics.
+          </p>
+          <div className="landing-hero-actions">
+            <button className="btn-glow landing-hero-cta" onClick={() => setShowLogin(true)} id="hero-get-started-btn">
+              Get Started
+              <ArrowRight size={18} />
+            </button>
+            <a href="#features" className="landing-hero-secondary">
+              Explore Features
+              <ChevronRight size={16} />
+            </a>
+          </div>
+        </div>
+
+        {/* Stats Strip */}
+        <div className="landing-stats-strip">
+          {stats.map((s, i) => (
+            <div key={i} className="landing-stat-item">
+              <span className="landing-stat-value gradient-text">{s.value}</span>
+              <span className="landing-stat-label">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="landing-section" id="how-it-works">
+        <div className="landing-section-inner">
+          <h2 className="landing-section-title">
+            How It <span className="gradient-text">Works</span>
+          </h2>
+          <p className="landing-section-subtitle">
+            A simple, structured lifecycle from goal creation to final review.
+          </p>
+          <div className="landing-flow">
+            {[
+              { step: '01', title: 'Create Goals', desc: 'Employees set goals with targets and weightage' },
+              { step: '02', title: 'Submit for Review', desc: 'Goals are sent to the manager for approval' },
+              { step: '03', title: 'Manager Approves', desc: 'Manager reviews, edits, and approves goals' },
+              { step: '04', title: 'Track Progress', desc: 'Quarterly check-ins with actual achievements' },
+              { step: '05', title: 'Analyze & Report', desc: 'Dashboards and exportable reports for HR' },
+            ].map((item, i) => (
+              <div key={i} className="landing-flow-item">
+                <div className="landing-flow-step">{item.step}</div>
+                <h3 className="landing-flow-title">{item.title}</h3>
+                <p className="landing-flow-desc">{item.desc}</p>
+                {i < 4 && <div className="landing-flow-connector" />}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="landing-section landing-section-dark" id="features">
+        <div className="landing-section-inner">
+          <h2 className="landing-section-title">
+            Powerful <span className="gradient-text">Features</span>
+          </h2>
+          <p className="landing-section-subtitle">
+            Everything you need to manage employee performance — no spreadsheets, no emails, no paper.
+          </p>
+          <div className="landing-features-grid">
+            {features.map((f, i) => (
+              <div key={i} className="landing-feature-card glass-card" style={{ animationDelay: `${i * 0.1}s` }}>
+                <div className="landing-feature-icon">{f.icon}</div>
+                <h3 className="landing-feature-title">{f.title}</h3>
+                <p className="landing-feature-desc">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Validation Rules */}
+      <section className="landing-section" id="validation">
+        <div className="landing-section-inner">
+          <h2 className="landing-section-title">
+            Built-in <span className="gradient-text">Validation</span>
+          </h2>
+          <p className="landing-section-subtitle">
+            Smart rules enforce data quality at every step.
+          </p>
+          <div className="landing-rules-grid">
+            {[
+              { icon: '🎯', title: 'Weightage = 100%', desc: 'Total across all goals must equal exactly 100%' },
+              { icon: '📊', title: 'Min 10% Per Goal', desc: 'Each goal must carry at least 10% weightage' },
+              { icon: '🔒', title: 'Max 8 Goals', desc: 'Employees can create up to 8 goals per cycle' },
+              { icon: '✅', title: 'Lock on Approval', desc: 'Approved goals cannot be edited — only admin can unlock' },
+            ].map((rule, i) => (
+              <div key={i} className="landing-rule-card glass-card">
+                <span className="landing-rule-emoji">{rule.icon}</span>
+                <h3 className="landing-rule-title">{rule.title}</h3>
+                <p className="landing-rule-desc">{rule.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* User Roles */}
+      <section className="landing-section landing-section-dark" id="roles">
+        <div className="landing-section-inner">
+          <h2 className="landing-section-title">
+            Role-Based <span className="gradient-text">Access</span>
+          </h2>
+          <div className="landing-roles-grid">
+            {[
+              { role: 'Employee', icon: <Users size={28} />, color: '#34d399', items: ['Create & edit goals', 'Submit for approval', 'Update quarterly progress', 'View personal analytics'] },
+              { role: 'Manager', icon: <Shield size={28} />, color: '#60a5fa', items: ['Review team goals', 'Approve / reject / edit', 'Conduct quarterly check-ins', 'Team performance overview'] },
+              { role: 'Admin / HR', icon: <FileText size={28} />, color: '#f87171', items: ['Manage cycles & users', 'Unlock locked goals', 'Export reports via email', 'Full audit trail access'] },
+            ].map((r, i) => (
+              <div key={i} className="landing-role-card glass-card">
+                <div className="landing-role-icon" style={{ background: `${r.color}20`, color: r.color }}>{r.icon}</div>
+                <h3 className="landing-role-name">{r.role}</h3>
+                <ul className="landing-role-list">
+                  {r.items.map((item, j) => (
+                    <li key={j}><CheckCircle size={14} style={{ color: r.color, flexShrink: 0 }} /> {item}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="landing-section landing-cta-section">
+        <div className="landing-section-inner" style={{ textAlign: 'center' }}>
+          <h2 className="landing-section-title">
+            Ready to <span className="gradient-text">Get Started?</span>
+          </h2>
+          <p className="landing-section-subtitle" style={{ maxWidth: '500px', margin: '0 auto 32px' }}>
+            Log in with your credentials and start tracking your goals today.
+          </p>
+          <button className="btn-glow landing-hero-cta" onClick={() => setShowLogin(true)} id="cta-login-btn">
+            Login Now
+            <ArrowRight size={18} />
+          </button>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="landing-footer">
+        <div className="landing-footer-inner">
+          <div className="landing-footer-brand">
+            <div className="landing-logo-icon" style={{ width: 32, height: 32, borderRadius: 8, padding: 0, overflow: 'hidden' }}>
+              <img src="/logo.png" alt="IHGST" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <span style={{ fontWeight: 700, fontSize: 14 }}>IHGST Portal</span>
+          </div>
+          <p className="landing-footer-text">
+            In-House Goal Setting & Tracking — Enterprise Performance Management
+          </p>
+          <p className="landing-footer-copy">
+            © {new Date().getFullYear()} IHGST Portal. Built for the Atomberg Hackathon.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </footer>
+
+      {/* Login Modal */}
+      {showLogin && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowLogin(false); }}>
+          <div className="login-modal animate-fadeIn">
+            <button className="login-modal-close" onClick={() => setShowLogin(false)} id="login-modal-close">
+              <X size={20} />
+            </button>
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '16px', overflow: 'hidden', marginBottom: '16px', boxShadow: '0 8px 32px rgba(99,102,241,0.3)' }}>
+                <img src="/logo.png" alt="IHGST" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              </div>
+              <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '6px' }}><span className="gradient-text">IHGST</span> Portal</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Sign in to your account</p>
+            </div>
+            <form onSubmit={handleLogin}>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type="email" className="input-dark" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ paddingLeft: '38px', fontSize: '13px' }} id="login-email" />
+                </div>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Password</label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input type={showPassword ? 'text' : 'password'} className="input-dark" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ paddingLeft: '38px', paddingRight: '38px', fontSize: '13px' }} id="login-password" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              {error && <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', fontSize: '12px', marginBottom: '16px' }}>{error}</div>}
+              <button type="submit" className="btn-glow" disabled={loading} id="login-submit" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '11px', opacity: loading ? 0.7 : 1 }}>
+                {loading ? <div className="spinner-sm" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
+              </button>
+            </form>
+            <div style={{ marginTop: '20px', padding: '14px', borderRadius: '10px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)' }}>
+              <p style={{ fontSize: '11px', fontWeight: '600', color: 'var(--accent-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Credentials</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {[
+                  { role: 'Admin', email: 'admin@ihgst.com' },
+                  { role: 'Manager', email: 'manager@ihgst.com' },
+                  { role: 'Employee', email: 'employee1@ihgst.com' },
+                ].map((cred) => (
+                  <button key={cred.role} type="button" onClick={() => fillCreds(cred.role)}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{cred.role}</span>
+                    <span>{cred.email}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }
