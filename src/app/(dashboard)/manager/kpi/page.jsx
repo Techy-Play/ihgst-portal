@@ -6,6 +6,7 @@ import { Target as TargetIcon, Gauge, Share2, Check, Users, ChevronDown, Chevron
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import CustomDropdown from '@/components/ui/CustomDropdown';
+import CustomDatePicker from '@/components/ui/CustomDatePicker';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, ErrorDisplay, SkeletonGoalCards } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
@@ -88,7 +89,18 @@ export default function AssignKPIPage() {
     setForm(prev => {
       const updated = { ...prev, [field]: value };
       // Clear target when switching UoM to prevent type mismatch
-      if (field === 'uom' && value !== prev.uom) updated.target = '';
+      if (field === 'uom' && value !== prev.uom) {
+        updated.target = value === 'Zero' ? '0' : '';
+        // Zero UoM direction is always Min (lower is better = zero defects)
+        if (value === 'Zero') updated.uomDirection = 'Max';
+        // Timeline has no direction
+        if (value === 'Timeline') updated.uomDirection = 'Min';
+      }
+      // Cap Percentage target at 100
+      if (field === 'target' && prev.uom === 'Percentage') {
+        const n = Number(value);
+        if (!isNaN(n) && n > 100) updated.target = '100';
+      }
       return updated;
     });
     setFormError('');
@@ -156,7 +168,25 @@ export default function AssignKPIPage() {
                     <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <TargetIcon size={12} /> Target *
                     </label>
-                    <input className="input-dark" type={form.uom === 'Timeline' ? 'date' : 'number'} placeholder="e.g., 95" value={form.target} onChange={e => handleChange('target', e.target.value)} min={0} />
+                    {form.uom === 'Timeline' ? (
+                      <CustomDatePicker
+                        value={form.target}
+                        onChange={(v) => handleChange('target', v)}
+                        placeholder="Select target date..."
+                        minDate={new Date().toISOString().split('T')[0]}
+                      />
+                    ) : (
+                      <input
+                        className="input-dark"
+                        type="number"
+                        placeholder={form.uom === 'Percentage' ? '0–100' : form.uom === 'Zero' ? '0 (fixed)' : 'e.g., 95'}
+                        value={form.target}
+                        onChange={e => handleChange('target', e.target.value)}
+                        min={0}
+                        max={form.uom === 'Percentage' ? 100 : undefined}
+                        readOnly={form.uom === 'Zero'}
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

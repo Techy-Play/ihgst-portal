@@ -35,7 +35,7 @@ function getFirstDayOfMonth(year, month) {
   return new Date(year, month, 1).getDay();
 }
 
-export default function CustomDatePicker({ value, onChange, label, placeholder = 'Select date...', disabled = false, required = false }) {
+export default function CustomDatePicker({ value, onChange, label, placeholder = 'Select date...', disabled = false, required = false, minDate = null, maxDate = null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const triggerRef = useRef(null);
@@ -44,6 +44,17 @@ export default function CustomDatePicker({ value, onChange, label, placeholder =
   const parsed = parseDate(value);
   const [viewYear, setViewYear] = useState(parsed?.getFullYear() || new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(parsed?.getMonth() ?? new Date().getMonth());
+
+  const minD = minDate ? parseDate(minDate) : null;
+  const maxD = maxDate ? parseDate(maxDate) : null;
+
+  // Helper: is a specific date in current view disabled?
+  const isDisabled = (day) => {
+    const d = new Date(viewYear, viewMonth, day);
+    if (minD && d < minD) return true;
+    if (maxD && d > maxD) return true;
+    return false;
+  };
 
   // Sync view when value changes externally
   useEffect(() => {
@@ -97,6 +108,7 @@ export default function CustomDatePicker({ value, onChange, label, placeholder =
   };
 
   const handleSelect = (day) => {
+    if (isDisabled(day)) return;
     const d = new Date(viewYear, viewMonth, day);
     onChange(formatDate(d));
     setIsOpen(false);
@@ -211,11 +223,13 @@ export default function CustomDatePicker({ value, onChange, label, placeholder =
                   <button
                     type="button"
                     key={i}
+                    disabled={cell.type === 'current' && isDisabled(cell.day)}
                     className={[
                       'calendar-day',
                       cell.type !== 'current' ? 'other-month' : '',
                       cell.type === 'current' && isToday(cell.day) ? 'today' : '',
                       cell.type === 'current' && isSelected(cell.day) ? 'selected' : '',
+                      cell.type === 'current' && isDisabled(cell.day) ? 'disabled-day' : '',
                     ].filter(Boolean).join(' ')}
                     onClick={() => {
                       if (cell.type === 'prev') { prevMonth(); }

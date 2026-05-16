@@ -53,6 +53,7 @@ export default function CheckInPage() {
 
   const goals = data?.goals || [];
   const quarterStatuses = data?.quarterStatuses || {};
+  const quarterDates = data?.quarterDates || {};
 
   const handleUpdate = (gid, f, v) => { setUpdates(p => ({ ...p, [gid]: { ...p[gid], [f]: v } })); };
 
@@ -216,6 +217,8 @@ export default function CheckInPage() {
                         onChange={(v) => handleUpdate(goal._id, 'achievement', v)}
                         placeholder="Select date..."
                         disabled={quarterStatuses[selectedQ] === 'upcoming'}
+                        minDate={quarterDates[selectedQ]?.start ? new Date(quarterDates[selectedQ].start).toISOString().split('T')[0] : undefined}
+                        maxDate={quarterDates[selectedQ]?.end ? new Date(quarterDates[selectedQ].end).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                       />
                     ) : (
                       <input

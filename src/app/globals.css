@@ -1039,6 +1039,18 @@ input[type="number"].input-dark {
   box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
 }
 
+.calendar-day.disabled-day {
+  opacity: 0.25;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  text-decoration: line-through;
+}
+
+.calendar-day.disabled-day:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .calendar-footer {
   display: flex;
   align-items: center;

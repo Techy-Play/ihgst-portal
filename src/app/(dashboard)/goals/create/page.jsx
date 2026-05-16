@@ -76,7 +76,16 @@ export default function CreateGoalPage() {
   const handleChange = (field, value) => {
     setForm(prev => {
       const updated = { ...prev, [field]: value };
-      if (field === 'uom' && value !== prev.uom) updated.target = '';
+      if (field === 'uom' && value !== prev.uom) {
+        updated.target = value === 'Zero' ? '0' : '';
+        if (value === 'Zero') updated.uomDirection = 'Max';    // Zero = lower is better
+        if (value === 'Timeline') updated.uomDirection = 'Min'; // Timeline has no direction
+      }
+      // Cap Percentage target at 100
+      if (field === 'target' && prev.uom === 'Percentage') {
+        const n = Number(value);
+        if (!isNaN(n) && n > 100) updated.target = '100';
+      }
       return updated;
     });
     setError('');
@@ -158,18 +167,20 @@ export default function CreateGoalPage() {
                 <TargetIcon size={13} /> Target *
               </label>
               {form.uom === 'Timeline' ? (
-                <CustomDatePicker value={form.target} onChange={(v) => handleChange('target', v)} placeholder="Select target date..." required />
+                <CustomDatePicker value={form.target} onChange={(v) => handleChange('target', v)} placeholder="Select target date..." required
+                  minDate={new Date().toISOString().split('T')[0]} />
               ) : (
                 <>
                   <input
                     className="input-dark"
                     type="number"
-                    placeholder={form.uom === 'Percentage' ? 'e.g., 95' : 'e.g., 100'}
+                    placeholder={form.uom === 'Percentage' ? '0–100' : form.uom === 'Zero' ? '0 (fixed)' : 'e.g., 100'}
                     value={form.target}
                     onChange={(e) => handleChange('target', e.target.value)}
                     required
                     min={0}
                     max={form.uom === 'Percentage' ? 100 : undefined}
+                    readOnly={form.uom === 'Zero'}
                     style={{ marginBottom: '8px' }}
                   />
                   {form.uom === 'Percentage' && form.target && (

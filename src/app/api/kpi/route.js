@@ -76,6 +76,14 @@ export async function POST(request) {
     if (!body.description?.trim()) return NextResponse.json({ error: 'Description is required.' }, { status: 400 });
     if (!body.uom) return NextResponse.json({ error: 'Unit of measurement is required.' }, { status: 400 });
     if (body.target === undefined || body.target === '') return NextResponse.json({ error: 'Target is required.' }, { status: 400 });
+    if (body.uom === 'Timeline') {
+      const tDate = new Date(body.target);
+      if (isNaN(tDate.getTime())) return NextResponse.json({ error: 'Timeline target must be a valid date (YYYY-MM-DD).' }, { status: 400 });
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (tDate < today) return NextResponse.json({ error: 'Timeline target date cannot be in the past.' }, { status: 400 });
+    } else if (isNaN(Number(body.target)) || Number(body.target) < 0) {
+      return NextResponse.json({ error: 'Target must be a valid positive number.' }, { status: 400 });
+    }
     if (!body.employeeIds?.length) return NextResponse.json({ error: 'Select at least one employee.' }, { status: 400 });
     const defaultWeightage = body.defaultWeightage || 20;
     if (defaultWeightage < 10 || defaultWeightage > 100) return NextResponse.json({ error: 'Default weightage must be 10-100%.' }, { status: 400 });

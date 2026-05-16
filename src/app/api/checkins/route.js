@@ -43,9 +43,16 @@ export async function GET(request) {
 
     const activeQuarter = getActiveQuarter(activeCycle);
     const quarterStatuses = {};
-    ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => { quarterStatuses[q] = getQuarterStatus(activeCycle, q); });
+    const quarterDates = {}; // expose start/end for each quarter so UI can constrain date pickers
+    ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
+      quarterStatuses[q] = getQuarterStatus(activeCycle, q);
+      if (activeCycle?.quarters?.length) {
+        const qDef = activeCycle.quarters.find(d => d.label === q);
+        if (qDef) quarterDates[q] = { start: qDef.start, end: qDef.end };
+      }
+    });
 
-    return NextResponse.json({ goals: goalsWithCheckins, checkins, activeQuarter, quarterStatuses });
+    return NextResponse.json({ goals: goalsWithCheckins, checkins, activeQuarter, quarterStatuses, quarterDates });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
