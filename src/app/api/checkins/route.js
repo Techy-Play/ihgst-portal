@@ -5,6 +5,26 @@ import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
 import CheckIn from '@/models/CheckIn';
 import AuditLog from '@/models/AuditLog';
+import Cycle from '@/models/Cycle';
+
+function getActiveQuarter(cycle) {
+  if (!cycle?.quarters?.length) return 'Q1';
+  const now = new Date();
+  for (const q of cycle.quarters) {
+    if (q.start && q.end && new Date(q.start) <= now && now <= new Date(q.end)) return q.label;
+  }
+  return cycle.quarters[0]?.label || 'Q1';
+}
+
+function getQuarterStatus(cycle, qLabel) {
+  if (!cycle?.quarters?.length) return 'unknown';
+  const now = new Date();
+  const q = cycle.quarters.find(q => q.label === qLabel);
+  if (!q || !q.start || !q.end) return 'unknown';
+  if (now < new Date(q.start)) return 'upcoming';
+  if (now > new Date(q.end)) return 'completed';
+  return 'active';
+}
 
 export async function GET(request) {
   try {
@@ -17,7 +37,13 @@ export async function GET(request) {
     const goals = await Goal.find({ userId, status: { $in: ['Approved', 'Locked'] } }).lean();
     let checkins = quarter ? await CheckIn.find({ userId, quarter }).lean() : await CheckIn.find({ userId }).lean();
     const goalsWithCheckins = goals.map(goal => ({ ...goal, checkins: checkins.filter(c => c.goalId.toString() === goal._id.toString()) }));
-    return NextResponse.json({ goals: goalsWithCheckins, checkins });
+
+    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+    const activeQuarter = getActiveQuarter(activeCycle);
+    const quarterStatuses = {};
+    ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => { quarterStatuses[q] = getQuarterStatus(activeCycle, q); });
+
+    return NextResponse.json({ goals: goalsWithCheckins, checkins, activeQuarter, quarterStatuses });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

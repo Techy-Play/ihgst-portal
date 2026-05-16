@@ -88,21 +88,34 @@ export function SkeletonChart({ height = 300 }) {
 
 /* ── Refresh Button ── */
 
-export function RefreshButton({ onClick, loading }) {
+export function RefreshButton({ onClick, loading, lastUpdated }) {
+  const formatTime = (d) => {
+    if (!d) return null;
+    const date = new Date(d);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  const timeStr = formatTime(lastUpdated);
   return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px',
-        borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)',
-        color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
-        transition: 'all 0.2s',
-      }}
-    >
-      <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-      <span>{loading ? 'Refreshing...' : 'Refresh Data'}</span>
-    </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+      <button
+        onClick={onClick}
+        disabled={loading}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px',
+          borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)',
+          color: 'var(--text-secondary)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+          transition: 'all 0.2s',
+        }}
+      >
+        <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+        <span>{loading ? 'Refreshing...' : 'Refresh Data'}</span>
+      </button>
+      {timeStr && !loading && (
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)', paddingRight: '4px' }}>
+          Last updated: {timeStr}
+        </span>
+      )}
+    </div>
   );
 }
 

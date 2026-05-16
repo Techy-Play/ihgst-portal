@@ -133,6 +133,14 @@ export default function Header() {
   // Notification item renderer — shared between dropdown and slide panel
   const renderNotifItem = (n, compact = false) => {
     const tc = getColor(n.type);
+    const typeIcons = {
+      goal_created: <Check size={14} />,
+      goal_approved: <CheckCheck size={14} />,
+      goal_returned: <Clock size={14} />,
+      checkin_updated: <Bell size={14} />,
+      shared_goal: <Bell size={14} />,
+    };
+    const icon = typeIcons[n.type] || <Bell size={14} />;
     return (
       <motion.div
         key={n._id}
@@ -145,7 +153,7 @@ export default function Header() {
         onClick={() => handleNotifClick(n)}
       >
         <div className="notif-avatar" style={{ background: tc.bg, color: tc.color }}>
-          {n.title?.charAt(0)?.toUpperCase() || 'N'}
+          {icon}
         </div>
         <div className="notif-content">
           <p className="notif-item-title" style={{ color: n.read ? 'var(--text-secondary)' : 'var(--text-primary)' }}>{n.title}</p>

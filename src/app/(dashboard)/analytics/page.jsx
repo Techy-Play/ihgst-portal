@@ -1,7 +1,7 @@
 'use client';
 import { useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonChart, ErrorDisplay } from '@/components/ui/Skeletons';
 import { User, Users, Building2 } from 'lucide-react';
@@ -45,6 +45,24 @@ const scopeConfig = {
   },
 };
 
+const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
+
+const tooltipStyle = { background: '#1e1e2d', border: '1px solid #33334d', borderRadius: '8px', fontSize: '12px' };
+
+// Custom legend renderer
+function ChartLegend({ items }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center', marginTop: '8px' }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+          <div style={{ width: 10, height: 10, borderRadius: 2, background: item.color, flexShrink: 0 }} />
+          <span>{item.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const { data: session } = useSession();
   const transform = useCallback((d) => d, []);
@@ -52,8 +70,6 @@ export default function AnalyticsPage() {
 
   const scope = data?.scope || 'organization';
   const cfg = scopeConfig[scope] || scopeConfig.organization;
-
-  const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
 
   if (error) return (
     <div className="animate-fadeIn">
@@ -100,62 +116,96 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Charts Row 1 */}
+      {/* Charts Row 1: Status + Thrust Area */}
       {loading && !data ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
           <SkeletonChart height={350} /><SkeletonChart height={350} />
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-          <div className="glass-card" style={{ padding: '24px', height: '350px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Goal Status Distribution</h3>
+          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Goal Status Distribution</h3>
             {(data?.statusDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <ResponsiveContainer width="100%" height="85%">
-                <PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{(data?.statusDistribution || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip contentStyle={{ background: '#1e1e2d', border: '1px solid #33334d', borderRadius: '8px' }} /></PieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height="75%">
+                  <PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>{(data?.statusDistribution || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+                </ResponsiveContainer>
+                <ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} />
+              </>
             )}
           </div>
-          <div className="glass-card" style={{ padding: '24px', height: '350px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Thrust Area Breakdown</h3>
+          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Thrust Area Breakdown</h3>
             {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <ResponsiveContainer width="100%" height="85%">
-                <PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name }) => name}>{(data?.thrustAreaDistribution || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={{ background: '#1e1e2d', border: '1px solid #33334d', borderRadius: '8px' }} /></PieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height="75%">
+                  <PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name }) => name}>{(data?.thrustAreaDistribution || []).map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+                </ResponsiveContainer>
+                <ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} />
+              </>
             )}
           </div>
         </div>
       )}
 
-      {/* Charts Row 2 */}
+      {/* Charts Row 2: Target vs Actual (NEW) + Quarterly Progress */}
       {loading && !data ? (
-        <div style={{ display: 'grid', gridTemplateColumns: cfg.showDeptChart ? 'repeat(auto-fit, minmax(400px, 1fr))' : '1fr', gap: '24px' }}>
-          <SkeletonChart height={350} />
-          {cfg.showDeptChart && <SkeletonChart height={350} />}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+          <SkeletonChart height={350} /><SkeletonChart height={350} />
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: cfg.showDeptChart ? 'repeat(auto-fit, minmax(400px, 1fr))' : '1fr', gap: '24px' }}>
-          <div className="glass-card" style={{ padding: '24px', height: '350px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
-              {scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'}
-            </h3>
-            {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-              <ResponsiveContainer width="100%" height="85%">
-                <BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="quarter" stroke="#9ca3af" axisLine={false} tickLine={false} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e1e2d', border: '1px solid #33334d', borderRadius: '8px' }} /><Bar dataKey="avgProgress" fill="#3b82f6" radius={[6, 6, 0, 0]} /></BarChart>
-              </ResponsiveContainer>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+          {/* TARGET vs ACTUAL — key enterprise chart */}
+          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Target vs Actual</h3>
+            {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
+              <>
+                <ResponsiveContainer width="100%" height="75%">
+                  <BarChart data={data?.targetVsActual || []} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} />
+                    <XAxis dataKey="name" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={11} angle={-15} textAnchor="end" height={50} />
+                    <YAxis stroke="#9ca3af" axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} />
+                    <Bar dataKey="target" name="Target" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
+                    <Bar dataKey="actual" name="Actual" fill="#10b981" radius={[4, 4, 0, 0]} barSize={18} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} />
+              </>
             )}
           </div>
 
-          {/* Department/Team chart — only for Manager & Admin */}
-          {cfg.showDeptChart && (
-            <div className="glass-card" style={{ padding: '24px', height: '350px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{cfg.chart4Title}</h3>
-              {(data?.completionByDept || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
-                <ResponsiveContainer width="100%" height="85%">
-                  <BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33334d" horizontal={false} /><XAxis type="number" stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} /><YAxis dataKey="department" type="category" stroke="#9ca3af" axisLine={false} tickLine={false} width={100} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e1e2d', border: '1px solid #33334d', borderRadius: '8px' }} /><Bar dataKey="rate" fill="#10b981" radius={[0, 6, 6, 0]} /></BarChart>
+          {/* Quarterly Progress */}
+          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>
+              {scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'}
+            </h3>
+            {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
+              <>
+                <ResponsiveContainer width="100%" height="75%">
+                  <BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="quarter" stroke="#9ca3af" axisLine={false} tickLine={false} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[6, 6, 0, 0]} /></BarChart>
                 </ResponsiveContainer>
-              )}
-            </div>
-          )}
+                <ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} />
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Charts Row 3: Department/Team chart — only for Manager & Admin */}
+      {cfg.showDeptChart && !loading && data && (
+        <div style={{ marginBottom: '24px' }}>
+          <div className="glass-card" style={{ padding: '24px', height: '380px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>{cfg.chart4Title}</h3>
+            {(data?.completionByDept || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 14, paddingTop: 40, textAlign: 'center' }}>No data available yet</p> : (
+              <>
+                <ResponsiveContainer width="100%" height="80%">
+                  <BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33334d" horizontal={false} /><XAxis type="number" stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} /><YAxis dataKey="department" type="category" stroke="#9ca3af" axisLine={false} tickLine={false} width={100} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 6, 6, 0]} /></BarChart>
+                </ResponsiveContainer>
+                <ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} />
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

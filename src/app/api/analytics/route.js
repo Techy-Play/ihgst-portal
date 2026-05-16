@@ -36,11 +36,22 @@ export async function GET() {
       const totalWeightage = goals.reduce((s, g) => s + (g.weightage || 0), 0);
       const approvedGoals = goals.filter(g => g.status === 'Approved').length;
 
+      // Target vs Actual per goal
+      const targetVsActual = goals.slice(0, 8).map(g => {
+        const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
+        return {
+          name: g.title.length > 20 ? g.title.substring(0, 18) + '...' : g.title,
+          target: typeof g.target === 'number' ? g.target : 100,
+          actual: latestAch ? (typeof latestAch.value === 'number' ? latestAch.value : 0) : 0,
+        };
+      });
+
       return NextResponse.json({
         scope: 'personal',
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
         thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
         quarterProgress,
+        targetVsActual,
         totalGoals: goals.length,
         approvedGoals,
         totalWeightage,
@@ -85,11 +96,21 @@ export async function GET() {
         };
       });
 
+      const targetVsActual = goals.slice(0, 8).map(g => {
+        const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
+        return {
+          name: (g.title || '').length > 20 ? g.title.substring(0, 18) + '...' : g.title,
+          target: typeof g.target === 'number' ? g.target : 100,
+          actual: latestAch ? (typeof latestAch.value === 'number' ? latestAch.value : 0) : 0,
+        };
+      });
+
       return NextResponse.json({
         scope: 'team',
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
         thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
         quarterProgress,
+        targetVsActual,
         completionByDept: memberCompletion,
         totalGoals: goals.length,
         totalEmployees: teamMembers.length,
@@ -124,11 +145,21 @@ export async function GET() {
       if (sheet && ['Approved', 'Locked'].includes(sheet.status)) completionByDept[dept].completed++;
     });
 
+    const targetVsActual = goals.slice(0, 8).map(g => {
+      const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
+      return {
+        name: (g.title || '').length > 20 ? g.title.substring(0, 18) + '...' : g.title,
+        target: typeof g.target === 'number' ? g.target : 100,
+        actual: latestAch ? (typeof latestAch.value === 'number' ? latestAch.value : 0) : 0,
+      };
+    });
+
     return NextResponse.json({
       scope: 'organization',
       statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
       thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
       quarterProgress,
+      targetVsActual,
       completionByDept: Object.entries(completionByDept).map(([dept, { total, completed }]) => ({ department: dept, total, completed, rate: Math.round((completed / total) * 100) })),
       totalGoals: goals.length,
       totalEmployees: users.length,

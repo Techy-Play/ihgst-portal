@@ -62,7 +62,12 @@ export default function GoalsPage() {
 
       {/* Goals List */}
       {loading && !data ? <SkeletonGoalCards count={3} /> : goals.length === 0 ? (
-        <div className="glass-card" style={{ padding: '48px', textAlign: 'center' }}><Target size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 16px' }} /><p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '20px' }}>No goals yet. Create your first goal!</p><Link href="/goals/create" className="btn-glow" style={{ textDecoration: 'none', fontSize: '14px' }}>Create Goal</Link></div>
+        <div className="glass-card" style={{ padding: '48px', textAlign: 'center' }}>
+          <Target size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 16px', opacity: 0.4 }} />
+          <p style={{ color: 'var(--text-secondary)', fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>No goals created yet</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '24px', maxWidth: 360, margin: '0 auto 24px' }}>Start by creating your first performance goal. Goals need to be approved by your manager before check-ins can begin.</p>
+          <Link href="/goals/create" className="btn-glow" style={{ textDecoration: 'none', fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Plus size={14} /> Create First Goal</Link>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {goals.map(goal => { const ss = statusStyles[goal.status] || statusStyles.Draft; return (

@@ -16,7 +16,7 @@ const GoalSchema = new mongoose.Schema({
   primaryOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   linkedGoalIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Goal' }],
   achievements: [{
-    quarter: String, value: mongoose.Schema.Types.Mixed, status: { type: String, enum: ['Not Started', 'On Track', 'Completed'], default: 'Not Started' },
+    quarter: String, value: mongoose.Schema.Types.Mixed, status: { type: String, enum: ['Not Started', 'On Track', 'At Risk', 'Completed'], default: 'Not Started' },
     comment: String, updatedAt: { type: Date, default: Date.now },
   }],
 }, { timestamps: true });

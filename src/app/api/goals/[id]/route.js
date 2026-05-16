@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
+import GoalSheet from '@/models/GoalSheet';
 import AuditLog from '@/models/AuditLog';
 
 export async function GET(request, { params }) {
@@ -14,7 +15,9 @@ export async function GET(request, { params }) {
     const goal = await Goal.findById(id).lean();
     if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
     const auditLogs = await AuditLog.find({ entityType: 'Goal', entityId: id }).sort({ createdAt: -1 }).lean();
-    return NextResponse.json({ goal, auditLogs });
+    const goalSheet = await GoalSheet.findById(goal.goalSheetId).lean();
+    const managerComments = goalSheet?.comments || [];
+    return NextResponse.json({ goal, auditLogs, managerComments, goalSheetStatus: goalSheet?.status });
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

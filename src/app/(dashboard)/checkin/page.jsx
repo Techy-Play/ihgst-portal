@@ -1,6 +1,6 @@
 'use client';
-import { useState, useCallback } from 'react';
-import { CheckSquare, Save, TrendingUp } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { CheckSquare, Save, TrendingUp, Target, AlertTriangle, Clock, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { calculateProgress } from '@/lib/progress';
 import { useDataFetcher } from '@/lib/useDataFetcher';
@@ -18,16 +18,41 @@ const statusOptions = [
   { value: 'Completed', label: 'Completed', description: 'Target fully achieved' },
 ];
 
+const quarterStatusLabels = {
+  active: { label: 'Active', color: '#34d399', bg: 'rgba(16,185,129,0.12)' },
+  completed: { label: 'Completed', color: '#60a5fa', bg: 'rgba(59,130,246,0.12)' },
+  upcoming: { label: 'Upcoming', color: '#fbbf24', bg: 'rgba(245,158,11,0.12)' },
+  unknown: { label: '', color: '#9ca3af', bg: 'rgba(107,114,128,0.12)' },
+};
+
 export default function CheckInPage() {
-  const [selectedQ, setSelectedQ] = useState('Q1');
+  const [selectedQ, setSelectedQ] = useState(null); // null = not initialized
   const [saving, setSaving] = useState({});
   const [updates, setUpdates] = useState({});
   const toast = useToast();
+  const [initialized, setInitialized] = useState(false);
 
   const transform = useCallback((d) => d, []);
-  const { data, loading, error, refresh, lastUpdated } = useDataFetcher(`/api/checkins?quarter=${selectedQ}`, { transform });
+  const { data, loading, error, refresh, lastUpdated } = useDataFetcher(
+    selectedQ ? `/api/checkins?quarter=${selectedQ}` : null,
+    { transform, enabled: !!selectedQ }
+  );
+
+  // Auto-detect active quarter on first load
+  useEffect(() => {
+    if (initialized) return;
+    fetch('/api/checkins?quarter=Q1')
+      .then(r => r.json())
+      .then(d => {
+        const aq = d.activeQuarter || 'Q1';
+        setSelectedQ(aq);
+        setInitialized(true);
+      })
+      .catch(() => { setSelectedQ('Q1'); setInitialized(true); });
+  }, [initialized]);
 
   const goals = data?.goals || [];
+  const quarterStatuses = data?.quarterStatuses || {};
 
   const handleUpdate = (gid, f, v) => { setUpdates(p => ({ ...p, [gid]: { ...p[gid], [f]: v } })); };
 
@@ -35,24 +60,16 @@ export default function CheckInPage() {
     const u = updates[goal._id];
     if (!u) { toast('No changes to save.', 'error'); return; }
 
-    // Validate achievement is provided
     const achievement = u.achievement;
     if (achievement === undefined || achievement === null || achievement === '') {
       toast('Please enter an achievement value before saving.', 'error');
       return;
     }
 
-    // For numeric types, ensure it's a valid number
     if (goal.uom !== 'Timeline') {
       const numVal = Number(achievement);
-      if (isNaN(numVal)) {
-        toast('Achievement must be a valid number.', 'error');
-        return;
-      }
-      if (numVal < 0) {
-        toast('Achievement cannot be negative.', 'error');
-        return;
-      }
+      if (isNaN(numVal)) { toast('Achievement must be a valid number.', 'error'); return; }
+      if (numVal < 0) { toast('Achievement cannot be negative.', 'error'); return; }
     }
 
     setSaving(p => ({ ...p, [goal._id]: true }));
@@ -80,19 +97,45 @@ export default function CheckInPage() {
     </div>
   );
 
+  if (!initialized) return (
+    <div className="animate-fadeIn">
+      <PageHeader title="Quarterly Check-ins" subtitle="Update your progress." />
+      <SkeletonGoalCards count={3} />
+    </div>
+  );
+
   return (
     <div className="animate-fadeIn">
       <PageHeader title="Quarterly Check-ins" subtitle="Update your progress."
         onRefresh={refresh} lastUpdated={lastUpdated} loading={loading} />
 
+      {/* Quarter Tabs with Status Labels */}
       <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)' }}>
-        {quarters.map(q => (<button key={q} className={`tab-btn ${selectedQ === q ? 'active' : ''}`} onClick={() => { setSelectedQ(q); setUpdates({}); }}>{q}</button>))}
+        {quarters.map(q => {
+          const qs = quarterStatuses[q];
+          const statusCfg = quarterStatusLabels[qs] || quarterStatusLabels.unknown;
+          return (
+            <button key={q} className={`tab-btn ${selectedQ === q ? 'active' : ''}`} onClick={() => { setSelectedQ(q); setUpdates({}); }}>
+              {q}
+              {statusCfg.label && (
+                <span style={{
+                  fontSize: '10px', marginLeft: '6px', padding: '1px 6px',
+                  borderRadius: '100px', background: statusCfg.bg, color: statusCfg.color,
+                  fontWeight: 600, verticalAlign: 'middle',
+                }}>
+                  {statusCfg.label}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {loading && !data ? <SkeletonGoalCards count={3} /> : goals.length === 0 ? (
         <div className="glass-card" style={{ padding: '48px', textAlign: 'center' }}>
-          <CheckSquare size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 16px' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>No approved goals to check in.</p>
+          <CheckSquare size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 16px', opacity: 0.4 }} />
+          <p style={{ color: 'var(--text-secondary)', fontSize: '15px', fontWeight: 600, marginBottom: '6px' }}>No approved goals to check in</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Your goals need to be approved by your manager before you can submit check-ins.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -101,6 +144,7 @@ export default function CheckInPage() {
             const ca = updates[goal._id]?.achievement ?? ex?.achievement ?? '';
             const cs = updates[goal._id]?.status ?? ex?.status ?? 'Not Started';
             const prog = ca !== '' ? calculateProgress(goal, goal.uom === 'Timeline' ? ca : Number(ca)) : 0;
+            const managerComment = ex?.managerComment;
             return (
               <motion.div
                 key={goal._id}
@@ -113,15 +157,50 @@ export default function CheckInPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                   <div>
                     <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>{goal.title}{goal.isShared && <span style={{ fontSize: 11, color: '#a78bfa', marginLeft: 8 }}>🔗 Shared</span>}</h3>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Target: {goal.target} • {goal.uom} • {goal.weightage}%</p>
+                    {/* Target vs Actual - MAIN ENTERPRISE DETAIL */}
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-muted)', alignItems: 'center' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Target size={12} /> Target: <strong style={{ color: 'var(--text-secondary)' }}>{goal.target}</strong>
+                      </span>
+                      <span>•</span>
+                      <span>{goal.uom}</span>
+                      <span>•</span>
+                      <span>Weightage: {goal.weightage}%</span>
+                    </div>
+                    {ca !== '' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Actual:</span>
+                        <span style={{
+                          fontSize: '14px', fontWeight: 700,
+                          color: prog >= 80 ? '#34d399' : prog >= 50 ? '#fbbf24' : '#f87171',
+                        }}>{ca}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          ({prog >= 100 ? '✓ Target met' : `${100 - prog}% remaining`})
+                        </span>
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <p style={{ fontSize: '24px', fontWeight: 800, color: prog >= 80 ? '#34d399' : prog >= 50 ? '#fbbf24' : '#f87171' }}>{prog}%</p>
                   </div>
                 </div>
 
+                {/* Manager Feedback (if exists) */}
+                {managerComment && (
+                  <div style={{
+                    display: 'flex', gap: '10px', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px',
+                    background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)',
+                  }}>
+                    <MessageSquare size={14} style={{ color: '#818cf8', marginTop: '2px', flexShrink: 0 }} />
+                    <div>
+                      <p style={{ fontSize: '11px', fontWeight: 600, color: '#818cf8', marginBottom: '2px' }}>Manager Feedback</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{managerComment}</p>
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  {/* Achievement — with optional slider for percentage */}
+                  {/* Achievement */}
                   <div>
                     <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <TrendingUp size={12} /> Achievement
@@ -145,10 +224,7 @@ export default function CheckInPage() {
                     {goal.uom === 'Percentage' && ca !== '' && (
                       <div className="slider-container">
                         <input
-                          type="range"
-                          className="range-slider"
-                          min={0}
-                          max={100}
+                          type="range" className="range-slider" min={0} max={100}
                           value={ca || 0}
                           onChange={e => handleUpdate(goal._id, 'achievement', e.target.value)}
                         />
@@ -157,7 +233,7 @@ export default function CheckInPage() {
                     )}
                   </div>
 
-                  {/* Status — custom dropdown */}
+                  {/* Status */}
                   <div>
                     <CustomDropdown
                       label="Status"
