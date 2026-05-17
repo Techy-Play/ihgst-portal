@@ -295,7 +295,7 @@ Admin User (HR)
 The portal is deployed on **Vercel** with deployments from the current `main` branch:
 
 ```url
-https://ihgst-portal.vercel.app
+https://ihgst-portal.quest
 ```
 
 ---
