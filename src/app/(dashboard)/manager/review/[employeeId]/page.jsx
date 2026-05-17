@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/Toast';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { calculateProgress } from '@/lib/progress';
 
 export default function ReviewPage({ params }) {
   const { employeeId } = use(params);
@@ -60,6 +61,7 @@ export default function ReviewPage({ params }) {
   goals.forEach(g => thrustDist[g.thrustArea] = (thrustDist[g.thrustArea] || 0) + 1);
   const thrustData = Object.keys(thrustDist).map(k => ({ name: k, count: thrustDist[k] }));
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+  const tooltipStyle = { background: 'var(--surface-popover)', border: '1px solid var(--border-hover)', borderRadius: '8px', color: 'var(--text-primary)', fontSize: '12px' };
 
   const formatTarget = (goal) => {
     if (goal.uom === 'Timeline') {
@@ -81,16 +83,28 @@ export default function ReviewPage({ params }) {
         <div className="glass-card" style={{ padding: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon size={16} style={{ color: '#6366f1' }}/> Weightage Distribution</h3>
           {goals.length > 0 ? (
-            <div style={{ height: '220px', width: '100%', minHeight: '200px' }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <PieChart>
-                  <Pie data={weightageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                    {weightageData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '12px' }} itemStyle={{ color: '#f8fafc' }} formatter={(v) => [`${v}%`, 'Weightage']} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <>
+              <div style={{ height: '220px', width: '100%', minHeight: '200px' }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <PieChart>
+                    <Pie data={weightageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4}
+                      label={({ name, value }) => `${value}%`} labelLine={false}>
+                      {weightageData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: 'var(--text-primary)' }} formatter={(v) => [`${v}%`, 'Weightage']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                {weightageData.map((entry, index) => (
+                  <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-secondary)', padding: '4px 10px', borderRadius: '8px', background: 'var(--surface-muted)' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: COLORS[index % COLORS.length], flexShrink: 0 }} />
+                    <span style={{ fontWeight: 500 }}>{entry.name}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>({entry.value}%)</span>
+                  </div>
+                ))}
+              </div>
+            </>
           ) : <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No goals available</p>}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
             <span>Total Weightage</span>
@@ -109,10 +123,10 @@ export default function ReviewPage({ params }) {
             <div style={{ height: '220px', width: '100%', minHeight: '200px' }}>
               <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                 <BarChart data={thrustData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.length > 10 ? v.substring(0, 10) + '...' : v} />
-                  <YAxis stroke="rgba(255,255,255,0.3)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.04)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#f8fafc', fontSize: '12px' }} itemStyle={{ color: '#10b981' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.length > 10 ? v.substring(0, 10) + '...' : v} />
+                  <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} itemStyle={{ color: '#10b981' }} />
                   <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
                 </BarChart>
               </ResponsiveContainer>
@@ -123,14 +137,21 @@ export default function ReviewPage({ params }) {
 
       <div className="glass-card" style={{ overflow: 'hidden', marginBottom: '24px' }}>
         <table className="table-dark">
-          <thead><tr><th>Goal</th><th>Thrust Area</th><th>UoM</th><th>Target</th><th>Weightage</th></tr></thead>
+          <thead><tr><th>Goal</th><th>Thrust Area</th><th>UoM</th><th>Target</th><th>Weightage</th><th>Completion</th></tr></thead>
           <tbody>
             {goals.map(goal => {
               const w = edits[goal._id]?.weightage ?? goal.weightage;
+              const isApproved = ['Approved', 'Locked'].includes(goal.status);
+              const latestAch = goal.achievements?.length > 0 ? goal.achievements[goal.achievements.length - 1] : null;
+              const goalProg = isApproved && latestAch ? calculateProgress(goal, latestAch.value) : 0;
               return (
                 <tr key={goal._id}>
                   <td>
-                    <p style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '2px' }}>{goal.title}</p>
+                    <Link href={`/goals/${goal._id}`} style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: 500, marginBottom: '2px', display: 'block' }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-primary)'}>
+                      {goal.title} ↗
+                    </Link>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{goal.description?.substring(0, 80)}</p>
                     {goal.uomDirection && (
                       <span style={{ fontSize: '10px', color: goal.uomDirection === 'Min' ? '#34d399' : '#fbbf24', marginTop: '2px', display: 'inline-block' }}>
@@ -166,6 +187,16 @@ export default function ReviewPage({ params }) {
                         {(w < 10 || w > 100) && <p style={{ fontSize: '10px', color: '#f87171', marginTop: '2px' }}>10-100%</p>}
                       </div>
                     ) : <span>{goal.weightage}%</span>}
+                  </td>
+                  <td>
+                    {isApproved ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '50px', height: '5px', borderRadius: '3px', background: 'var(--surface-rail)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: '3px', width: `${goalProg}%`, background: goalProg >= 80 ? '#10b981' : goalProg >= 40 ? '#f59e0b' : '#ef4444', transition: 'width 0.4s' }} />
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: goalProg >= 80 ? '#10b981' : goalProg >= 40 ? '#f59e0b' : '#ef4444' }}>{goalProg}%</span>
+                      </div>
+                    ) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>—</span>}
                   </td>
                 </tr>
               );

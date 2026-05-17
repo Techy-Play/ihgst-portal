@@ -32,6 +32,20 @@ function LandingContent() {
     if (status === 'authenticated') router.push('/dashboard');
   }, [status, router]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', 'dark');
+    return () => {
+      try {
+        const stored = localStorage.getItem('theme-preference');
+        if (stored === 'dark' || stored === 'light') root.setAttribute('data-theme', stored);
+        else root.removeAttribute('data-theme');
+      } catch {
+        root.removeAttribute('data-theme');
+      }
+    };
+  }, []);
+
 
 
   const handleLogin = async (e) => {

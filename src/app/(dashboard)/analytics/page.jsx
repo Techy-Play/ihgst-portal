@@ -2,10 +2,10 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonChart, ErrorDisplay } from '@/components/ui/Skeletons';
-import { User, Users, Building2, Mail, Send, X, ArrowRight, Target, CheckSquare, Maximize2, AlertTriangle, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { User, Users, Building2, Mail, Send, X, ArrowRight, Target, CheckSquare, Maximize2, AlertTriangle, ChevronDown, ChevronUp, Clock, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ const scopeConfig = {
 };
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
-const tooltipStyle = { background: '#1e1e2d', border: '1px solid #33334d', borderRadius: '8px', fontSize: '12px' };
+const tooltipStyle = { background: 'var(--surface-popover)', border: '1px solid var(--border-hover)', borderRadius: '8px', fontSize: '12px', color: 'var(--text-primary)' };
 
 function ChartLegend({ items }) {
   return (
@@ -60,8 +60,10 @@ function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, 
           <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             {chartType === 'pie' ? (
               <PieChart><Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={100} paddingAngle={4} dataKey={dataKey || 'value'} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{chartData.map((_, i) => <Cell key={i} fill={(colors || COLORS)[i % (colors || COLORS).length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+            ) : chartType === 'line' ? (
+              <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ stroke: 'var(--border-hover)' }} contentStyle={tooltipStyle} /><Line type="monotone" dataKey={dataKey || 'value'} stroke={(colors || COLORS)[0]} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart>
             ) : (
-              <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey={dataKey || 'value'} fill={(colors || COLORS)[0]} radius={[4, 4, 0, 0]} /></BarChart>
+              <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey={dataKey || 'value'} fill={(colors || COLORS)[0]} radius={[4, 4, 0, 0]} /></BarChart>
             )}
           </ResponsiveContainer>
         </div>
@@ -259,6 +261,9 @@ export default function AnalyticsPage() {
     setDetailModal({ title, chartData, chartType, colors: colors || COLORS, dataKey, nameKey, scope, role });
   };
 
+  const RISK_COLORS = { 'On Track': '#10b981', 'Delayed': '#f59e0b', 'Critical': '#ef4444', 'Completed': '#3b82f6', 'Not Started': '#6b7280' };
+  const riskColorArray = (data?.riskDistribution || []).map(d => RISK_COLORS[d.name] || '#6b7280');
+
   // Clickable chart wrapper
   const ChartCard = ({ title, onClick, children, style }) => (
     <div className="glass-card" onClick={onClick} style={{ padding: '20px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative', overflow: 'hidden', ...style }}
@@ -311,6 +316,70 @@ export default function AnalyticsPage() {
         </div>
       )}
 
+      {/* Personal Progress Analytics */}
+      {scope === 'personal' && !loading && data && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+          <ChartCard title="Quarterly Performance" style={{ height: '320px' }} onClick={() => openDetail('Quarterly Performance', data?.quarterProgress, 'line', ['#2563eb'], 'avgProgress', 'quarter')}>
+            {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No quarterly data yet</p> : (
+              <ResponsiveContainer width="100%" height={230} minWidth={0}>
+                <LineChart data={data?.quarterProgress || []}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                  <XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} />
+                  <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} />
+                  <Tooltip cursor={{ stroke: 'var(--border-hover)' }} contentStyle={tooltipStyle} />
+                  <Line type="monotone" dataKey="avgProgress" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </ChartCard>
+
+          <ChartCard title="Goal Risk Distribution" style={{ height: '320px' }} onClick={() => openDetail('Goal Risk Distribution', data?.riskDistribution, 'pie', riskColorArray)}>
+            {(data?.riskDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No active goals to assess</p> : (() => {
+              const riskData = data?.riskDistribution || [];
+              const totalRisk = riskData.reduce((s, d) => s + d.value, 0);
+              const critCount = riskData.find(d => d.name === 'Critical')?.value || 0;
+              const delayCount = riskData.find(d => d.name === 'Delayed')?.value || 0;
+              const healthPct = totalRisk > 0 ? Math.round(((totalRisk - critCount - delayCount) / totalRisk) * 100) : 0;
+              return (
+                <>
+                  <div style={{ position: 'relative', height: 180 }}>
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                      <PieChart>
+                        <Pie data={riskData} cx="50%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={4} dataKey="value" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} fontSize={10} labelLine={{ stroke: 'var(--text-muted)' }}>
+                          {riskData.map((entry, i) => <Cell key={i} fill={RISK_COLORS[entry.name] || '#6b7280'} stroke="transparent" />)}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [`${value} goal${value !== 1 ? 's' : ''}`, name]} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', pointerEvents: 'none' }}>
+                      <span style={{ fontSize: '22px', fontWeight: 800, lineHeight: 1 }}>{totalRisk}</span>
+                      <span style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active</span>
+                    </div>
+                  </div>
+                  {/* Risk indicator badges */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', marginTop: '4px' }}>
+                    {riskData.map((d, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '6px', background: `${RISK_COLORS[d.name] || '#6b7280'}12`, border: `1px solid ${RISK_COLORS[d.name] || '#6b7280'}30`, fontSize: '10px', fontWeight: 600 }}>
+                        <div style={{ width: 6, height: 6, borderRadius: '50%', background: RISK_COLORS[d.name] || '#6b7280', boxShadow: `0 0 6px ${RISK_COLORS[d.name] || '#6b7280'}60` }} />
+                        <span style={{ color: RISK_COLORS[d.name] || '#6b7280' }}>{d.value}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{d.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Health score bar */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', padding: '0 8px' }}>
+                    <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: 'var(--surface-rail)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: '2px', width: `${healthPct}%`, background: healthPct >= 70 ? '#10b981' : healthPct >= 40 ? '#f59e0b' : '#ef4444', transition: 'width 0.6s ease' }} />
+                    </div>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', whiteSpace: 'nowrap', fontWeight: 600 }}>{healthPct}% healthy</span>
+                  </div>
+                </>
+              );
+            })()}
+          </ChartCard>
+        </div>
+      )}
+
       {/* Charts Row 1 */}
       {loading && !data ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}><SkeletonChart height={280} /><SkeletonChart height={280} /></div>
@@ -336,12 +405,12 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           <ChartCard title="Target vs Actual" style={{ height: '320px' }} onClick={() => openDetail('Target vs Actual', data?.targetVsActual, 'bar', ['#3b82f6'], 'target')}>
             {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="name" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
+              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
             )}
           </ChartCard>
           <ChartCard title={scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'} style={{ height: '320px' }} onClick={() => openDetail('Quarterly Progress', data?.quarterProgress, 'bar', ['#8b5cf6'], 'avgProgress', 'quarter')}>
             {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="#33334d" vertical={false} /><XAxis dataKey="quarter" stroke="#9ca3af" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
+              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
             )}
           </ChartCard>
         </div>
@@ -352,7 +421,7 @@ export default function AnalyticsPage() {
         <div style={{ marginBottom: '20px' }}>
           <ChartCard title={cfg.chart4Title} style={{ height: '300px' }} onClick={() => openDetail(cfg.chart4Title, data?.completionByDept, 'bar', ['#10b981'], 'rate', 'department')}>
             {(data?.completionByDept || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={200} minWidth={0}><BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="#33334d" horizontal={false} /><XAxis type="number" stroke="#9ca3af" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><YAxis dataKey="department" type="category" stroke="#9ca3af" axisLine={false} tickLine={false} width={90} fontSize={11} /><Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} /></>
+              <><ResponsiveContainer width="100%" height={200} minWidth={0}><BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false} /><XAxis type="number" stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><YAxis dataKey="department" type="category" stroke="var(--text-muted)" axisLine={false} tickLine={false} width={90} fontSize={11} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} /></>
             )}
           </ChartCard>
         </div>

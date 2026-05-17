@@ -13,6 +13,20 @@ export default function LoginPage() {
     else if (status === 'unauthenticated') router.replace('/?login=true');
   }, [status, router]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', 'dark');
+    return () => {
+      try {
+        const stored = localStorage.getItem('theme-preference');
+        if (stored === 'dark' || stored === 'light') root.setAttribute('data-theme', stored);
+        else root.removeAttribute('data-theme');
+      } catch {
+        root.removeAttribute('data-theme');
+      }
+    };
+  }, []);
+
   return (
     <div className="landing-loader">
       <div className="spinner" />

@@ -6,6 +6,7 @@ import User from '@/models/User';
 import GoalSheet from '@/models/GoalSheet';
 import Goal from '@/models/Goal';
 import Cycle from '@/models/Cycle';
+import { calculateProgress } from '@/lib/progress';
 import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET() {
@@ -31,7 +32,17 @@ export async function GET() {
         goalSheet = await GoalSheet.findOne({ userId: member._id, cycleId: activeCycle._id }).lean();
         if (goalSheet) goals = await Goal.find({ goalSheetId: goalSheet._id }).lean();
       }
-      return { ...member, goalSheet, goalCount: goals.length, totalWeightage: goals.reduce((sum, g) => sum + g.weightage, 0) };
+      // Calculate average completion % across all goals
+      let completion = 0;
+      if (goals.length > 0) {
+        let totalProgress = 0;
+        goals.forEach(g => {
+          const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
+          if (latestAch) totalProgress += calculateProgress(g, latestAch.value);
+        });
+        completion = Math.round(totalProgress / goals.length);
+      }
+      return { ...member, goalSheet, goalCount: goals.length, totalWeightage: goals.reduce((sum, g) => sum + g.weightage, 0), completion };
     }));
 
     return NextResponse.json({ team: membersWithGoals });

@@ -156,7 +156,7 @@ body {
 
 /* Theme switch */
 .theme-switch-wrapper {
-  --theme-toggle-size: 14px;
+  --theme-toggle-size: 8px;
   display: flex;
   align-items: center;
 }

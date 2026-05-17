@@ -60,6 +60,70 @@ function buildTargetVsActual(goals) {
   });
 }
 
+// Build risk distribution from goals — only tracks Approved/Locked (active) goals
+// Uses achievement.status field from model: 'Not Started' | 'On Track' | 'At Risk' | 'Completed'
+function buildRiskDistribution(goals) {
+  const risk = { 'On Track': 0, 'Delayed': 0, 'Critical': 0, 'Completed': 0, 'Not Started': 0 };
+
+  // Only analyze approved/locked goals — Draft/Submitted/Returned aren't active yet
+  const activeGoals = goals.filter(g => ['Approved', 'Locked'].includes(g.status));
+
+  // Determine fiscal quarter context
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const currentQ = month < 3 ? 1 : month < 6 ? 2 : month < 9 ? 3 : 4;
+  const currentQLabel = `Q${currentQ}`;
+
+  activeGoals.forEach(g => {
+    const achievements = g.achievements || [];
+    const achievedQuarters = achievements.length;
+
+    // If all 4 quarters have achievements with 'Completed' status → Completed
+    const allDone = achievedQuarters >= 4 && achievements.every(a => a.status === 'Completed');
+    if (allDone) { risk['Completed']++; return; }
+
+    // Get current quarter's achievement if it exists
+    const currentAch = achievements.find(a => a.quarter === currentQLabel);
+    // Get latest achievement overall
+    const latestAch = achievements.length > 0 ? achievements[achievements.length - 1] : null;
+
+    if (!latestAch) {
+      // No achievements at all — goal hasn't started
+      if (currentQ <= 1) {
+        risk['Not Started']++;
+      } else {
+        // Past Q1 with no data → behind schedule
+        risk['Delayed']++;
+      }
+      return;
+    }
+
+    // Use the achievement status field directly from the model
+    const achStatus = currentAch?.status || latestAch?.status || 'Not Started';
+
+    if (achStatus === 'Completed') {
+      // Current quarter completed, but not all quarters done
+      risk['On Track']++;
+    } else if (achStatus === 'On Track') {
+      risk['On Track']++;
+    } else if (achStatus === 'At Risk') {
+      risk['Critical']++;
+    } else {
+      // 'Not Started' with some prior achievements — check if behind schedule
+      const progress = calculateProgress(g, latestAch.value);
+      if (achievedQuarters >= currentQ) {
+        risk['On Track']++;
+      } else if (progress >= 50) {
+        risk['Delayed']++;
+      } else {
+        risk['Critical']++;
+      }
+    }
+  });
+
+  return Object.entries(risk).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
+}
+
 export async function GET(request) {
   try {
     const session = await getServerSession(authOptions);
@@ -98,7 +162,7 @@ export async function GET(request) {
           if (ach && ach.value !== undefined) { total += calculateProgress(g, ach.value); count++; }
         });
         return { quarter: q, avgProgress: count > 0 ? Math.round(total / count) : 0, count };
-      });
+      }).filter(q => q.count > 0);
 
       const totalWeightage = goals.reduce((s, g) => s + (g.weightage || 0), 0);
       const approvedGoals = goals.filter(g => g.status === 'Approved').length;
@@ -111,6 +175,7 @@ export async function GET(request) {
         scope: 'personal',
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
         thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
+        riskDistribution: buildRiskDistribution(goals),
         quarterProgress,
         targetVsActual,
         totalGoals: goals.length,
@@ -145,7 +210,7 @@ export async function GET(request) {
           if (ach && ach.value !== undefined) { total += calculateProgress(g, ach.value); count++; }
         });
         return { quarter: q, avgProgress: count > 0 ? Math.round(total / count) : 0, count };
-      });
+      }).filter(q => q.count > 0);
 
       // Per-member completion
       const memberCompletion = teamMembers.map(u => {
@@ -167,6 +232,7 @@ export async function GET(request) {
         scope: 'team',
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
         thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
+        riskDistribution: buildRiskDistribution(goals),
         quarterProgress,
         targetVsActual,
         completionByDept: memberCompletion,
@@ -194,7 +260,7 @@ export async function GET(request) {
         if (ach && ach.value !== undefined) { total += calculateProgress(g, ach.value); count++; }
       });
       return { quarter: q, avgProgress: count > 0 ? Math.round(total / count) : 0, count };
-    });
+    }).filter(q => q.count > 0);
 
     const completionByDept = {};
     users.forEach(u => {
@@ -213,6 +279,7 @@ export async function GET(request) {
       scope: 'organization',
       statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
       thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
+      riskDistribution: buildRiskDistribution(goals),
       quarterProgress,
       targetVsActual,
       completionByDept: Object.entries(completionByDept).map(([dept, { total, completed }]) => ({ department: dept, total, completed, rate: Math.round((completed / total) * 100) })),

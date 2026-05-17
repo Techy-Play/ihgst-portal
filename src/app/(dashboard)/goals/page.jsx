@@ -8,6 +8,7 @@ import CustomDropdown from '@/components/ui/CustomDropdown';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay, SkeletonBox } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
+import { calculateProgress } from '@/lib/progress';
 
 export default function GoalsPage() {
   const { data: session } = useSession();
@@ -171,7 +172,13 @@ export default function GoalsPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {goals.map(goal => { const ss = statusStyles[goal.status] || statusStyles.Draft; const isDeletable = !goal.isShared && isActiveCycle && ['Draft', 'Returned'].includes(goal.status); return (
+          {goals.map(goal => {
+            const ss = statusStyles[goal.status] || statusStyles.Draft;
+            const isDeletable = !goal.isShared && isActiveCycle && ['Draft', 'Returned'].includes(goal.status);
+            const isApproved = ['Approved', 'Locked'].includes(goal.status);
+            const latestAch = goal.achievements?.length > 0 ? goal.achievements[goal.achievements.length - 1] : null;
+            const goalProgress = isApproved && latestAch ? calculateProgress(goal, latestAch.value) : 0;
+            return (
             <div key={goal._id} className="glass-card" style={{ padding: '20px', position: 'relative', borderLeft: goal.isShared ? '3px solid #a78bfa' : 'none' }}>
               <Link href={`/goals/${goal._id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', paddingRight: isDeletable ? '40px' : 0 }}>
@@ -179,7 +186,17 @@ export default function GoalsPage() {
                     {goal.title}
                     {goal.isShared && <span className="badge" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', borderColor: 'rgba(139,92,246,0.25)', fontSize: '10px', padding: '2px 8px' }}><Share2 size={10} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 3 }} />Shared KPI</span>}
                   </h3>
-                  <span className="badge" style={{ background: ss.bg, color: ss.color, borderColor: ss.border }}>{goal.status}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                    {isApproved && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '48px', height: '5px', borderRadius: '3px', background: 'var(--surface-rail)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: '3px', width: `${goalProgress}%`, background: goalProgress >= 80 ? '#10b981' : goalProgress >= 40 ? '#f59e0b' : '#ef4444', transition: 'width 0.4s ease' }} />
+                        </div>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: goalProgress >= 80 ? '#34d399' : goalProgress >= 40 ? '#fbbf24' : '#f87171', minWidth: '32px', textAlign: 'right' }}>{goalProgress}%</span>
+                      </div>
+                    )}
+                    <span className="badge" style={{ background: ss.bg, color: ss.color, borderColor: ss.border }}>{goal.status}</span>
+                  </div>
                 </div>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>{goal.description?.substring(0, 100)}</p>
                 <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>

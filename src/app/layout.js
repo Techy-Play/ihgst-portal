@@ -21,9 +21,17 @@ export const metadata = {
 export default function RootLayout({ children }) {
   const themeInitScript = `(() => {
   try {
+    const path = window.location.pathname;
+    const forceDark = path === '/' || path.startsWith('/login');
+    if (forceDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      return;
+    }
     const stored = localStorage.getItem('theme-preference');
     if (stored === 'dark' || stored === 'light') {
       document.documentElement.setAttribute('data-theme', stored);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
     }
   } catch {}
 })();`;

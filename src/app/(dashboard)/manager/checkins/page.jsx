@@ -31,7 +31,7 @@ export default function ManagerCheckinsPage() {
       ) : (
         <div className="glass-card" style={{ overflow: 'hidden' }}>
           <table className="table-dark">
-            <thead><tr><th>Employee</th><th>Department</th><th>Goals</th><th>Weightage</th><th>Status</th><th style={{ width: '60px' }}></th></tr></thead>
+            <thead><tr><th>Employee</th><th>Department</th><th>Goals</th><th>Weightage</th><th>Completion</th><th>Status</th><th style={{ width: '60px' }}></th></tr></thead>
             <tbody>
               {team.map(m => (
                 <tr key={m._id} style={{ cursor: 'pointer' }} onClick={() => window.location.href = `/manager/review/${m._id}`}>
@@ -52,6 +52,14 @@ export default function ManagerCheckinsPage() {
                         <div className="progress-bar-fill" style={{ width: `${m.totalWeightage || 0}%`, background: m.totalWeightage === 100 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'var(--gradient-1)' }} />
                       </div>
                       <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{m.totalWeightage || 0}%</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div className="progress-bar" style={{ width: '80px' }}>
+                        <div className="progress-bar-fill" style={{ width: `${m.completion || 0}%`, background: m.completion >= 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : m.completion >= 40 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #ef4444, #f87171)' }} />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: m.completion >= 80 ? '#34d399' : m.completion >= 40 ? '#fbbf24' : '#f87171' }}>{m.completion || 0}%</span>
                     </div>
                   </td>
                   <td><span className="badge" style={{ background: m.goalSheet?.status === 'Approved' ? 'rgba(16,185,129,0.12)' : 'rgba(107,114,128,0.12)', color: m.goalSheet?.status === 'Approved' ? '#34d399' : '#9ca3af' }}>{m.goalSheet?.status || 'No Sheet'}</span></td>
