@@ -49,6 +49,7 @@ function LandingContent() {
   const creds = {
     Admin: { email: 'admin@ihgst.com', pass: 'Admin@123' },
     Manager: { email: 'manager@ihgst.com', pass: 'Manager@123' },
+    Manager2: { email: 'manager2@ihgst.com', pass: 'Manager@123' },
     Employee1: { email: 'employee1@ihgst.com', pass: 'Employee@123' },
     Employee2: { email: 'employee2@ihgst.com', pass: 'Employee@123' },
     Employee3: { email: 'employee3@ihgst.com', pass: 'Employee@123' },
@@ -76,12 +77,6 @@ function LandingContent() {
     { icon: <Users size={24} />, title: 'Shared Goals', desc: 'Push organization-wide KPIs to all employees — they customize weightage while title and target stay locked.' },
   ];
 
-  const stats = [
-    { value: '100%', label: 'Weightage Validation' },
-    { value: '4', label: 'Quarterly Check-ins' },
-    { value: '3', label: 'User Roles' },
-    { value: '∞', label: 'Audit Records' },
-  ];
 
   return (
     <div className="landing-page">
@@ -141,37 +136,58 @@ function LandingContent() {
                 {loading ? <div className="spinner-sm" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
               </button>
             </form>
-            <div style={{ marginTop: '20px', padding: '14px', borderRadius: '10px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)' }}>
-              <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--accent-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Demo Credentials</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {Object.keys(creds).map((role) => (
-                  <button key={role} type="button" onClick={() => fillCreds(role)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{role}</span>
-                    <span>{creds[role].email}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
-          {/* Right — Branding Panel */}
-          <div className="landing-hero-right-panel" style={{ flex: 1, background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 40px', position: 'relative', overflow: 'hidden' }}>
+          {/* Right — Hero Branding + Demo Credentials */}
+          <div className="landing-hero-right-panel" style={{ flex: 1, background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '36px 32px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: '-60px', right: '-60px', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(99,102,241,0.2), transparent 70%)', borderRadius: '50%' }} />
             <div style={{ position: 'absolute', bottom: '-40px', left: '-40px', width: '200px', height: '200px', background: 'radial-gradient(circle, rgba(139,92,246,0.15), transparent 70%)', borderRadius: '50%' }} />
-            <div style={{ position: 'relative', zIndex: 1, textAlign: 'center' }}>
-              <div className="landing-hero-badge" style={{ marginBottom: '20px' }}><Zap size={14} /><span>Enterprise Goal Management</span></div>
-              <h2 style={{ fontSize: '28px', fontWeight: 800, lineHeight: 1.3, marginBottom: '16px' }}>
+            <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '400px' }}>
+              <div className="landing-hero-badge" style={{ marginBottom: '14px' }}><Zap size={14} /><span>Enterprise Goal Management</span></div>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, lineHeight: 1.3, marginBottom: '10px', textAlign: 'center' }}>
                 Track Goals.<br /><span className="gradient-text">Drive Performance.</span><br />Achieve Excellence.
               </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, maxWidth: '360px' }}>
-                A unified platform for setting, tracking, and reviewing performance goals with structured workflows and real-time analytics.
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: 1.5, textAlign: 'center', marginBottom: '20px' }}>
+                A unified platform for setting, tracking, and reviewing performance goals.
               </p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '24px', marginTop: '32px' }}>
-                {stats.map((s, i) => (
-                  <div key={i} style={{ textAlign: 'center' }}>
-                    <span className="gradient-text" style={{ fontSize: '24px', fontWeight: 800, display: 'block' }}>{s.value}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.label}</span>
+
+              {/* Demo Credentials — expanded */}
+              <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: '14px', padding: '16px', border: '1px solid rgba(99,102,241,0.15)' }}>
+                <p style={{ fontSize: '10px', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', textAlign: 'center' }}>🔐 Demo Credentials — Click to autofill</p>
+
+                {/* Admin */}
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Admin</p>
+                  <button type="button" onClick={() => fillCreds('Admin')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.15)', color: 'var(--text-secondary)', fontSize: '11px', cursor: 'pointer' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Shield size={12} style={{ color: '#f87171' }} /><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Admin User</span></span>
+                    <span style={{ color: 'var(--text-muted)' }}>admin@ihgst.com</span>
+                  </button>
+                </div>
+
+                {/* Managers */}
+                <div style={{ marginBottom: '10px' }}>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Managers</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {[{ name: 'Rahul Sharma', key: 'Manager', dept: 'Engineering' }, { name: 'Anita Desai', key: 'Manager2', dept: 'Marketing' }].map(m => (
+                      <button key={m.key} type="button" onClick={() => fillCreds(m.key)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.15)', color: 'var(--text-secondary)', fontSize: '11px', cursor: 'pointer' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Users size={12} style={{ color: '#60a5fa' }} /><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</span><span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{m.dept}</span></span>
+                        <span style={{ color: 'var(--text-muted)' }}>{creds[m.key].email}</span>
+                      </button>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Employees */}
+                <div>
+                  <p style={{ fontSize: '9px', fontWeight: 700, color: '#34d399', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Employees</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {[{ name: 'Priya Patel', key: 'Employee1', dept: 'Engineering' }, { name: 'Amit Kumar', key: 'Employee2', dept: 'Engineering' }, { name: 'Sneha Gupta', key: 'Employee3', dept: 'Marketing' }].map(emp => (
+                      <button key={emp.key} type="button" onClick={() => fillCreds(emp.key)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.15)', color: 'var(--text-secondary)', fontSize: '11px', cursor: 'pointer' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Target size={12} style={{ color: '#34d399' }} /><span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{emp.name}</span><span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{emp.dept}</span></span>
+                        <span style={{ color: 'var(--text-muted)' }}>{creds[emp.key].email}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
