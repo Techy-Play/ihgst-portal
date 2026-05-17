@@ -156,6 +156,71 @@ export async function POST(request) {
   }
 }
 
+// PUT: Edit KPI details across all unapproved assignments
+// Body: { oldTitle, oldThrustArea, title, description, thrustArea, uom, uomDirection, target }
+export async function PUT(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!['Manager', 'Admin'].includes(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    await dbConnect();
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
+
+    if (!body.oldTitle || !body.oldThrustArea) {
+      return NextResponse.json({ error: 'Original KPI title and thrust area are required.' }, { status: 400 });
+    }
+
+    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+    if (!activeCycle) return NextResponse.json({ error: 'No active cycle found.' }, { status: 400 });
+
+    // Find all unapproved goals for this KPI
+    const query = {
+      isShared: true, cycleId: activeCycle._id,
+      title: body.oldTitle, thrustArea: body.oldThrustArea,
+      status: { $in: ['Draft', 'Submitted', 'Returned'] },
+    };
+    if (session.user.role === 'Manager') query.sharedBy = session.user.id;
+
+    const goals = await Goal.find(query);
+    if (goals.length === 0) {
+      return NextResponse.json({ error: 'No editable (unapproved) KPI assignments found.' }, { status: 400 });
+    }
+
+    // Build update object from provided fields
+    const updateFields = {};
+    if (body.title?.trim()) updateFields.title = body.title.trim();
+    if (body.description?.trim()) updateFields.description = body.description.trim();
+    if (body.thrustArea) updateFields.thrustArea = body.thrustArea;
+    if (body.uom) updateFields.uom = body.uom;
+    if (body.uomDirection) updateFields.uomDirection = body.uomDirection;
+    if (body.target !== undefined && body.target !== '') {
+      updateFields.target = body.uom === 'Timeline' ? body.target : Number(body.target);
+    }
+
+    if (Object.keys(updateFields).length === 0) {
+      return NextResponse.json({ error: 'No fields to update.' }, { status: 400 });
+    }
+
+    await Goal.updateMany({ _id: { $in: goals.map(g => g._id) } }, { $set: updateFields });
+
+    await AuditLog.create({
+      entityType: 'KPI', entityId: goals[0]._id,
+      action: 'kpi_edited', changedBy: session.user.id, changedByName: session.user.name,
+      description: `Edited KPI "${body.oldTitle}" → "${updateFields.title || body.oldTitle}" for ${goals.length} employee(s)`,
+    });
+
+    return NextResponse.json({
+      message: `KPI updated for ${goals.length} employee(s).`,
+      updated: goals.length,
+    });
+  } catch (error) {
+    console.error('KPI PUT error:', error);
+    return handleApiError(error, 'kpi PUT');
+  }
+}
+
 // DELETE: Remove unapproved KPI assignment(s)
 // Body: { goalId } to remove a single assignment, or { title, thrustArea } to remove ALL unapproved for that KPI
 export async function DELETE(request) {

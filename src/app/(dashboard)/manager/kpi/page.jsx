@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Target as TargetIcon, Gauge, Share2, Check, Users, ChevronDown, ChevronUp, Trash2, X } from 'lucide-react';
+import { Target as TargetIcon, Gauge, Share2, Check, Users, ChevronDown, ChevronUp, Trash2, X, Edit3, ExternalLink, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import CustomDropdown from '@/components/ui/CustomDropdown';
@@ -52,7 +52,28 @@ export default function AssignKPIPage() {
   const [filterRole, setFilterRole] = useState('all');
   const [expandedKPI, setExpandedKPI] = useState(null);
   const [deleting, setDeleting] = useState({});
-  const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'single', goalId } or { type: 'bulk', title, thrustArea }
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [editingKPI, setEditingKPI] = useState(null); // { idx, title, thrustArea, description, uom, uomDirection, target }
+  const [editSaving, setEditSaving] = useState(false);
+
+  const startEditKPI = (kpi, idx) => {
+    setEditingKPI({ idx, oldTitle: kpi.title, oldThrustArea: kpi.thrustArea, title: kpi.title, thrustArea: kpi.thrustArea, description: kpi.description, uom: kpi.uom, uomDirection: kpi.uomDirection || 'Min', target: kpi.target });
+    setExpandedKPI(idx);
+  };
+
+  const handleEditKPI = async () => {
+    if (!editingKPI) return;
+    setEditSaving(true);
+    try {
+      const { data: d, error } = await safeFetch('/api/kpi', {
+        method: 'PUT',
+        body: JSON.stringify(editingKPI),
+      });
+      if (d) { toast(d.message, 'success'); setEditingKPI(null); refresh(); }
+      else { toast(error || 'Failed to update KPI.', 'error'); }
+    } catch { toast('Failed to update KPI.', 'error'); }
+    setEditSaving(false);
+  };
 
   // Delete a single KPI assignment (one employee)
   const handleDeleteSingle = async (goalId) => {
@@ -339,6 +360,12 @@ export default function AssignKPIPage() {
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* Edit button */}
+                    {hasUnapproved && (
+                      <button onClick={(e) => { e.stopPropagation(); startEditKPI(kpi, i); }} title="Edit KPI details" style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Edit3 size={12} /> Edit
+                      </button>
+                    )}
                     {/* Bulk delete button */}
                     {hasUnapproved && (
                       confirmDelete?.type === 'bulk' && confirmDelete.title === kpi.title && confirmDelete.thrustArea === kpi.thrustArea ? (
@@ -351,7 +378,7 @@ export default function AssignKPIPage() {
                           </button>
                         </div>
                       ) : (
-                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: 'bulk', title: kpi.title, thrustArea: kpi.thrustArea }); }} title="Delete all unapproved assignments" style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: 'bulk', title: kpi.title, thrustArea: kpi.thrustArea }); }} title="Delete all unapproved" style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Trash2 size={12} /> Delete All
                         </button>
                       )
@@ -364,7 +391,29 @@ export default function AssignKPIPage() {
                 <AnimatePresence>
                   {isExpanded && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>{kpi.description}</p>
+                      {/* Inline Edit Form */}
+                      {editingKPI?.idx === i ? (
+                        <div style={{ padding: '16px', borderRadius: '10px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)', marginBottom: '12px' }}>
+                          <h4 style={{ fontSize: '13px', fontWeight: 600, color: '#818cf8', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Edit3 size={13} /> Edit KPI (updates all unapproved assignments)</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                            <div><label className="dropdown-label">Title</label><input className="input-dark" value={editingKPI.title} onChange={e => setEditingKPI(p => ({ ...p, title: e.target.value }))} /></div>
+                            <CustomDropdown label="Thrust Area" options={thrustAreaOptions} value={editingKPI.thrustArea} onChange={v => setEditingKPI(p => ({ ...p, thrustArea: v }))} />
+                          </div>
+                          <div style={{ marginBottom: '10px' }}><label className="dropdown-label">Description</label><textarea className="input-dark" rows={2} value={editingKPI.description} onChange={e => setEditingKPI(p => ({ ...p, description: e.target.value }))} style={{ resize: 'vertical' }} /></div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                            <CustomDropdown label="UoM" options={uomOptions} value={editingKPI.uom} onChange={v => setEditingKPI(p => ({ ...p, uom: v, target: v === 'Zero' ? '0' : p.target }))} />
+                            <CustomDropdown label="Direction" options={directionOptions} value={editingKPI.uomDirection} onChange={v => setEditingKPI(p => ({ ...p, uomDirection: v }))} disabled={editingKPI.uom === 'Zero' || editingKPI.uom === 'Timeline'} />
+                            <div><label className="dropdown-label">Target</label><input className="input-dark" type={editingKPI.uom === 'Timeline' ? 'date' : 'number'} value={editingKPI.target} onChange={e => setEditingKPI(p => ({ ...p, target: e.target.value }))} readOnly={editingKPI.uom === 'Zero'} /></div>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button onClick={() => setEditingKPI(null)} style={{ padding: '6px 16px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+                            <button onClick={handleEditKPI} disabled={editSaving} className="btn-glow" style={{ padding: '6px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Save size={13} /> {editSaving ? 'Saving...' : 'Save Changes'}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>{kpi.description}</p>
+                      )}
+                      {/* Employee List with Deep Links */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {kpi.assignedTo?.map(a => {
                           const sc = statusColors[a.status] || statusColors.Draft;
@@ -376,7 +425,9 @@ export default function AssignKPIPage() {
                                   {(a.userId?.name || '?')[0]}
                                 </div>
                                 <div>
-                                  <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)' }}>{a.userId?.name || 'Unknown'}</span>
+                                  <Link href={`/goals/${a._id}`} style={{ fontSize: '13px', fontWeight: 500, color: '#818cf8', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                    {a.userId?.name || 'Unknown'} <ExternalLink size={10} />
+                                  </Link>
                                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '8px' }}>{a.userId?.department || ''}</span>
                                 </div>
                               </div>
@@ -389,9 +440,7 @@ export default function AssignKPIPage() {
                                       <button onClick={() => handleDeleteSingle(a._id)} disabled={deleting[a._id]} style={{ padding: '2px 8px', borderRadius: '6px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>
                                         {deleting[a._id] ? '...' : 'Yes'}
                                       </button>
-                                      <button onClick={() => setConfirmDelete(null)} style={{ padding: '2px 6px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '10px', cursor: 'pointer' }}>
-                                        No
-                                      </button>
+                                      <button onClick={() => setConfirmDelete(null)} style={{ padding: '2px 6px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '10px', cursor: 'pointer' }}>No</button>
                                     </div>
                                   ) : (
                                     <button onClick={() => setConfirmDelete({ type: 'single', goalId: a._id })} title="Remove from this employee" style={{ padding: '3px 6px', borderRadius: '6px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
