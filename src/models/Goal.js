@@ -25,6 +25,7 @@ const GoalSchema = new mongoose.Schema({
     text: { type: String, required: true },
     by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     byName: { type: String },
+    role: { type: String, enum: ['Manager', 'Admin', 'Employee'], default: 'Manager' },
     createdAt: { type: Date, default: Date.now },
   }],
 }, { timestamps: true });

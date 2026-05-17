@@ -15,7 +15,8 @@ export async function GET(request) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') || 'total'; // total | approved | pending
+    const type = searchParams.get('type') || 'total';
+    const quarterParam = searchParams.get('q');
     const role = session.user.role;
     const userId = session.user.id;
 
@@ -39,10 +40,11 @@ export async function GET(request) {
     const sheetMap = {};
     sheets.forEach(s => { sheetMap[s.userId.toString()] = s; });
 
-    // Get goals
+    // Get goals — for quarter type, only get approved/locked goals with achievements
     let goalFilter = { cycleId: activeCycle._id, userId: { $in: userIds } };
     if (type === 'approved') goalFilter.status = 'Approved';
     else if (type === 'pending') goalFilter.status = { $in: ['Draft', 'Submitted', 'Returned'] };
+    else if (type === 'quarter') goalFilter.status = { $in: ['Approved', 'Locked'] };
 
     const goals = await Goal.find(goalFilter).select('userId title status weightage thrustArea target uom achievements').lean();
 
@@ -59,7 +61,7 @@ export async function GET(request) {
         const uid = u._id.toString();
         const userGoals = userGoalMap[uid] || [];
         const sheet = sheetMap[uid];
-        if (type !== 'total' && userGoals.length === 0) return null; // Skip users with no matching goals
+        if (type !== 'total' && userGoals.length === 0) return null;
         return {
           _id: uid,
           name: u.name,
@@ -68,22 +70,28 @@ export async function GET(request) {
           role: u.role,
           sheetStatus: sheet?.status || 'No Sheet',
           goalCount: userGoals.length,
-          goals: userGoals.map(g => ({
-            _id: g._id,
-            title: g.title,
-            status: g.status,
-            weightage: g.weightage,
-            thrustArea: g.thrustArea,
-            target: g.target,
-            uom: g.uom,
-            progress: calculateGoalProgress(g),
-          })),
+          goals: userGoals.map(g => {
+            const base = {
+              _id: g._id, title: g.title, status: g.status,
+              weightage: g.weightage, thrustArea: g.thrustArea,
+              target: g.target, uom: g.uom,
+              progress: calculateGoalProgress(g),
+            };
+            // Add quarter-specific data when drilling into a quarter
+            if (type === 'quarter' && quarterParam) {
+              const ach = g.achievements?.find(a => a.quarter === quarterParam);
+              base.quarterValue = ach?.value ?? null;
+              base.quarterStatus = ach?.status ?? 'Not Started';
+              base.quarterProgress = ach ? calculateSingleQuarterProgress(g, ach) : 0;
+            }
+            return base;
+          }),
         };
       })
       .filter(Boolean)
       .sort((a, b) => b.goalCount - a.goalCount);
 
-    return NextResponse.json({ employees, type, cycleName: activeCycle.name });
+    return NextResponse.json({ employees, type, quarter: quarterParam, cycleName: activeCycle.name });
   } catch (error) {
     return handleApiError(error, 'dashboard/detail GET');
   }
@@ -109,4 +117,16 @@ function calculateGoalProgress(goal) {
     }
   }
   return 0;
+}
+
+function calculateSingleQuarterProgress(goal, ach) {
+  if (!ach || ach.value === null || ach.value === undefined) return 0;
+  if (goal.uom === 'Timeline') {
+    const targetDate = new Date(goal.target).getTime();
+    const achievedDate = new Date(ach.value).getTime();
+    return achievedDate <= targetDate ? 100 : 50;
+  }
+  const target = Number(goal.target);
+  if (!target) return 0;
+  return Math.min(100, Math.round((Number(ach.value) / target) * 100));
 }

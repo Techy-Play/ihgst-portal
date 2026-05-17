@@ -1894,3 +1894,17 @@ textarea:focus-visible {
     padding: 12px 12px 84px 12px !important;
   }
 }
+
+/* Goal detail bottom grid — wide screens get 2-col, normal stacks */
+.goal-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  margin-top: 24px;
+}
+@media (min-width: 1200px) {
+  .goal-bottom-grid {
+    grid-template-columns: 1fr 380px;
+  }
+}
+

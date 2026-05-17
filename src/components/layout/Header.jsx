@@ -101,7 +101,7 @@ export default function Header() {
 
   const handleNotifClick = (notif) => {
     if (!notif.read) markAsRead(notif._id);
-    if (notif.link) { router.push(notif.link); setShowNotifs(false); setShowAllPanel(false); }
+    if (notif.link) { window.location.href = notif.link; setShowNotifs(false); setShowAllPanel(false); }
   };
 
   const timeAgo = (date) => {
@@ -120,6 +120,8 @@ export default function Header() {
     goal_returned: { bg: 'rgba(239,68,68,0.15)', color: '#f87171' },
     checkin_updated: { bg: 'rgba(59,130,246,0.15)', color: '#60a5fa' },
     shared_goal: { bg: 'rgba(168,85,247,0.15)', color: '#c084fc' },
+    goal_comment: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
+    manager_comment: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
     default: { bg: 'rgba(99,102,241,0.12)', color: '#a5b4fc' },
   };
 
@@ -141,6 +143,8 @@ export default function Header() {
       goal_returned: <Clock size={14} />,
       checkin_updated: <Bell size={14} />,
       shared_goal: <Bell size={14} />,
+      goal_comment: <ArrowRight size={14} />,
+      manager_comment: <ArrowRight size={14} />,
     };
     const icon = typeIcons[n.type] || <Bell size={14} />;
     const isExpanded = expandedNotif === n._id;
@@ -151,6 +155,8 @@ export default function Header() {
       goal_returned: 'Goal Returned',
       checkin_updated: 'Check-in Update',
       shared_goal: 'Shared Goal',
+      goal_comment: 'Discussion',
+      manager_comment: 'Feedback',
     };
 
     return (
@@ -210,7 +216,7 @@ export default function Header() {
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '14px' }}>{n.message}</p>
                 {n.link && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); router.push(n.link); setShowNotifs(false); setShowAllPanel(false); }}
+                    onClick={(e) => { e.stopPropagation(); window.location.href = n.link; setShowNotifs(false); setShowAllPanel(false); }}
                     style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '10px', background: 'var(--accent-primary)', color: '#fff', border: 'none', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
                     onMouseEnter={e => { e.currentTarget.style.opacity = '0.85'; }}
                     onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}

@@ -12,7 +12,7 @@ import { motion } from 'framer-motion';
 import ReactDOM from 'react-dom';
 
 // ─── Stat Detail Modal ───
-function StatDetailModal({ open, onClose, type, role }) {
+function StatDetailModal({ open, onClose, type, role, quarter }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
@@ -20,24 +20,29 @@ function StatDetailModal({ open, onClose, type, role }) {
   useEffect(() => {
     if (!open || !type) return;
     setLoading(true);
-    fetch(`/api/dashboard/detail?type=${type}`)
+    const url = type === 'quarter' && quarter
+      ? `/api/dashboard/detail?type=quarter&q=${quarter}`
+      : `/api/dashboard/detail?type=${type}`;
+    fetch(url)
       .then(r => r.json()).then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
-  }, [open, type]);
+  }, [open, type, quarter]);
 
   if (!open) return null;
 
   const titles = { total: 'All Goals', approved: 'Approved Goals', pending: 'Pending Review' };
+  const modalTitle = type === 'quarter' ? `${quarter} Progress` : (titles[type] || 'Details');
   const employees = data?.employees || [];
   const getLink = (emp) => role === 'Employee' ? '/goals' : `/manager/review/${emp._id}`;
   const statusColors = { Approved: '#34d399', Submitted: '#60a5fa', Draft: '#9ca3af', Returned: '#fbbf24' };
+  const isQuarter = type === 'quarter';
 
   return ReactDOM.createPortal(
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="glass-card animate-fadeIn" style={{ padding: '28px', maxWidth: '700px', width: '95%', maxHeight: '80vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div>
-            <h2 style={{ fontSize: '18px', fontWeight: 700 }}>{titles[type] || 'Details'}</h2>
+            <h2 style={{ fontSize: '18px', fontWeight: 700 }}>{modalTitle}</h2>
             {data?.cycleName && <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{data.cycleName}</p>}
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
@@ -66,12 +71,21 @@ function StatDetailModal({ open, onClose, type, role }) {
                   <div style={{ padding: '0 16px 12px', borderTop: '1px solid var(--border-color)' }}>
                     {emp.goals.map(g => (
                       <div key={g._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '13px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                           <Target size={12} style={{ color: 'var(--text-muted)' }} />
                           <span style={{ fontWeight: 500 }}>{g.title}</span>
                           <span className="badge" style={{ fontSize: '9px', background: `${statusColors[g.status] || '#9ca3af'}20`, color: statusColors[g.status] || '#9ca3af' }}>{g.status}</span>
                         </div>
-                        <span style={{ fontSize: '12px', color: g.progress >= 80 ? '#34d399' : g.progress >= 40 ? '#fbbf24' : '#f87171', fontWeight: 700 }}>{g.progress}%</span>
+                        {isQuarter ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'right' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{g.quarterStatus || 'Not Started'}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: (g.quarterProgress || 0) >= 80 ? '#34d399' : (g.quarterProgress || 0) >= 40 ? '#fbbf24' : '#f87171', minWidth: '36px' }}>
+                              {g.quarterValue !== null && g.quarterValue !== undefined ? g.quarterValue : '—'} / {g.target}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: g.progress >= 80 ? '#34d399' : g.progress >= 40 ? '#fbbf24' : '#f87171', fontWeight: 700 }}>{g.progress}%</span>
+                        )}
                       </div>
                     ))}
                     {role !== 'Employee' && (
@@ -110,13 +124,7 @@ const quickActions = {
     { href: '/manager/checkins', label: 'Team Check-ins', icon: CheckCircle, color: '#34d399', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.12)' },
     { href: '/analytics?scope=team', label: 'Team Analytics', icon: BarChart3, color: '#06b6d4', bg: 'rgba(6,182,212,0.06)', border: 'rgba(6,182,212,0.12)' },
   ],
-  Admin: [
-    { href: '/manager/kpi', label: 'Assign KPIs', icon: Share2, color: '#a78bfa', bg: 'rgba(139,92,246,0.06)', border: 'rgba(139,92,246,0.12)' },
-    { href: '/admin/users', label: 'Manage Users', icon: Users, color: '#818cf8', bg: 'rgba(99,102,241,0.06)', border: 'rgba(99,102,241,0.12)' },
-    { href: '/admin/cycles', label: 'Cycles', icon: Calendar, color: '#fbbf24', bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.12)' },
-    { href: '/analytics', label: 'Org Analytics', icon: BarChart3, color: '#06b6d4', bg: 'rgba(6,182,212,0.06)', border: 'rgba(6,182,212,0.12)' },
-    { href: '/admin', label: 'Reports & Export', icon: Shield, color: '#34d399', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.12)' },
-  ],
+  Admin: [],  // Admin quick actions are handled by the merged admin panel cards
 };
 
 export default function DashboardPage() {
@@ -125,6 +133,7 @@ export default function DashboardPage() {
 
   const [managerTab, setManagerTab] = useState('personal');
   const [statModal, setStatModal] = useState(null);
+  const [quarterModal, setQuarterModal] = useState(null);
   const toast = useToast();
   
   const role = session?.user?.role || 'Employee';
@@ -297,7 +306,9 @@ export default function DashboardPage() {
                 const val = qp[q];
                 const color = val === null ? 'var(--text-muted)' : val >= 80 ? '#34d399' : val >= 40 ? '#fbbf24' : '#f87171';
                 return (
-                  <div key={q} style={{ textAlign: 'center' }}>
+                  <div key={q} onClick={() => setQuarterModal(q)} style={{ textAlign: 'center', cursor: 'pointer', padding: '4px 2px', borderRadius: '8px', transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.08)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>{q}</p>
                     <p style={{ fontSize: '18px', fontWeight: 800, color, letterSpacing: '-0.02em' }}>{val !== null ? `${val}%` : '—'}</p>
                   </div>
@@ -421,50 +432,69 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── ADMIN PANEL (merged) ── */}
+      {/* ── ADMIN PANEL (merged — no duplicate stats) ── */}
       {isAdmin && !loading && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '28px', marginBottom: '24px' }}>
-            {[
-              { label: 'Total Users', value: adminStats?.totalUsers || 0, icon: <Users size={18} />, grad: 'var(--gradient-1)' },
-              { label: 'Total Goals', value: adminStats?.totalGoals || 0, icon: <Target size={18} />, grad: 'var(--gradient-2)' },
-              { label: 'Approved Sheets', value: adminStats?.approvedSheets || 0, icon: <Shield size={18} />, grad: 'linear-gradient(135deg, #10b981, #059669)' },
-              { label: 'Pending Review', value: adminStats?.pendingSheets || 0, icon: <FileText size={18} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-            ].map((s, i) => (
-              <motion.div key={`as-${i}`} className="stat-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: '10px' }}>{s.icon}</div>
-                <p style={{ fontSize: '24px', fontWeight: 800, marginBottom: '2px' }}>{s.value}</p>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{s.label}</p>
-              </motion.div>
-            ))}
+          {/* Unique admin stats only (Total Users + Approved Sheets — others already in top row) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '28px', marginBottom: '24px' }}>
+            <motion.div className="stat-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} onClick={() => window.location.href = '/admin/users'} style={{ cursor: 'pointer' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--gradient-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: '10px' }}><Users size={18} /></div>
+              <p style={{ fontSize: '24px', fontWeight: 800, marginBottom: '2px' }}>{adminStats?.totalUsers || 0}</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total Users</p>
+            </motion.div>
+            <motion.div className="stat-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }} onClick={() => handleStatClick('approved')} style={{ cursor: 'pointer' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: '10px' }}><Shield size={18} /></div>
+              <p style={{ fontSize: '24px', fontWeight: 800, marginBottom: '2px' }}>{adminStats?.approvedSheets || 0}</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Approved Sheets</p>
+            </motion.div>
           </div>
 
-          <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Shield size={16} style={{ color: '#818cf8' }} /> Administration
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-            {[
-              { title: 'User Management', desc: 'Manage accounts & roles', href: '/admin/users', icon: <Users size={18} />, grad: 'var(--gradient-1)' },
-              { title: 'Cycle Management', desc: 'Performance cycles', href: '/admin/cycles', icon: <Calendar size={18} />, grad: 'var(--gradient-2)' },
-              { title: 'Audit Log', desc: 'System changes', href: '/admin/audit', icon: <History size={18} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-              { title: 'Team Goals', desc: 'Review & approve', href: '/manager', icon: <Target size={18} />, grad: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' },
-              { title: 'Assign KPIs', desc: 'Shared KPI assignment', href: '/manager/kpi', icon: <Share2 size={18} />, grad: 'linear-gradient(135deg, #a78bfa, #8b5cf6)' },
-              { title: 'Org Analytics', desc: 'Organization metrics', href: '/analytics', icon: <BarChart3 size={18} />, grad: 'linear-gradient(135deg, #06b6d4, #0891b2)' },
-            ].map(item => (
-              <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
-                <motion.div className="glass-card" whileHover={{ scale: 1.01 }} style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' }}>
-                  <div style={{ width: '40px', height: '40px', minWidth: '40px', borderRadius: '10px', background: item.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>{item.icon}</div>
-                  <div style={{ flex: 1 }}><p style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '2px' }}>{item.title}</p><p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.desc}</p></div>
-                  <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
-                </motion.div>
-              </Link>
-            ))}
-            <div onClick={() => setShowReportModal(true)} style={{ cursor: 'pointer' }}>
-              <motion.div className="glass-card" whileHover={{ scale: 1.01 }} style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '40px', height: '40px', minWidth: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Mail size={18} /></div>
-                <div style={{ flex: 1 }}><p style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '2px' }}>Reports & Export</p><p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>CSV/Excel via email</p></div>
-                <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
-              </motion.div>
+          {/* Administration — grouped into System + Goal Management */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+            {/* System Management */}
+            <div className="glass-card" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><Shield size={14} style={{ color: '#818cf8' }} /> System</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { title: 'Users', desc: 'Accounts & roles', href: '/admin/users', icon: <Users size={16} />, color: '#818cf8' },
+                  { title: 'Cycles', desc: 'Performance periods', href: '/admin/cycles', icon: <Calendar size={16} />, color: '#a78bfa' },
+                  { title: 'Audit Log', desc: 'System changes', href: '/admin/audit', icon: <History size={16} />, color: '#fbbf24' },
+                ].map(item => (
+                  <Link key={item.href} href={item.href} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', transition: 'all 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <div style={{ color: item.color }}>{item.icon}</div>
+                    <div style={{ flex: 1 }}><p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.title}</p><p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.desc}</p></div>
+                    <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
+                  </Link>
+                ))}
+                <div onClick={() => setShowReportModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.06)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <Mail size={16} style={{ color: '#34d399' }} />
+                  <div style={{ flex: 1 }}><p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Reports</p><p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Export CSV/Excel</p></div>
+                  <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </div>
+            </div>
+            {/* Goal Management */}
+            <div className="glass-card" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}><Target size={14} style={{ color: '#a78bfa' }} /> Goal Management</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { title: 'Team Goals', desc: 'Review & approve', href: '/manager', icon: <Target size={16} />, color: '#8b5cf6' },
+                  { title: 'Assign KPIs', desc: 'Shared KPI assignment', href: '/manager/kpi', icon: <Share2 size={16} />, color: '#a78bfa' },
+                  { title: 'Org Analytics', desc: 'Organization metrics', href: '/analytics', icon: <BarChart3 size={16} />, color: '#06b6d4' },
+                ].map(item => (
+                  <Link key={item.href} href={item.href} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)', transition: 'all 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(139,92,246,0.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                    <div style={{ color: item.color }}>{item.icon}</div>
+                    <div style={{ flex: 1 }}><p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.title}</p><p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.desc}</p></div>
+                    <ArrowRight size={12} style={{ color: 'var(--text-muted)' }} />
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -554,6 +584,7 @@ export default function DashboardPage() {
       )}
 
       <StatDetailModal open={!!statModal} onClose={() => setStatModal(null)} type={statModal} role={role} />
+      <StatDetailModal open={!!quarterModal} onClose={() => setQuarterModal(null)} type="quarter" quarter={quarterModal} role={role} />
     </div>
   );
 }
