@@ -117,6 +117,12 @@ export async function POST(request) {
         const existing = await Goal.findOne({ userId: empId, cycleId: activeCycle._id, title: body.title, isShared: true });
         if (existing) { errors.push(`Already assigned to user ${empId}`); continue; }
 
+        // Determine if goal sheet is already approved/locked (Phase 5 enterprise flow)
+        const wasApproved = ['Approved', 'Locked'].includes(goalSheet.status);
+
+        // Set the new KPI's status to match the sheet's reopened state
+        const kpiGoalStatus = wasApproved ? 'Returned' : 'Draft';
+
         const goal = await Goal.create({
           userId: empId,
           cycleId: activeCycle._id,
@@ -129,21 +135,60 @@ export async function POST(request) {
           uomDirection: body.uomDirection || 'Min',
           target: body.uom === 'Timeline' ? body.target : Number(body.target),
           weightage: defaultWeightage,
-          status: 'Draft',
+          status: kpiGoalStatus,
           isShared: true,
           sharedBy: session.user.id,
         });
 
         createdGoals.push(goal);
 
-        // Notify the employee
-        await Notification.create({
-          userId: empId,
-          type: 'shared_goal',
-          title: 'New KPI Assigned',
-          message: `A shared KPI "${body.title}" has been assigned to you by ${session.user.name}.`,
-          link: `/goals/${goal._id}`,
-        });
+        // --- Phase 5: Auto-reopen approved goal sheets ---
+        if (wasApproved) {
+          // 1. Reopen the goal sheet (Approved/Locked → Returned)
+          await GoalSheet.findByIdAndUpdate(goalSheet._id, {
+            $set: { status: 'Returned' },
+            $push: {
+              comments: {
+                text: `Goal sheet automatically reopened: A new organizational KPI "${body.title}" has been assigned. Please rebalance your goal weightages to total 100%.`,
+                byName: 'System',
+                role: 'System',
+                createdAt: new Date(),
+              }
+            }
+          });
+
+          // 2. Change all existing goals from Approved/Locked → Returned
+          //    (achievements/progress are NOT touched — only status changes)
+          await Goal.updateMany(
+            { goalSheetId: goalSheet._id, status: { $in: ['Approved', 'Locked'] }, _id: { $ne: goal._id } },
+            { $set: { status: 'Returned' } }
+          );
+
+          // 3. Send specific rebalance notification
+          await Notification.create({
+            userId: empId,
+            type: 'kpi_rebalance',
+            title: 'Goal Sheet Reopened — KPI Assigned',
+            message: `A new organizational KPI "${body.title}" has been assigned to you. Your goal sheet has been reopened so you can rebalance your weightages. Existing progress is preserved.`,
+            link: '/goals',
+          });
+
+          // 4. Audit the auto-reopen
+          await AuditLog.create({
+            entityType: 'GoalSheet', entityId: goalSheet._id,
+            action: 'sheet_auto_reopened', changedBy: session.user.id, changedByName: session.user.name,
+            description: `Auto-reopened approved goal sheet for employee ${empId} due to KPI "${body.title}" assignment`,
+          });
+        } else {
+          // Standard notification for non-approved sheets
+          await Notification.create({
+            userId: empId,
+            type: 'shared_goal',
+            title: 'New KPI Assigned',
+            message: `A shared KPI "${body.title}" has been assigned to you by ${session.user.name}.`,
+            link: `/goals/${goal._id}`,
+          });
+        }
       } catch (err) {
         errors.push(`Failed for user ${empId}: ${err.message}`);
       }

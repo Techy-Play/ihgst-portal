@@ -152,6 +152,17 @@ export default function GoalsPage() {
         </div>
       )}
 
+      {/* KPI Rebalance Banner — shown when sheet was auto-reopened for KPI assignment */}
+      {goalSheet?.status === 'Returned' && goals.some(g => g.isShared) && (
+        <div className="glass-card" style={{ padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(245,158,11,0.06))', borderColor: 'rgba(245,158,11,0.25)' }}>
+          <Share2 size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, flex: 1 }}>
+            <strong style={{ color: '#fbbf24' }}>KPI Assigned — Rebalance Required</strong>
+            <br />A new organizational KPI has been added to your goals. Please adjust your weightages to total 100% and resubmit for approval. Your existing progress is preserved.
+          </div>
+        </div>
+      )}
+
       {/* Goals List */}
       {loading && !data ? <SkeletonGoalCards count={3} /> : goals.length === 0 ? (
         <div className="glass-card" style={{ padding: '48px', textAlign: 'center' }}>
