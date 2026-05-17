@@ -42,7 +42,7 @@ export async function GET(request) {
       if (!grouped[key]) {
         grouped[key] = {
           title: k.title, description: k.description, thrustArea: k.thrustArea,
-          uom: k.uom, target: k.target, assignedTo: [], createdAt: k.createdAt,
+          uom: k.uom, uomDirection: k.uomDirection || 'Min', target: k.target, assignedTo: [], createdAt: k.createdAt,
         };
       }
       grouped[key].assignedTo.push({
