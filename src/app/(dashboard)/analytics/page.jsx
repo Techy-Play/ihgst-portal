@@ -45,9 +45,10 @@ function PortalModal({ open, onClose, children }) {
 }
 
 // Detail modal for chart drill-down
-function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, scope, dataKey, nameKey }) {
+function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, scope, role, dataKey, nameKey }) {
   if (!open || !chartData?.length) return null;
-  const goalLink = scope === 'personal' ? '/goals' : scope === 'team' ? '/manager' : '/admin/reports';
+  // Role-aware links
+  const goalLink = role === 'Employee' ? '/goals' : '/manager';
   return (
     <PortalModal open={open} onClose={onClose}>
       <div className="glass-card animate-fadeIn" style={{ padding: '28px', maxWidth: '640px', width: '92%', maxHeight: '80vh', overflowY: 'auto' }}>
@@ -79,7 +80,8 @@ function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, 
           </table>
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px' }}>
-          <Link href={goalLink} style={{ fontSize: '12px', color: 'var(--accent-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 14px', borderRadius: '8px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}><Target size={12} /> View Goals <ArrowRight size={12} /></Link>
+          <Link href={goalLink} style={{ fontSize: '12px', color: 'var(--accent-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 14px', borderRadius: '8px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}><Target size={12} /> {role === 'Employee' ? 'My Goals' : 'Team Review'} <ArrowRight size={12} /></Link>
+          {role !== 'Employee' && <Link href="/analytics" style={{ fontSize: '12px', color: '#34d399', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 14px', borderRadius: '8px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>Analytics <ArrowRight size={12} /></Link>}
           <button onClick={onClose} style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Close</button>
         </div>
       </div>
@@ -253,7 +255,8 @@ export default function AnalyticsPage() {
   })();
 
   const openDetail = (title, chartData, chartType, colors, dataKey, nameKey) => {
-    setDetailModal({ title, chartData, chartType, colors: colors || COLORS, dataKey, nameKey, scope });
+    const role = session?.user?.role || 'Employee';
+    setDetailModal({ title, chartData, chartType, colors: colors || COLORS, dataKey, nameKey, scope, role });
   };
 
   // Clickable chart wrapper

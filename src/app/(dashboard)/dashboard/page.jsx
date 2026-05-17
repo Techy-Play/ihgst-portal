@@ -1,12 +1,91 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Target, CheckCircle, Clock, TrendingUp, Plus, ArrowRight, AlertTriangle, Info, Calendar, Zap, Share2, Users, BarChart3, Shield } from 'lucide-react';
+import { Target, CheckCircle, Clock, TrendingUp, Plus, ArrowRight, AlertTriangle, Info, Calendar, Zap, Share2, Users, BarChart3, Shield, X, ExternalLink } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Skeletons';
 import { motion } from 'framer-motion';
+import ReactDOM from 'react-dom';
+
+// ─── Stat Detail Modal ───
+function StatDetailModal({ open, onClose, type, role }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    if (!open || !type) return;
+    setLoading(true);
+    fetch(`/api/dashboard/detail?type=${type}`)
+      .then(r => r.json()).then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [open, type]);
+
+  if (!open) return null;
+
+  const titles = { total: 'All Goals', approved: 'Approved Goals', pending: 'Pending Review' };
+  const employees = data?.employees || [];
+  const getLink = (emp) => role === 'Employee' ? '/goals' : `/manager/review/${emp._id}`;
+  const statusColors = { Approved: '#34d399', Submitted: '#60a5fa', Draft: '#9ca3af', Returned: '#fbbf24' };
+
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="glass-card animate-fadeIn" style={{ padding: '28px', maxWidth: '700px', width: '95%', maxHeight: '80vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div>
+            <h2 style={{ fontSize: '18px', fontWeight: 700 }}>{titles[type] || 'Details'}</h2>
+            {data?.cycleName && <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{data.cycleName}</p>}
+          </div>
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
+        </div>
+        {loading ? <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>Loading...</p> : employees.length === 0 ? (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>No data found</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {employees.map((emp, i) => (
+              <div key={emp._id} style={{ borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                <div onClick={() => setExpanded(expanded === i ? null : i)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer', background: expanded === i ? 'rgba(255,255,255,0.03)' : 'transparent' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--gradient-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14 }}>{emp.name?.[0]}</div>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: 600 }}>{emp.name}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.department} • {emp.role}</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-secondary)' }}>{emp.goalCount} goals</span>
+                    <span className="badge" style={{ background: `${statusColors[emp.sheetStatus] || '#9ca3af'}20`, color: statusColors[emp.sheetStatus] || '#9ca3af', fontSize: '10px' }}>{emp.sheetStatus}</span>
+                    {role !== 'Employee' && <Link href={getLink(emp)} onClick={e => e.stopPropagation()} style={{ color: '#818cf8' }}><ExternalLink size={14} /></Link>}
+                  </div>
+                </div>
+                {expanded === i && emp.goals?.length > 0 && (
+                  <div style={{ padding: '0 16px 12px', borderTop: '1px solid var(--border-color)' }}>
+                    {emp.goals.map(g => (
+                      <Link key={g._id} href={`/goals/${g._id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', textDecoration: 'none', color: 'inherit', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Target size={12} style={{ color: 'var(--text-muted)' }} />
+                          <span style={{ fontWeight: 500 }}>{g.title}</span>
+                          <span className="badge" style={{ fontSize: '9px', background: `${statusColors[g.status] || '#9ca3af'}20`, color: statusColors[g.status] || '#9ca3af' }}>{g.status}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '12px', color: g.progress >= 80 ? '#34d399' : g.progress >= 40 ? '#fbbf24' : '#f87171', fontWeight: 700 }}>{g.progress}%</span>
+                          <ExternalLink size={11} style={{ color: 'var(--text-muted)' }} />
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 const actionTypeConfig = {
   warning: { icon: AlertTriangle, color: '#fbbf24', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)' },
@@ -41,16 +120,22 @@ export default function DashboardPage() {
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/dashboard');
 
   const [managerTab, setManagerTab] = useState('personal');
+  const [statModal, setStatModal] = useState(null); // null | 'total' | 'approved' | 'pending'
   
   const role = session?.user?.role || 'Employee';
   const activeData = data?.isManagerSplit ? data[managerTab] : data;
   const isManager = role === 'Manager';
 
+  const handleStatClick = (type) => {
+    if (role === 'Employee') { window.location.href = type === 'pending' ? '/goals?status=pending' : '/goals'; return; }
+    setStatModal(type);
+  };
+
   const stats = [
-    { label: isManager && managerTab === 'team' ? 'Team Goals' : 'Total Goals', value: activeData?.totalGoals ?? '—', icon: <Target size={20} />, grad: 'var(--gradient-1)' },
-    { label: 'Approved', value: activeData?.approvedGoals ?? '—', icon: <CheckCircle size={20} />, grad: 'linear-gradient(135deg, #10b981, #059669)' },
-    { label: 'Pending Review', value: activeData?.pendingGoals ?? '—', icon: <Clock size={20} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)' },
-    { label: 'Avg Progress', value: activeData ? `${activeData.avgProgress || 0}%` : '—', icon: <TrendingUp size={20} />, grad: 'var(--gradient-2)' },
+    { label: isManager && managerTab === 'team' ? 'Team Goals' : 'Total Goals', value: activeData?.totalGoals ?? '—', icon: <Target size={20} />, grad: 'var(--gradient-1)', onClick: () => handleStatClick('total') },
+    { label: 'Approved', value: activeData?.approvedGoals ?? '—', icon: <CheckCircle size={20} />, grad: 'linear-gradient(135deg, #10b981, #059669)', onClick: () => handleStatClick('approved') },
+    { label: 'Pending Review', value: activeData?.pendingGoals ?? '—', icon: <Clock size={20} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)', onClick: () => handleStatClick('pending') },
+    { label: 'Avg Progress', value: activeData ? `${activeData.avgProgress || 0}%` : '—', icon: <TrendingUp size={20} />, grad: 'var(--gradient-2)', onClick: () => handleStatClick('total') },
   ];
 
   const pendingActions = activeData?.pendingActions || [];
@@ -134,6 +219,8 @@ export default function DashboardPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.35, delay: i * 0.08, ease: [0.4, 0, 0.2, 1] }}
+              onClick={s.onClick}
+              style={{ cursor: 'pointer' }}
             >
               <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: '12px' }}>{s.icon}</div>
               <p style={{ fontSize: '28px', fontWeight: 800, marginBottom: '4px', letterSpacing: '-0.02em' }}>{s.value}</p>
@@ -255,6 +342,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      <StatDetailModal open={!!statModal} onClose={() => setStatModal(null)} type={statModal} role={role} />
     </div>
   );
 }
