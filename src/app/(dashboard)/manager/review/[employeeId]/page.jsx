@@ -27,7 +27,13 @@ export default function ReviewPage({ params }) {
   }, [employeeId]);
 
   const handleEdit = (goalId, field, value) => {
-    setEdits(prev => ({ ...prev, [goalId]: { ...prev[goalId], [field]: field === 'weightage' ? parseInt(value) || 0 : Number(value) || 0 } }));
+    setEdits(prev => {
+      if (field === 'weightage') return { ...prev, [goalId]: { ...prev[goalId], weightage: parseInt(value) || 0 } };
+      // For target field: keep Timeline values as date strings, parse others as numbers
+      const goal = goals.find(g => g._id === goalId);
+      const parsed = goal?.uom === 'Timeline' ? value : (Number(value) || 0);
+      return { ...prev, [goalId]: { ...prev[goalId], [field]: parsed } };
+    });
   };
 
   const handleAction = async (action) => {
@@ -47,12 +53,21 @@ export default function ReviewPage({ params }) {
 
   const totalWeightage = goals.reduce((sum, g) => sum + (edits[g._id]?.weightage ?? g.weightage), 0);
   const canApprove = goalSheet?.status === 'Submitted';
+  const weightageValid = totalWeightage === 100;
 
   const weightageData = goals.map(g => ({ name: g.title.length > 20 ? g.title.substring(0,20)+'...' : g.title, value: edits[g._id]?.weightage ?? g.weightage }));
   const thrustDist = {};
   goals.forEach(g => thrustDist[g.thrustArea] = (thrustDist[g.thrustArea] || 0) + 1);
   const thrustData = Object.keys(thrustDist).map(k => ({ name: k, count: thrustDist[k] }));
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
+
+  const formatTarget = (goal) => {
+    if (goal.uom === 'Timeline') {
+      try { return new Date(goal.target).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); } catch { return goal.target; }
+    }
+    if (goal.uom === 'Percentage') return `${goal.target}%`;
+    return goal.target;
+  };
 
   return (
     <div className="animate-fadeIn">
@@ -77,7 +92,15 @@ export default function ReviewPage({ params }) {
               </ResponsiveContainer>
             </div>
           ) : <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No goals available</p>}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}><span>Total Weightage</span><span style={{ fontWeight: 700, color: totalWeightage === 100 ? '#34d399' : '#fbbf24' }}>{totalWeightage}%</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+            <span>Total Weightage</span>
+            <span style={{ fontWeight: 700, color: weightageValid ? '#34d399' : '#f87171' }}>{totalWeightage}%</span>
+          </div>
+          {!weightageValid && canApprove && (
+            <p style={{ fontSize: '11px', color: '#f87171', marginTop: '6px', textAlign: 'right' }}>
+              {totalWeightage < 100 ? `⚠️ ${100 - totalWeightage}% remaining — must equal 100%` : `⚠️ ${totalWeightage - 100}% over — must equal 100%`}
+            </p>
+          )}
         </div>
 
         <div className="glass-card" style={{ padding: '20px' }}>
@@ -102,25 +125,78 @@ export default function ReviewPage({ params }) {
         <table className="table-dark">
           <thead><tr><th>Goal</th><th>Thrust Area</th><th>UoM</th><th>Target</th><th>Weightage</th></tr></thead>
           <tbody>
-            {goals.map(goal => (
-              <tr key={goal._id}>
-                <td><p style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '2px' }}>{goal.title}</p><p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{goal.description?.substring(0, 80)}</p></td>
-                <td>{goal.thrustArea}</td>
-                <td>{goal.uom}</td>
-                <td>{canApprove ? <input className="input-dark" type="number" style={{ width: '100px' }} defaultValue={goal.target} onChange={(e) => handleEdit(goal._id, 'target', e.target.value)} /> : goal.target}</td>
-                <td>{canApprove ? <input className="input-dark" type="number" style={{ width: '80px' }} min={10} defaultValue={goal.weightage} onChange={(e) => handleEdit(goal._id, 'weightage', e.target.value)} /> : <span>{goal.weightage}%</span>}</td>
-              </tr>
-            ))}
+            {goals.map(goal => {
+              const w = edits[goal._id]?.weightage ?? goal.weightage;
+              return (
+                <tr key={goal._id}>
+                  <td>
+                    <p style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '2px' }}>{goal.title}</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{goal.description?.substring(0, 80)}</p>
+                    {goal.uomDirection && (
+                      <span style={{ fontSize: '10px', color: goal.uomDirection === 'Min' ? '#34d399' : '#fbbf24', marginTop: '2px', display: 'inline-block' }}>
+                        {goal.uomDirection === 'Min' ? '📈 Higher is Better' : '📉 Lower is Better'}
+                      </span>
+                    )}
+                  </td>
+                  <td>{goal.thrustArea}</td>
+                  <td>{goal.uom}</td>
+                  <td>
+                    {canApprove ? (
+                      goal.uom === 'Timeline' ? (
+                        <input className="input-dark" type="date" style={{ width: '140px' }}
+                          defaultValue={goal.target?.split('T')?.[0] || goal.target}
+                          onChange={(e) => handleEdit(goal._id, 'target', e.target.value)} />
+                      ) : (
+                        <input className="input-dark" type="number" style={{ width: '100px' }}
+                          defaultValue={goal.target}
+                          onChange={(e) => handleEdit(goal._id, 'target', e.target.value)}
+                          min={0} max={goal.uom === 'Percentage' ? 100 : undefined}
+                          readOnly={goal.uom === 'Zero'} />
+                      )
+                    ) : (
+                      <span>{formatTarget(goal)}</span>
+                    )}
+                  </td>
+                  <td>
+                    {canApprove ? (
+                      <div>
+                        <input className="input-dark" type="number" style={{ width: '80px', borderColor: w < 10 || w > 100 ? '#f87171' : undefined }}
+                          min={10} max={100} defaultValue={goal.weightage}
+                          onChange={(e) => handleEdit(goal._id, 'weightage', e.target.value)} />
+                        {(w < 10 || w > 100) && <p style={{ fontSize: '10px', color: '#f87171', marginTop: '2px' }}>10-100%</p>}
+                      </div>
+                    ) : <span>{goal.weightage}%</span>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
+        {/* Weightage summary row */}
+        {canApprove && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', padding: '12px 20px', borderTop: '1px solid var(--border-color)', background: weightageValid ? 'rgba(16,185,129,0.04)' : 'rgba(239,68,68,0.04)' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Total:</span>
+            <span style={{ fontSize: '16px', fontWeight: 700, color: weightageValid ? '#34d399' : '#f87171' }}>{totalWeightage}%</span>
+            {weightageValid ? (
+              <span style={{ fontSize: '11px', color: '#34d399' }}>✓ Valid</span>
+            ) : (
+              <span style={{ fontSize: '11px', color: '#f87171' }}>✗ Must be exactly 100%</span>
+            )}
+          </div>
+        )}
       </div>
       {canApprove && (
         <div className="glass-card" style={{ padding: '24px' }}>
           <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Feedback / Comment</label>
           <textarea className="input-dark" rows={3} placeholder="Add feedback for the employee..." value={comment} onChange={(e) => setComment(e.target.value)} style={{ resize: 'vertical', marginBottom: '16px' }} />
+          {!weightageValid && (
+            <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', color: '#fca5a5', fontSize: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              ⚠️ Cannot approve — total weightage is {totalWeightage}%. Adjust individual goals to reach exactly 100%.
+            </div>
+          )}
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
             <button onClick={() => handleAction('return')} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '12px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}><RotateCcw size={16} /> Return for Rework</button>
-            <button onClick={() => handleAction('approve')} disabled={submitting} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}><Check size={16} /> Approve Goals</button>
+            <button onClick={() => handleAction('approve')} disabled={submitting || !weightageValid} title={!weightageValid ? 'Total weightage must equal 100%' : ''} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 24px', borderRadius: '12px', background: weightageValid ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(107,114,128,0.3)', border: 'none', color: weightageValid ? 'white' : '#6b7280', fontWeight: 600, fontSize: '14px', cursor: weightageValid ? 'pointer' : 'not-allowed', opacity: weightageValid ? 1 : 0.6 }}><Check size={16} /> Approve Goals</button>
           </div>
         </div>
       )}
