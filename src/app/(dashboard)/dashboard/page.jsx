@@ -137,8 +137,10 @@ export default function DashboardPage() {
     { label: isManager && managerTab === 'team' ? 'Team Goals' : 'Total Goals', value: activeData?.totalGoals ?? '—', icon: <Target size={20} />, grad: 'var(--gradient-1)', onClick: () => handleStatClick('total') },
     { label: 'Approved', value: activeData?.approvedGoals ?? '—', icon: <CheckCircle size={20} />, grad: 'linear-gradient(135deg, #10b981, #059669)', onClick: () => handleStatClick('approved') },
     { label: 'Pending Review', value: activeData?.pendingGoals ?? '—', icon: <Clock size={20} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)', onClick: () => handleStatClick('pending') },
-    { label: 'Avg Progress', value: activeData ? `${activeData.avgProgress || 0}%` : '—', icon: <TrendingUp size={20} />, grad: 'var(--gradient-2)', onClick: () => handleStatClick('total') },
   ];
+
+  const qp = activeData?.quarterlyProgress || {};
+  const cycleName = data?.activeCycle?.name || 'Current Cycle';
 
   const pendingActions = activeData?.pendingActions || [];
   const firstName = session?.user?.name?.split(' ')[0] || 'User';
@@ -213,7 +215,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       {loading && !data ? <SkeletonStatCards count={4} /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
           {stats.map((s, i) => (
             <motion.div
               key={i}
@@ -229,6 +231,31 @@ export default function DashboardPage() {
               <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{s.label}</p>
             </motion.div>
           ))}
+          {/* Quarterly Progress Card */}
+          <motion.div
+            className="stat-card"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: 0.24, ease: [0.4, 0, 0.2, 1] }}
+            style={{ cursor: 'default' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--gradient-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><TrendingUp size={16} /></div>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{cycleName}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              {['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
+                const val = qp[q];
+                const color = val === null ? 'var(--text-muted)' : val >= 80 ? '#34d399' : val >= 40 ? '#fbbf24' : '#f87171';
+                return (
+                  <div key={q} style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>{q}</p>
+                    <p style={{ fontSize: '18px', fontWeight: 800, color, letterSpacing: '-0.02em' }}>{val !== null ? `${val}%` : '—'}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
         </div>
       )}
 

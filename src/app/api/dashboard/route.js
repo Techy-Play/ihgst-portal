@@ -40,6 +40,7 @@ export async function GET() {
 
     let totalGoals = 0, approvedGoals = 0, pendingGoals = 0, avgProgress = 0, recentGoals = [];
     let pendingActions = [];
+    let quarterlyProgress = { Q1: null, Q2: null, Q3: null, Q4: null };
 
     if (role === 'Admin') {
       const query = activeCycle ? { cycleId: activeCycle._id } : {};
@@ -48,9 +49,9 @@ export async function GET() {
       pendingGoals = await Goal.countDocuments({ ...query, status: 'Submitted' });
       const allGoals = await Goal.find(query).sort({ updatedAt: -1 }).lean();
       recentGoals = allGoals.slice(0, 5).map(g => ({ ...g, progress: calcGoalProgress(g) }));
-      // Admin avg progress = average of ALL approved goals (org-wide)
       const approvedAll = allGoals.filter(g => ['Approved', 'Locked'].includes(g.status));
       avgProgress = approvedAll.length > 0 ? Math.round(approvedAll.reduce((s, g) => s + calcGoalProgress(g), 0) / approvedAll.length) : 0;
+      quarterlyProgress = calcQuarterlyProgress(approvedAll);
 
       // Admin pending actions
       if (pendingGoals > 0) pendingActions.push({ label: `${pendingGoals} goal sheet(s) pending approval`, link: '/manager', type: 'warning' });
@@ -104,10 +105,13 @@ export async function GET() {
       if (tTotal === 0 && teamMembers.length > 0) tActions.push({ label: 'Assign KPIs to your team', link: '/manager/kpi', type: 'info' });
       tActions.push({ label: `${teamMembers.length} team member(s)`, link: '/manager', type: 'info' });
 
+      const pQProgress = calcQuarterlyProgress(pApprovedAll);
+      const tQProgress = calcQuarterlyProgress(tApprovedAll);
+
       return NextResponse.json({
         isManagerSplit: true,
-        personal: { totalGoals: pTotal, approvedGoals: pApproved, pendingGoals: pPending, avgProgress: pAvg, recentGoals: pRecent, pendingActions: pActions },
-        team: { totalGoals: tTotal, approvedGoals: tApproved, pendingGoals: tPending, avgProgress: tAvg, recentGoals: tRecent, pendingActions: tActions },
+        personal: { totalGoals: pTotal, approvedGoals: pApproved, pendingGoals: pPending, avgProgress: pAvg, quarterlyProgress: pQProgress, recentGoals: pRecent, pendingActions: pActions },
+        team: { totalGoals: tTotal, approvedGoals: tApproved, pendingGoals: tPending, avgProgress: tAvg, quarterlyProgress: tQProgress, recentGoals: tRecent, pendingActions: tActions },
         activeCycle, activeQuarter
       });
 
@@ -137,7 +141,13 @@ export async function GET() {
 
     if (recentGoals.length > 0) avgProgress = Math.round(recentGoals.reduce((sum, g) => sum + (g.progress || 0), 0) / recentGoals.length);
 
-    return NextResponse.json({ totalGoals, approvedGoals, pendingGoals, avgProgress, recentGoals, activeCycle, activeQuarter, pendingActions });
+    // Employee quarterly progress (Admin already computed above)
+    if (role === 'Employee') {
+      const empGoals = await Goal.find({ userId, status: { $in: ['Approved', 'Locked'] }, ...(activeCycle ? { cycleId: activeCycle._id } : {}) }).lean();
+      quarterlyProgress = calcQuarterlyProgress(empGoals);
+    }
+
+    return NextResponse.json({ totalGoals, approvedGoals, pendingGoals, avgProgress, quarterlyProgress, recentGoals, activeCycle, activeQuarter, pendingActions });
   } catch (error) {
     console.error('Dashboard error:', error);
     return handleApiError(error, 'dashboard GET');
@@ -146,7 +156,6 @@ export async function GET() {
 
 function calcGoalProgress(goal) {
   if (!goal.achievements || goal.achievements.length === 0) return 0;
-  // Find the latest non-null achievement value across all quarters
   for (let i = goal.achievements.length - 1; i >= 0; i--) {
     const ach = goal.achievements[i];
     if (ach.value !== null && ach.value !== undefined) {
@@ -154,4 +163,24 @@ function calcGoalProgress(goal) {
     }
   }
   return 0;
+}
+
+function calcQuarterlyProgress(goals) {
+  const qp = { Q1: { sum: 0, count: 0 }, Q2: { sum: 0, count: 0 }, Q3: { sum: 0, count: 0 }, Q4: { sum: 0, count: 0 } };
+  for (const goal of goals) {
+    if (!goal.achievements?.length) continue;
+    for (const ach of goal.achievements) {
+      const q = ach.quarter;
+      if (q && qp[q] && ach.value !== null && ach.value !== undefined) {
+        qp[q].sum += calculateProgress(goal, ach.value);
+        qp[q].count++;
+      }
+    }
+  }
+  return {
+    Q1: qp.Q1.count > 0 ? Math.round(qp.Q1.sum / qp.Q1.count) : null,
+    Q2: qp.Q2.count > 0 ? Math.round(qp.Q2.sum / qp.Q2.count) : null,
+    Q3: qp.Q3.count > 0 ? Math.round(qp.Q3.sum / qp.Q3.count) : null,
+    Q4: qp.Q4.count > 0 ? Math.round(qp.Q4.sum / qp.Q4.count) : null,
+  };
 }
