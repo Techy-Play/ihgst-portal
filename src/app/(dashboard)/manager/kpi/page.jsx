@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Target as TargetIcon, Gauge, Share2, Check, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Target as TargetIcon, Gauge, Share2, Check, Users, ChevronDown, ChevronUp, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import CustomDropdown from '@/components/ui/CustomDropdown';
@@ -51,6 +51,39 @@ export default function AssignKPIPage() {
   const [formError, setFormError] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [expandedKPI, setExpandedKPI] = useState(null);
+  const [deleting, setDeleting] = useState({});
+  const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'single', goalId } or { type: 'bulk', title, thrustArea }
+
+  // Delete a single KPI assignment (one employee)
+  const handleDeleteSingle = async (goalId) => {
+    setDeleting(p => ({ ...p, [goalId]: true }));
+    try {
+      const { data: d, error } = await safeFetch('/api/kpi', {
+        method: 'DELETE',
+        body: JSON.stringify({ goalId }),
+      });
+      if (d) { toast(d.message, 'success'); refresh(); }
+      else { toast(error || 'Failed to remove KPI.', 'error'); }
+    } catch { toast('Failed to remove KPI.', 'error'); }
+    setDeleting(p => ({ ...p, [goalId]: false }));
+    setConfirmDelete(null);
+  };
+
+  // Delete all unapproved assignments for a KPI
+  const handleDeleteBulk = async (title, thrustArea) => {
+    const key = `${title}__${thrustArea}`;
+    setDeleting(p => ({ ...p, [key]: true }));
+    try {
+      const { data: d, error } = await safeFetch('/api/kpi', {
+        method: 'DELETE',
+        body: JSON.stringify({ title, thrustArea }),
+      });
+      if (d) { toast(d.message, 'success'); refresh(); }
+      else { toast(error || 'Failed to remove KPIs.', 'error'); }
+    } catch { toast('Failed to remove KPIs.', 'error'); }
+    setDeleting(p => ({ ...p, [key]: false }));
+    setConfirmDelete(null);
+  };
 
   const employees = data?.employees || [];
   const kpis = data?.kpis || [];
@@ -290,11 +323,13 @@ export default function AssignKPIPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {kpis.map((kpi, i) => {
             const isExpanded = expandedKPI === i;
+            const bulkKey = `${kpi.title}__${kpi.thrustArea}`;
+            const hasUnapproved = kpi.assignedTo?.some(a => !['Approved', 'Locked'].includes(a.status));
             return (
               <div key={i} className="glass-card" style={{ padding: '20px', borderLeft: '3px solid #a78bfa' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: isExpanded ? '12px' : 0, cursor: 'pointer' }} onClick={() => setExpandedKPI(isExpanded ? null : i)}>
                   <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       {kpi.title}
                       <span className="badge" style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', borderColor: 'rgba(139,92,246,0.25)', fontSize: '10px' }}>Shared KPI</span>
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 400 }}>• {kpi.assignedTo?.length || 0} assigned</span>
@@ -303,9 +338,28 @@ export default function AssignKPIPage() {
                       <span>{kpi.thrustArea}</span><span>UoM: {kpi.uom}</span><span>Target: {kpi.target}</span>
                     </div>
                   </div>
-                  <button style={{ padding: '4px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {/* Bulk delete button */}
+                    {hasUnapproved && (
+                      confirmDelete?.type === 'bulk' && confirmDelete.title === kpi.title && confirmDelete.thrustArea === kpi.thrustArea ? (
+                        <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
+                          <button onClick={() => handleDeleteBulk(kpi.title, kpi.thrustArea)} disabled={deleting[bulkKey]} style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>
+                            {deleting[bulkKey] ? '...' : 'Confirm'}
+                          </button>
+                          <button onClick={() => setConfirmDelete(null)} style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer' }}>
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete({ type: 'bulk', title: kpi.title, thrustArea: kpi.thrustArea }); }} title="Delete all unapproved assignments" style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Trash2 size={12} /> Delete All
+                        </button>
+                      )
+                    )}
+                    <button style={{ padding: '4px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <AnimatePresence>
                   {isExpanded && (
@@ -314,6 +368,7 @@ export default function AssignKPIPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {kpi.assignedTo?.map(a => {
                           const sc = statusColors[a.status] || statusColors.Draft;
+                          const canDelete = !['Approved', 'Locked'].includes(a.status);
                           return (
                             <div key={a._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -328,6 +383,22 @@ export default function AssignKPIPage() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{a.weightage}%</span>
                                 <span className="badge" style={{ background: sc.bg, color: sc.color, fontSize: '10px', padding: '2px 8px' }}>{a.status}</span>
+                                {canDelete && (
+                                  confirmDelete?.type === 'single' && confirmDelete.goalId === a._id ? (
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      <button onClick={() => handleDeleteSingle(a._id)} disabled={deleting[a._id]} style={{ padding: '2px 8px', borderRadius: '6px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}>
+                                        {deleting[a._id] ? '...' : 'Yes'}
+                                      </button>
+                                      <button onClick={() => setConfirmDelete(null)} style={{ padding: '2px 6px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '10px', cursor: 'pointer' }}>
+                                        No
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button onClick={() => setConfirmDelete({ type: 'single', goalId: a._id })} title="Remove from this employee" style={{ padding: '3px 6px', borderRadius: '6px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )
+                                )}
                               </div>
                             </div>
                           );

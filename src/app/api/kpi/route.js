@@ -155,3 +155,75 @@ export async function POST(request) {
     return handleApiError(error, 'kpi POST');
   }
 }
+
+// DELETE: Remove unapproved KPI assignment(s)
+// Body: { goalId } to remove a single assignment, or { title, thrustArea } to remove ALL unapproved for that KPI
+export async function DELETE(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!['Manager', 'Admin'].includes(session.user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+    await dbConnect();
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
+
+    const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+    if (!activeCycle) return NextResponse.json({ error: 'No active cycle found.' }, { status: 400 });
+
+    // Single goal removal
+    if (body.goalId) {
+      const goal = await Goal.findById(body.goalId);
+      if (!goal) return NextResponse.json({ error: 'KPI goal not found.' }, { status: 404 });
+      if (!goal.isShared) return NextResponse.json({ error: 'This is not a shared KPI.' }, { status: 400 });
+      if (['Approved', 'Locked'].includes(goal.status)) {
+        return NextResponse.json({ error: 'Cannot delete an approved/locked KPI. Unlock it first.' }, { status: 400 });
+      }
+      // Manager can only delete KPIs they assigned
+      if (session.user.role === 'Manager' && goal.sharedBy?.toString() !== session.user.id) {
+        return NextResponse.json({ error: 'You can only remove KPIs you assigned.' }, { status: 403 });
+      }
+
+      const userName = (await User.findById(goal.userId).select('name').lean())?.name || 'Unknown';
+      await Goal.findByIdAndDelete(body.goalId);
+
+      await AuditLog.create({
+        entityType: 'KPI', entityId: goal._id,
+        action: 'kpi_removed', changedBy: session.user.id, changedByName: session.user.name,
+        description: `Removed KPI "${goal.title}" from ${userName}`,
+      });
+
+      return NextResponse.json({ message: `KPI removed from ${userName}.` });
+    }
+
+    // Bulk removal by title + thrustArea (all unapproved assignments)
+    if (body.title && body.thrustArea) {
+      const query = {
+        isShared: true, cycleId: activeCycle._id,
+        title: body.title, thrustArea: body.thrustArea,
+        status: { $in: ['Draft', 'Submitted', 'Returned'] },
+      };
+      if (session.user.role === 'Manager') query.sharedBy = session.user.id;
+
+      const toDelete = await Goal.find(query).lean();
+      if (toDelete.length === 0) {
+        return NextResponse.json({ error: 'No removable (unapproved) KPI assignments found.' }, { status: 400 });
+      }
+
+      await Goal.deleteMany({ _id: { $in: toDelete.map(g => g._id) } });
+
+      await AuditLog.create({
+        entityType: 'KPI', entityId: toDelete[0]._id,
+        action: 'kpi_bulk_removed', changedBy: session.user.id, changedByName: session.user.name,
+        description: `Bulk removed KPI "${body.title}" from ${toDelete.length} employee(s)`,
+      });
+
+      return NextResponse.json({ message: `Removed ${toDelete.length} unapproved KPI assignment(s).`, deleted: toDelete.length });
+    }
+
+    return NextResponse.json({ error: 'Provide goalId or title+thrustArea to delete.' }, { status: 400 });
+  } catch (error) {
+    console.error('KPI DELETE error:', error);
+    return handleApiError(error, 'kpi DELETE');
+  }
+}
