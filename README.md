@@ -276,14 +276,15 @@ Admin User (HR)
 ## ✅ Key Features
 
 - **🎯 Quarterly Goal Setting** — Goals with thrust areas, UoM types (Numeric, Percentage, Timeline, Zero), targets, and weighted KPIs
+- **💬 Hierarchical Discussions** — Contextual, threaded feedback on goal details featuring deep-linked notifications and responsive enterprise-grade "glass-card" layouts
 - **✅ Approval Workflow** — Manager review with inline edit, approve, return with comments
 - **📊 Real-time Analytics** — PieCharts, BarCharts for goal distribution, quarterly trends, department comparisons
 - **🔄 Quarterly Check-ins** — Track actual vs. planned across Q1–Q4 with automated progress calculation
 - **🔗 Shared KPIs** — Organization-wide KPIs pushed by Admin/Manager — locked title, editable weightage
 - **📋 Audit Trail** — Complete change history for accountability
 - **📧 Report Export** — CSV/Excel generation with email delivery
-- **🔔 Notifications** — In-app alerts for approvals, returns, assignments
-- **📱 Responsive Design** — Desktop sidebar + mobile bottom nav
+- **🔔 Notifications** — In-app alerts for approvals, returns, assignments, and discussion replies
+- **📱 Responsive Design** — Desktop sidebar + mobile bottom nav, with proportional grid layouts on ultra-wide screens
 - **🎨 Dark Theme** — Glassmorphism effects, gradient accents, smooth animations
 - **🛡️ Role-Based Access** — Route-level protection via proxy middleware + API-level auth checks
 
