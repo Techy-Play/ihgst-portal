@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Clock, Gauge, Target as TargetIcon, AlertCircle, MessageSquare, CheckCircle, RotateCcw, Plus, Edit3 } from 'lucide-react';
+import { ArrowLeft, Save, Clock, Gauge, Target as TargetIcon, AlertCircle, MessageSquare, CheckCircle, RotateCcw, Plus, Edit3, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import CustomDropdown from '@/components/ui/CustomDropdown';
@@ -69,24 +69,37 @@ export default function GoalDetailPage({ params }) {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [usedWeightage, setUsedWeightage] = useState(0);
+  const [goalCount, setGoalCount] = useState(0);
 
   useEffect(() => {
-    fetch(`/api/goals/${id}`)
-      .then(r => r.json())
-      .then(data => {
-        setGoal(data.goal);
-        setAuditLogs(data.auditLogs || []);
-        setManagerComments(data.managerComments || []);
-        setForm({
-          thrustArea: data.goal.thrustArea, title: data.goal.title,
-          description: data.goal.description, uom: data.goal.uom,
-          uomDirection: data.goal.uomDirection || 'Min',
-          target: data.goal.target, weightage: data.goal.weightage,
-        });
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch(`/api/goals/${id}`).then(r => r.json()),
+      fetch('/api/goals').then(r => r.json()),
+    ]).then(([detail, listData]) => {
+      setGoal(detail.goal);
+      setAuditLogs(detail.auditLogs || []);
+      setManagerComments(detail.managerComments || []);
+      setForm({
+        thrustArea: detail.goal.thrustArea, title: detail.goal.title,
+        description: detail.goal.description, uom: detail.goal.uom,
+        uomDirection: detail.goal.uomDirection || 'Min',
+        target: detail.goal.target, weightage: detail.goal.weightage,
+      });
+      // Calculate weightage used by OTHER goals (excluding this one)
+      if (listData?.goals) {
+        const otherGoals = listData.goals.filter(g => g._id !== id);
+        const used = otherGoals.reduce((sum, g) => sum + (g.weightage || 0), 0);
+        setUsedWeightage(used);
+        setGoalCount(otherGoals.length);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [id]);
+
+  const remaining = 100 - usedWeightage;
+  const maxWeightage = Math.min(remaining, 100);
+  const weightageColor = remaining <= 0 ? 'danger' : remaining <= 20 ? 'warning' : '';
 
   const isEditable = goal && ['Draft', 'Returned'].includes(goal.status) && !goal.isShared;
   const isSharedEditable = goal && goal.isShared && ['Draft', 'Returned'].includes(goal.status);
@@ -109,6 +122,7 @@ export default function GoalDetailPage({ params }) {
     if (isEditable || isSharedEditable) {
       if (!form.weightage && form.weightage !== 0) errs.weightage = 'Weightage is required';
       else if (isNaN(parseInt(form.weightage)) || parseInt(form.weightage) < 10 || parseInt(form.weightage) > 100) errs.weightage = 'Must be 10% - 100%';
+      else if (parseInt(form.weightage) > maxWeightage) errs.weightage = `Only ${remaining}% available (${goalCount} other goals use ${usedWeightage}%)`;
     }
     return errs;
   };
@@ -252,10 +266,22 @@ export default function GoalDetailPage({ params }) {
               <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Gauge size={13} /> Weightage (%)
               </label>
-              <input className="input-dark" type="number" value={form.weightage || ''} onChange={(e) => setForm(p => ({ ...p, weightage: e.target.value }))} onBlur={() => handleBlur('weightage')} disabled={!isEditable && !isSharedEditable} min={10} max={100} style={{ marginBottom: (isEditable || isSharedEditable) ? '8px' : 0, borderColor: fieldError('weightage') ? '#f87171' : undefined }} />
+              {/* Remaining weightage info */}
               {(isEditable || isSharedEditable) && (
+                <div className="weightage-info" style={{ marginBottom: '8px' }}>
+                  <span className="weightage-info-label">
+                    <Info size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                    {goalCount} other goal{goalCount !== 1 ? 's' : ''} using {usedWeightage}%
+                  </span>
+                  <span className={`weightage-info-value ${weightageColor}`}>
+                    {remaining}% available
+                  </span>
+                </div>
+              )}
+              <input className="input-dark" type="number" value={form.weightage || ''} onChange={(e) => { const v = Math.max(0, Math.min(maxWeightage, parseInt(e.target.value) || 0)); setForm(p => ({ ...p, weightage: v })); }} onBlur={() => handleBlur('weightage')} disabled={!isEditable && !isSharedEditable} min={10} max={maxWeightage} style={{ marginBottom: (isEditable || isSharedEditable) ? '8px' : 0, borderColor: fieldError('weightage') ? '#f87171' : undefined }} />
+              {(isEditable || isSharedEditable) && remaining > 0 && (
                 <div className="slider-container">
-                  <input type="range" className="range-slider" min={10} max={100} value={form.weightage || 10} onChange={e => setForm(p => ({ ...p, weightage: parseInt(e.target.value) }))} />
+                  <input type="range" className="range-slider" min={10} max={maxWeightage} value={Math.min(form.weightage || 10, maxWeightage)} onChange={e => setForm(p => ({ ...p, weightage: parseInt(e.target.value) }))} />
                   <span className="slider-value-badge">{form.weightage || 10}%</span>
                 </div>
               )}

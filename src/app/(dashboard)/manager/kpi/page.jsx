@@ -32,6 +32,11 @@ const uomOptions = [
   { value: 'Zero', label: 'Zero-based', description: 'Target is zero (e.g., 0 defects)' },
 ];
 
+const directionOptions = [
+  { value: 'Min', label: 'Higher is Better', description: 'Achievement grows toward target' },
+  { value: 'Max', label: 'Lower is Better', description: 'Achievement decreases toward target' },
+];
+
 export default function AssignKPIPage() {
   const { data: session } = useSession();
   const toast = useToast();
@@ -162,8 +167,18 @@ export default function AssignKPIPage() {
                   <textarea className="input-dark" placeholder="Describe the KPI..." value={form.description} onChange={e => handleChange('description', e.target.value)} rows={2} style={{ resize: 'vertical', minHeight: '60px' }} />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <CustomDropdown label="Unit of Measurement *" options={uomOptions} value={form.uom} onChange={v => handleChange('uom', v)} />
+                  <CustomDropdown
+                    label="Direction"
+                    options={directionOptions}
+                    value={form.uomDirection}
+                    onChange={v => handleChange('uomDirection', v)}
+                    disabled={form.uom === 'Zero' || form.uom === 'Timeline'}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div>
                     <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <TargetIcon size={12} /> Target *
@@ -193,6 +208,11 @@ export default function AssignKPIPage() {
                       <Gauge size={12} /> Default Weightage (%)
                     </label>
                     <input className="input-dark" type="number" value={form.defaultWeightage} onChange={e => handleChange('defaultWeightage', Math.max(10, Math.min(100, parseInt(e.target.value) || 10)))} min={10} max={100} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '10px 0', lineHeight: 1.5 }}>
+                      {form.uomDirection === 'Min' ? '📈 Higher values = better performance' : '📉 Lower values = better performance'}
+                    </div>
                   </div>
                 </div>
 
