@@ -9,6 +9,7 @@ import Link from 'next/link';
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
 import { useToast } from '@/components/ui/Toast';
+import DiscussionThread from '@/components/DiscussionThread';
 
 const thrustAreaOptions = [
   { value: 'Revenue Growth', label: 'Revenue Growth', description: 'Sales & market expansion' },
@@ -74,8 +75,7 @@ export default function GoalDetailPage({ params }) {
   const [touched, setTouched] = useState({});
   const [usedWeightage, setUsedWeightage] = useState(0);
   const [goalCount, setGoalCount] = useState(0);
-  const [commentText, setCommentText] = useState('');
-  const [commentSending, setCommentSending] = useState(false);
+
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchGoalData = async (showLoader = true) => {
@@ -109,6 +109,26 @@ export default function GoalDetailPage({ params }) {
   };
 
   useEffect(() => { fetchGoalData(true); }, [id]);
+
+  // Scroll to specific comment when URL has #comment-xyz hash
+  useEffect(() => {
+    if (loading || !goal) return;
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#comment-')) {
+      // Small delay to let comments render
+      setTimeout(() => {
+        const el = document.getElementById(hash.substring(1));
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Highlight flash
+          el.style.transition = 'box-shadow 0.3s ease';
+          el.style.boxShadow = '0 0 0 2px #818cf8, 0 0 16px rgba(99,102,241,0.3)';
+          el.style.borderRadius = '12px';
+          setTimeout(() => { el.style.boxShadow = 'none'; }, 3000);
+        }
+      }, 600);
+    }
+  }, [loading, goal]);
 
   const handleRefresh = () => fetchGoalData(false);
 
@@ -174,34 +194,7 @@ export default function GoalDetailPage({ params }) {
     setSaving(false);
   };
 
-  const handleComment = async (e) => {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-    setCommentSending(true);
-    try {
-      const res = await fetch(`/api/goals/${id}/comment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: commentText.trim() }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setCommentText('');
-        toast('Reply posted!', 'success');
-        // Re-fetch from DB to show the persisted comment
-        await fetchGoalData(false);
-      } else {
-        toast(data.error || 'Unable to reply. Please retry later.', 'error');
-        // Refresh to ensure UI matches DB state
-        await fetchGoalData(false);
-      }
-    } catch {
-      toast('Unable to reply. Please retry later.', 'error');
-      // Refresh to clean up any stale state
-      await fetchGoalData(false);
-    }
-    setCommentSending(false);
-  };
+
 
   // Computed progress & achievements
   const achievements = goal?.achievements || [];
@@ -310,102 +303,102 @@ export default function GoalDetailPage({ params }) {
         {/* LEFT: Goal Form/Details */}
         <div>
           <form onSubmit={handleSave}>
-          <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-          {/* Thrust Area */}
-          {isEditable ? (
-            <div>
-              <CustomDropdown label="Thrust Area" options={thrustAreaOptions} value={form.thrustArea} onChange={(v) => { setForm(p => ({ ...p, thrustArea: v })); handleBlur('thrustArea'); }} />
-              {fieldError('thrustArea') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('thrustArea')}</p>}
-            </div>
-          ) : (
-            <div><label className="dropdown-label">Thrust Area</label><div className="input-dark" style={{ opacity: 0.7 }}>{form.thrustArea}</div></div>
-          )}
-
-          {/* Title */}
-          <div>
-            <label className="dropdown-label">Goal Title</label>
-            <input className="input-dark" value={form.title || ''} onChange={(e) => setForm(p => ({ ...p, title: e.target.value }))} onBlur={() => handleBlur('title')} disabled={!isEditable} style={{ borderColor: fieldError('title') ? '#f87171' : undefined }} />
-            {fieldError('title') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('title')}</p>}
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="dropdown-label">Description</label>
-            <textarea className="input-dark" value={form.description || ''} onChange={(e) => setForm(p => ({ ...p, description: e.target.value }))} onBlur={() => handleBlur('description')} rows={3} disabled={!isEditable} style={{ resize: 'vertical', borderColor: fieldError('description') ? '#f87171' : undefined }} />
-            {fieldError('description') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('description')}</p>}
-          </div>
-
-          {/* UoM + Direction */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            {isEditable ? (
-              <div>
-                <CustomDropdown label="Unit of Measurement" options={uomOptions} value={form.uom} onChange={(v) => { setForm(p => ({ ...p, uom: v })); handleBlur('uom'); }} />
-                {fieldError('uom') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('uom')}</p>}
-              </div>
-            ) : (
-              <div><label className="dropdown-label">Unit of Measurement</label><div className="input-dark" style={{ opacity: 0.7 }}>{form.uom}</div></div>
-            )}
-            {isEditable ? (
-              <CustomDropdown label="Direction" options={directionOptions} value={form.uomDirection} onChange={(v) => setForm(p => ({ ...p, uomDirection: v }))} />
-            ) : (
-              <div><label className="dropdown-label">Direction</label><div className="input-dark" style={{ opacity: 0.7 }}>{form.uomDirection === 'Min' ? 'Higher is Better' : 'Lower is Better'}</div></div>
-            )}
-          </div>
-
-          {/* Target + Weightage */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div>
-              <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <TargetIcon size={13} /> Target
-              </label>
-              {form.uom === 'Timeline' ? (
-                <CustomDatePicker value={form.target || ''} onChange={(v) => { setForm(p => ({ ...p, target: v })); handleBlur('target'); }} placeholder="Select target date..." disabled={!isEditable} />
+              {/* Thrust Area */}
+              {isEditable ? (
+                <div>
+                  <CustomDropdown label="Thrust Area" options={thrustAreaOptions} value={form.thrustArea} onChange={(v) => { setForm(p => ({ ...p, thrustArea: v })); handleBlur('thrustArea'); }} />
+                  {fieldError('thrustArea') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('thrustArea')}</p>}
+                </div>
               ) : (
-                <input className="input-dark" type="number" value={form.target || ''} onChange={(e) => setForm(p => ({ ...p, target: e.target.value }))} onBlur={() => handleBlur('target')} disabled={!isEditable} style={{ marginBottom: isEditable && form.uom === 'Percentage' ? '8px' : 0, borderColor: fieldError('target') ? '#f87171' : undefined }} />
+                <div><label className="dropdown-label">Thrust Area</label><div className="input-dark" style={{ opacity: 0.7 }}>{form.thrustArea}</div></div>
               )}
-              {isEditable && form.uom === 'Percentage' && form.target && (
-                <div className="slider-container">
-                  <input type="range" className="range-slider" min={0} max={100} value={form.target || 0} onChange={e => setForm(p => ({ ...p, target: e.target.value }))} />
-                  <span className="slider-value-badge">{form.target}%</span>
-                </div>
-              )}
-              {fieldError('target') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('target')}</p>}
-            </div>
 
-            <div>
-              <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Gauge size={13} /> Weightage (%)
-              </label>
-              {/* Remaining weightage info */}
+              {/* Title */}
+              <div>
+                <label className="dropdown-label">Goal Title</label>
+                <input className="input-dark" value={form.title || ''} onChange={(e) => setForm(p => ({ ...p, title: e.target.value }))} onBlur={() => handleBlur('title')} disabled={!isEditable} style={{ borderColor: fieldError('title') ? '#f87171' : undefined }} />
+                {fieldError('title') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('title')}</p>}
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="dropdown-label">Description</label>
+                <textarea className="input-dark" value={form.description || ''} onChange={(e) => setForm(p => ({ ...p, description: e.target.value }))} onBlur={() => handleBlur('description')} rows={3} disabled={!isEditable} style={{ resize: 'vertical', borderColor: fieldError('description') ? '#f87171' : undefined }} />
+                {fieldError('description') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('description')}</p>}
+              </div>
+
+              {/* UoM + Direction */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {isEditable ? (
+                  <div>
+                    <CustomDropdown label="Unit of Measurement" options={uomOptions} value={form.uom} onChange={(v) => { setForm(p => ({ ...p, uom: v })); handleBlur('uom'); }} />
+                    {fieldError('uom') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('uom')}</p>}
+                  </div>
+                ) : (
+                  <div><label className="dropdown-label">Unit of Measurement</label><div className="input-dark" style={{ opacity: 0.7 }}>{form.uom}</div></div>
+                )}
+                {isEditable ? (
+                  <CustomDropdown label="Direction" options={directionOptions} value={form.uomDirection} onChange={(v) => setForm(p => ({ ...p, uomDirection: v }))} />
+                ) : (
+                  <div><label className="dropdown-label">Direction</label><div className="input-dark" style={{ opacity: 0.7 }}>{form.uomDirection === 'Min' ? 'Higher is Better' : 'Lower is Better'}</div></div>
+                )}
+              </div>
+
+              {/* Target + Weightage */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <TargetIcon size={13} /> Target
+                  </label>
+                  {form.uom === 'Timeline' ? (
+                    <CustomDatePicker value={form.target || ''} onChange={(v) => { setForm(p => ({ ...p, target: v })); handleBlur('target'); }} placeholder="Select target date..." disabled={!isEditable} />
+                  ) : (
+                    <input className="input-dark" type="number" value={form.target || ''} onChange={(e) => setForm(p => ({ ...p, target: e.target.value }))} onBlur={() => handleBlur('target')} disabled={!isEditable} style={{ marginBottom: isEditable && form.uom === 'Percentage' ? '8px' : 0, borderColor: fieldError('target') ? '#f87171' : undefined }} />
+                  )}
+                  {isEditable && form.uom === 'Percentage' && form.target && (
+                    <div className="slider-container">
+                      <input type="range" className="range-slider" min={0} max={100} value={form.target || 0} onChange={e => setForm(p => ({ ...p, target: e.target.value }))} />
+                      <span className="slider-value-badge">{form.target}%</span>
+                    </div>
+                  )}
+                  {fieldError('target') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('target')}</p>}
+                </div>
+
+                <div>
+                  <label className="dropdown-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Gauge size={13} /> Weightage (%)
+                  </label>
+                  {/* Remaining weightage info */}
+                  {(isEditable || isSharedEditable) && (
+                    <div className="weightage-info" style={{ marginBottom: '8px' }}>
+                      <span className="weightage-info-label">
+                        <Info size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+                        {goalCount} other goal{goalCount !== 1 ? 's' : ''} using {usedWeightage}%
+                      </span>
+                      <span className={`weightage-info-value ${weightageColor}`}>
+                        {remaining}% available
+                      </span>
+                    </div>
+                  )}
+                  <input className="input-dark" type="number" value={form.weightage || ''} onChange={(e) => { const v = Math.max(0, Math.min(maxWeightage, parseInt(e.target.value) || 0)); setForm(p => ({ ...p, weightage: v })); }} onBlur={() => handleBlur('weightage')} disabled={!isEditable && !isSharedEditable} min={10} max={maxWeightage} style={{ marginBottom: (isEditable || isSharedEditable) ? '8px' : 0, borderColor: fieldError('weightage') ? '#f87171' : undefined }} />
+                  {(isEditable || isSharedEditable) && remaining > 0 && (
+                    <div className="slider-container">
+                      <input type="range" className="range-slider" min={10} max={maxWeightage} value={Math.min(form.weightage || 10, maxWeightage)} onChange={e => setForm(p => ({ ...p, weightage: parseInt(e.target.value) }))} />
+                      <span className="slider-value-badge">{form.weightage || 10}%</span>
+                    </div>
+                  )}
+                  {fieldError('weightage') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('weightage')}</p>}
+                </div>
+              </div>
+
               {(isEditable || isSharedEditable) && (
-                <div className="weightage-info" style={{ marginBottom: '8px' }}>
-                  <span className="weightage-info-label">
-                    <Info size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                    {goalCount} other goal{goalCount !== 1 ? 's' : ''} using {usedWeightage}%
-                  </span>
-                  <span className={`weightage-info-value ${weightageColor}`}>
-                    {remaining}% available
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                  <button type="submit" className="btn-glow" disabled={saving || !isValid} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', opacity: isValid ? 1 : 0.5 }}><Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}</button>
                 </div>
               )}
-              <input className="input-dark" type="number" value={form.weightage || ''} onChange={(e) => { const v = Math.max(0, Math.min(maxWeightage, parseInt(e.target.value) || 0)); setForm(p => ({ ...p, weightage: v })); }} onBlur={() => handleBlur('weightage')} disabled={!isEditable && !isSharedEditable} min={10} max={maxWeightage} style={{ marginBottom: (isEditable || isSharedEditable) ? '8px' : 0, borderColor: fieldError('weightage') ? '#f87171' : undefined }} />
-              {(isEditable || isSharedEditable) && remaining > 0 && (
-                <div className="slider-container">
-                  <input type="range" className="range-slider" min={10} max={maxWeightage} value={Math.min(form.weightage || 10, maxWeightage)} onChange={e => setForm(p => ({ ...p, weightage: parseInt(e.target.value) }))} />
-                  <span className="slider-value-badge">{form.weightage || 10}%</span>
-                </div>
-              )}
-              {fieldError('weightage') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('weightage')}</p>}
             </div>
-          </div>
-
-          {(isEditable || isSharedEditable) && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button type="submit" className="btn-glow" disabled={saving || !isValid} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', opacity: isValid ? 1 : 0.5 }}><Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}</button>
-            </div>
-          )}
-          </div>
           </form>
         </div>
 
@@ -478,66 +471,22 @@ export default function GoalDetailPage({ params }) {
         </div>
       </div>
 
-      {/* ── FULL-WIDTH: Feedback & Discussion ── */}
+      {/* ── Feedback & Discussion (Threaded) ── */}
       <div style={{ marginTop: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <MessageSquare size={16} style={{ color: '#818cf8' }} /> Feedback & Discussion
           </h2>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Lock size={10} /> Append-only • Immutable
+            <Lock size={10} /> Append-only
           </span>
         </div>
-        <div className="glass-card" style={{ padding: '20px' }}>
-          {managerComments.length > 0 ? (
-            <div style={{ position: 'relative', paddingLeft: '36px', marginBottom: '20px' }}>
-              <div style={{ position: 'absolute', left: '15px', top: '12px', bottom: '12px', width: '2px', background: 'linear-gradient(to bottom, #818cf8, rgba(99,102,241,0.1))', borderRadius: '2px' }} />
-              {[...managerComments].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)).map((c, i) => {
-                const cRole = c.role || 'Manager';
-                const roleCfg = cRole === 'Employee'
-                  ? { bg: 'rgba(16,185,129,0.08)', color: '#34d399', border: 'rgba(16,185,129,0.15)', dotBg: 'linear-gradient(135deg, #10b981, #059669)' }
-                  : { bg: 'rgba(99,102,241,0.04)', color: '#818cf8', border: 'rgba(99,102,241,0.12)', dotBg: 'var(--gradient-1)' };
-                return (
-                  <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                    style={{ position: 'relative', marginBottom: i < managerComments.length - 1 ? '16px' : 0 }}>
-                    <div style={{ position: 'absolute', left: '-32px', top: '4px', width: '20px', height: '20px', borderRadius: '50%', background: roleCfg.dotBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '9px', fontWeight: 700, zIndex: 1 }}>
-                      {(c.byName || 'U')[0]}
-                    </div>
-                    <div style={{ padding: '14px 16px', borderRadius: '12px', background: roleCfg.bg, border: `1px solid ${roleCfg.border}` }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: 700, color: roleCfg.color }}>{c.byName || 'User'}</span>
-                          <span className="badge" style={{ fontSize: '9px', background: `${roleCfg.color}15`, color: roleCfg.color, padding: '2px 6px' }}>{cRole}</span>
-                        </div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          {new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {new Date(c.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: 1.6, margin: 0, borderLeft: `3px solid ${roleCfg.color}40`, paddingLeft: '12px', fontStyle: 'italic' }}>
-                        "{c.text}"
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '20px 0', marginBottom: '16px' }}>
-              <MessageSquare size={28} style={{ color: 'var(--text-muted)', opacity: 0.3, margin: '0 auto 8px' }} />
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>No discussion yet. Start the conversation below.</p>
-            </div>
-          )}
-          {/* Reply Form */}
-          <form onSubmit={handleComment} style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', borderTop: managerComments.length > 0 ? '1px solid var(--border-color)' : 'none', paddingTop: managerComments.length > 0 ? '16px' : 0 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', background: role === 'Employee' ? 'linear-gradient(135deg, #10b981, #059669)' : 'var(--gradient-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 700, flexShrink: 0 }}>
-              {(session?.user?.name || 'U')[0]}
-            </div>
-            <textarea className="input-dark" value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Write a reply..." rows={1} style={{ flex: 1, resize: 'none', minHeight: '38px', fontSize: '13px' }} onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }} />
-            <button type="submit" disabled={commentSending || !commentText.trim()} className="btn-glow" style={{ padding: '8px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', opacity: commentText.trim() ? 1 : 0.4 }}>
-              <MessageSquare size={13} /> {commentSending ? '...' : 'Reply'}
-            </button>
-          </form>
-        </div>
+        <DiscussionThread
+          comments={managerComments}
+          goalId={id}
+          currentUser={{ name: session?.user?.name, role }}
+          onCommentPosted={() => fetchGoalData(false)}
+        />
       </div>
 
       {/* ── FULL-WIDTH: Audit Trail Timeline ── */}
