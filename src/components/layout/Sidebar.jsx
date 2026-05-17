@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { LayoutDashboard, Target, CheckSquare, Users, Shield, BarChart3, Calendar, FileText, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -41,6 +41,8 @@ const navItems = {
 export default function Sidebar() {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentQuery = searchParams.toString();
   const [collapsed, setCollapsed] = useState(false);
   const role = session?.user?.role || 'Employee';
   const items = navItems[role] || navItems.Employee;
@@ -62,7 +64,11 @@ export default function Sidebar() {
             ) : <div key={`header-spacer-${i}`} style={{ height: '1px', background: 'var(--border-color)', margin: '8px 4px' }} />;
           }
           const basePath = item.href.split('?')[0];
-          const isActive = item.exact ? (pathname === basePath) : (pathname === basePath || pathname.startsWith(`${basePath}/`));
+          const hrefQuery = item.href.includes('?') ? item.href.split('?')[1] : '';
+          // For links with query params (like analytics?scope=team), match both path and query
+          const isActive = hrefQuery
+            ? (pathname === basePath && currentQuery === hrefQuery)
+            : item.exact ? (pathname === basePath) : (pathname === basePath || pathname.startsWith(`${basePath}/`));
           return (
             <Link key={item.href} href={item.href} className={`sidebar-link ${isActive ? 'active' : ''}`} style={{ justifyContent: collapsed ? 'center' : 'flex-start', padding: collapsed ? '10px' : '10px 16px', marginBottom: '2px' }}>
               {item.icon}

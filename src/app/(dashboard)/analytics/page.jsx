@@ -292,8 +292,8 @@ export default function AnalyticsPage() {
             {cycles.length > 0 && <div style={{ width: '200px' }}><CustomDropdown options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' ✓' : ''}` }))} value={selectedCycle} onChange={v => setSelectedCycle(v)} placeholder="Select Cycle" /></div>}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Link href="/goals" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', color: '#34d399', fontSize: '12px', fontWeight: 500 }}><Target size={12} /> Goals</Link>
-            <Link href="/checkin" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', color: '#818cf8', fontSize: '12px', fontWeight: 500 }}><CheckSquare size={12} /> Check-ins</Link>
+            <Link href={scope === 'personal' ? '/goals' : '/manager'} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', color: '#34d399', fontSize: '12px', fontWeight: 500 }}><Target size={12} /> {scope === 'personal' ? 'My Goals' : 'Team Review'}</Link>
+            <Link href={scope === 'personal' ? '/checkin' : '/manager/checkins'} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', color: '#818cf8', fontSize: '12px', fontWeight: 500 }}><CheckSquare size={12} /> Check-ins</Link>
           </div>
         </div>
       )}
