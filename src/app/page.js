@@ -46,14 +46,15 @@ function LandingContent() {
     finally { setLoading(false); }
   };
 
+  const creds = {
+    Admin: { email: 'admin@ihgst.com', pass: 'Admin@123' },
+    Manager: { email: 'manager@ihgst.com', pass: 'Manager@123' },
+    Employee1: { email: 'employee1@ihgst.com', pass: 'Employee@123' },
+    Employee2: { email: 'employee2@ihgst.com', pass: 'Employee@123' },
+    Employee3: { email: 'employee3@ihgst.com', pass: 'Employee@123' },
+  };
+
   const fillCreds = (role) => {
-    const creds = {
-      Admin: { email: 'admin@ihgst.com', pass: 'Admin@123' },
-      Manager: { email: 'manager@ihgst.com', pass: 'Manager@123' },
-      Employee1: { email: 'employee1@ihgst.com', pass: 'Employee@123' },
-      Employee2: { email: 'employee2@ihgst.com', pass: 'Employee@123' },
-      Employee3: { email: 'employee3@ihgst.com', pass: 'Employee@123' },
-    };
     setEmail(creds[role].email);
     setPassword(creds[role].pass);
   };
