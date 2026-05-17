@@ -9,7 +9,7 @@ const routeRules = [
   { path: '/manager', roles: ['Manager', 'Admin'] },
 ];
 
-export async function middleware(request) {
+export async function proxy(request) {
   try {
     const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
     const { pathname } = request.nextUrl;
@@ -38,9 +38,9 @@ export async function middleware(request) {
 
     return NextResponse.next();
   } catch (error) {
-    // If middleware crashes (e.g., cold start), let the request through
+    // If proxy crashes (e.g., cold start), let the request through
     // API routes have their own auth checks as a safety net
-    console.error('Middleware error:', error?.message);
+    console.error('Proxy error:', error?.message);
     return NextResponse.next();
   }
 }
