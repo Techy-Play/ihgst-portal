@@ -91,9 +91,22 @@ export async function GET(request) {
 
 function calculateGoalProgress(goal) {
   if (!goal.achievements?.length) return 0;
-  const latest = goal.achievements[goal.achievements.length - 1];
-  if (!latest?.value || goal.uom === 'Timeline') return latest?.status === 'Completed' ? 100 : 0;
-  const target = Number(goal.target);
-  if (!target) return 0;
-  return Math.min(100, Math.round((Number(latest.value) / target) * 100));
+  // Find latest non-null achievement
+  for (let i = goal.achievements.length - 1; i >= 0; i--) {
+    const ach = goal.achievements[i];
+    if (ach.value !== null && ach.value !== undefined) {
+      if (goal.uom === 'Timeline') {
+        const targetDate = new Date(goal.target).getTime();
+        const achievedDate = new Date(ach.value).getTime();
+        return achievedDate <= targetDate ? 100 : 50;
+      }
+      const target = Number(goal.target);
+      if (!target) return 0;
+      if (goal.uomDirection === 'Max') {
+        return Math.min(100, Math.round((target / Number(ach.value)) * 100));
+      }
+      return Math.min(100, Math.round((Number(ach.value) / target) * 100));
+    }
+  }
+  return 0;
 }

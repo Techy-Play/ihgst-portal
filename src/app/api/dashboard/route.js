@@ -146,6 +146,12 @@ export async function GET() {
 
 function calcGoalProgress(goal) {
   if (!goal.achievements || goal.achievements.length === 0) return 0;
-  const latest = goal.achievements[goal.achievements.length - 1];
-  return calculateProgress(goal, latest.value);
+  // Find the latest non-null achievement value across all quarters
+  for (let i = goal.achievements.length - 1; i >= 0; i--) {
+    const ach = goal.achievements[i];
+    if (ach.value !== null && ach.value !== undefined) {
+      return calculateProgress(goal, ach.value);
+    }
+  }
+  return 0;
 }
