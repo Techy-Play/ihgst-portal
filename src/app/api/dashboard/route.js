@@ -13,13 +13,13 @@ import { handleApiError } from '@/lib/apiError';
 function getActiveQuarter(cycle) {
   if (!cycle?.quarters?.length) return null;
   const now = new Date();
-  for (const q of cycle.quarters) {
+  for (let i = 0; i < cycle.quarters.length; i++) {
+    const q = cycle.quarters[i];
     if (q.start && q.end && new Date(q.start) <= now && now <= new Date(q.end)) {
-      return q.label;
+      return `Q${i + 1}`; // Normalize to Q1/Q2/Q3/Q4
     }
   }
-  // If no quarter matches, default to Q1
-  return cycle.quarters[0]?.label || 'Q1';
+  return 'Q1';
 }
 
 export async function GET() {

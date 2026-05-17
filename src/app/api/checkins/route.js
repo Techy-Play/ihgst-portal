@@ -11,16 +11,21 @@ import { handleApiError, parseBody } from '@/lib/apiError';
 function getActiveQuarter(cycle) {
   if (!cycle?.quarters?.length) return 'Q1';
   const now = new Date();
-  for (const q of cycle.quarters) {
-    if (q.start && q.end && new Date(q.start) <= now && now <= new Date(q.end)) return q.label;
+  for (let i = 0; i < cycle.quarters.length; i++) {
+    const q = cycle.quarters[i];
+    if (q.start && q.end && new Date(q.start) <= now && now <= new Date(q.end)) {
+      return `Q${i + 1}`; // Normalize to Q1/Q2/Q3/Q4
+    }
   }
-  return cycle.quarters[0]?.label || 'Q1';
+  return 'Q1';
 }
 
 function getQuarterStatus(cycle, qLabel) {
   if (!cycle?.quarters?.length) return 'unknown';
   const now = new Date();
-  const q = cycle.quarters.find(q => q.label === qLabel);
+  // Match by index (Q1→0, Q2→1, etc) since cycle labels may be "Q1 Check-in"
+  const qIdx = parseInt(qLabel.replace('Q', '')) - 1;
+  const q = cycle.quarters[qIdx];
   if (!q || !q.start || !q.end) return 'unknown';
   if (now < new Date(q.start)) return 'upcoming';
   if (now > new Date(q.end)) return 'completed';
@@ -45,11 +50,11 @@ export async function GET(request) {
     const activeQuarter = getActiveQuarter(activeCycle);
     const quarterStatuses = {};
     const quarterDates = {}; // expose start/end for each quarter so UI can constrain date pickers
-    ['Q1', 'Q2', 'Q3', 'Q4'].forEach(q => {
+    ['Q1', 'Q2', 'Q3', 'Q4'].forEach((q, idx) => {
       quarterStatuses[q] = getQuarterStatus(activeCycle, q);
-      if (activeCycle?.quarters?.length) {
-        const qDef = activeCycle.quarters.find(d => d.label === q);
-        if (qDef) quarterDates[q] = { start: qDef.start, end: qDef.end };
+      if (activeCycle?.quarters?.[idx]) {
+        const qDef = activeCycle.quarters[idx];
+        quarterDates[q] = { start: qDef.start, end: qDef.end };
       }
     });
 
@@ -88,7 +93,8 @@ export async function POST(request) {
     // Bug #7: Enforce quarter lock — block editing completed quarters
     const activeCycle = await Cycle.findOne({ isActive: true }).lean();
     if (activeCycle?.quarters?.length) {
-      const quarterDef = activeCycle.quarters.find(q => q.label === quarter);
+      const qIdx = parseInt(quarter.replace('Q', '')) - 1;
+      const quarterDef = activeCycle.quarters[qIdx];
       if (quarterDef?.end && new Date() > new Date(quarterDef.end)) {
         return NextResponse.json({ error: `${quarter} is locked. Quarter ended on ${new Date(quarterDef.end).toLocaleDateString()}.` }, { status: 403 });
       }
