@@ -21,6 +21,12 @@ const GoalSchema = new mongoose.Schema({
     quarter: String, value: mongoose.Schema.Types.Mixed, status: { type: String, enum: ['Not Started', 'On Track', 'At Risk', 'Completed'], default: 'Not Started' },
     comment: String, updatedAt: { type: Date, default: Date.now },
   }],
+  managerComments: [{
+    text: { type: String, required: true },
+    by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    byName: { type: String },
+    createdAt: { type: Date, default: Date.now },
+  }],
 }, { timestamps: true });
 
 GoalSchema.index({ userId: 1, goalSheetId: 1 });

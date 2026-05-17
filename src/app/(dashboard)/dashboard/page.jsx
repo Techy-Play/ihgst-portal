@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { Target, CheckCircle, Clock, TrendingUp, Plus, ArrowRight, AlertTriangle, Info, Calendar, Zap, Share2, Users, BarChart3, Shield, X, ExternalLink } from 'lucide-react';
+import { Target, CheckCircle, Clock, TrendingUp, Plus, ArrowRight, AlertTriangle, Info, Calendar, Zap, Share2, Users, BarChart3, Shield, X, ExternalLink, FileText, Trash2, Mail, Send, History } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Skeletons';
+import { useToast } from '@/components/ui/Toast';
+import CustomDropdown from '@/components/ui/CustomDropdown';
 import { motion } from 'framer-motion';
 import ReactDOM from 'react-dom';
 
@@ -122,11 +124,58 @@ export default function DashboardPage() {
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher('/api/dashboard');
 
   const [managerTab, setManagerTab] = useState('personal');
-  const [statModal, setStatModal] = useState(null); // null | 'total' | 'approved' | 'pending'
+  const [statModal, setStatModal] = useState(null);
+  const toast = useToast();
   
   const role = session?.user?.role || 'Employee';
   const activeData = data?.isManagerSplit ? data[managerTab] : data;
   const isManager = role === 'Manager';
+  const isAdmin = role === 'Admin';
+
+  // Admin panel data
+  const adminTransform = useCallback((d) => d, []);
+  const { data: adminStats, refresh: adminRefresh } = useDataFetcher(isAdmin ? '/api/admin/stats' : null, { transform: adminTransform });
+  const { data: cleanupData, refresh: refreshCleanup } = useDataFetcher(isAdmin ? '/api/goals/cleanup' : null, { transform: adminTransform });
+  const [deleting, setDeleting] = useState({});
+  const [confirmCycle, setConfirmCycle] = useState(null);
+  const [includeReturned, setIncludeReturned] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportFormat, setReportFormat] = useState('csv');
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportCycleId, setReportCycleId] = useState('');
+  const [adminCycles, setAdminCycles] = useState([]);
+  const [sendingReport, setSendingReport] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch('/api/admin/cycles').then(r => r.json()).then(d => {
+      if (d.cycles) { setAdminCycles(d.cycles); const a = d.cycles.find(c => c.isActive); if (a) setReportCycleId(a._id); }
+    }).catch(() => {});
+  }, [isAdmin]);
+
+  const handleSendReport = async (e) => {
+    e.preventDefault(); if (!reportEmail) return;
+    setSendingReport(true);
+    try {
+      const res = await fetch('/api/admin/reports/email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: reportEmail, format: reportFormat, cycleId: reportCycleId }) });
+      const result = await res.json();
+      if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowReportModal(false); } else toast(result.error || 'Failed', 'error');
+    } catch { toast('Failed to send email', 'error'); }
+    setSendingReport(false);
+  };
+
+  const handleBulkDelete = async (cycleId) => {
+    setDeleting(p => ({ ...p, [cycleId]: true }));
+    try {
+      const res = await fetch('/api/goals/cleanup', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cycleId, includeReturned }) });
+      const d = await res.json();
+      if (res.ok) { toast(d.message, 'success'); refreshCleanup(); refresh(); adminRefresh(); } else toast(d.error || 'Failed', 'error');
+    } catch { toast('Failed to delete drafts', 'error'); }
+    setDeleting(p => ({ ...p, [cycleId]: false }));
+    setConfirmCycle(null);
+  };
+
+  const draftCycles = (cleanupData?.cycles || []).filter(c => !c.isActive);
 
   const handleStatClick = (type) => {
     if (role === 'Employee') { window.location.href = type === 'pending' ? '/goals?status=pending' : '/goals'; return; }
@@ -273,7 +322,7 @@ export default function DashboardPage() {
               <h2 style={{ fontSize: '16px', fontWeight: 600 }}>
                 {isManager && managerTab === 'team' ? 'Team Goals' : (isManager ? 'My KPIs' : 'Recent Goals')}
               </h2>
-              <Link href={isManager && managerTab === 'team' ? '/manager' : '/goals'} style={{ fontSize: '13px', color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>View All <ArrowRight size={14} /></Link>
+              <Link href={isAdmin ? '/manager' : (isManager && managerTab === 'team' ? '/manager' : '/goals')} style={{ fontSize: '13px', color: 'var(--accent-secondary)', display: 'flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>View All <ArrowRight size={14} /></Link>
             </div>
             {(activeData?.recentGoals || []).length === 0 ? (
               <div style={{ padding: '32px 0', textAlign: 'center' }}>
@@ -371,6 +420,139 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ── ADMIN PANEL (merged) ── */}
+      {isAdmin && !loading && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginTop: '28px', marginBottom: '24px' }}>
+            {[
+              { label: 'Total Users', value: adminStats?.totalUsers || 0, icon: <Users size={18} />, grad: 'var(--gradient-1)' },
+              { label: 'Total Goals', value: adminStats?.totalGoals || 0, icon: <Target size={18} />, grad: 'var(--gradient-2)' },
+              { label: 'Approved Sheets', value: adminStats?.approvedSheets || 0, icon: <Shield size={18} />, grad: 'linear-gradient(135deg, #10b981, #059669)' },
+              { label: 'Pending Review', value: adminStats?.pendingSheets || 0, icon: <FileText size={18} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)' },
+            ].map((s, i) => (
+              <motion.div key={`as-${i}`} className="stat-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: s.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: '10px' }}>{s.icon}</div>
+                <p style={{ fontSize: '24px', fontWeight: 800, marginBottom: '2px' }}>{s.value}</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{s.label}</p>
+              </motion.div>
+            ))}
+          </div>
+
+          <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Shield size={16} style={{ color: '#818cf8' }} /> Administration
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+            {[
+              { title: 'User Management', desc: 'Manage accounts & roles', href: '/admin/users', icon: <Users size={18} />, grad: 'var(--gradient-1)' },
+              { title: 'Cycle Management', desc: 'Performance cycles', href: '/admin/cycles', icon: <Calendar size={18} />, grad: 'var(--gradient-2)' },
+              { title: 'Audit Log', desc: 'System changes', href: '/admin/audit', icon: <History size={18} />, grad: 'linear-gradient(135deg, #f59e0b, #d97706)' },
+              { title: 'Team Goals', desc: 'Review & approve', href: '/manager', icon: <Target size={18} />, grad: 'linear-gradient(135deg, #8b5cf6, #7c3aed)' },
+              { title: 'Assign KPIs', desc: 'Shared KPI assignment', href: '/manager/kpi', icon: <Share2 size={18} />, grad: 'linear-gradient(135deg, #a78bfa, #8b5cf6)' },
+              { title: 'Org Analytics', desc: 'Organization metrics', href: '/analytics', icon: <BarChart3 size={18} />, grad: 'linear-gradient(135deg, #06b6d4, #0891b2)' },
+            ].map(item => (
+              <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
+                <motion.div className="glass-card" whileHover={{ scale: 1.01 }} style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', cursor: 'pointer' }}>
+                  <div style={{ width: '40px', height: '40px', minWidth: '40px', borderRadius: '10px', background: item.grad, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>{item.icon}</div>
+                  <div style={{ flex: 1 }}><p style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '2px' }}>{item.title}</p><p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.desc}</p></div>
+                  <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+                </motion.div>
+              </Link>
+            ))}
+            <div onClick={() => setShowReportModal(true)} style={{ cursor: 'pointer' }}>
+              <motion.div className="glass-card" whileHover={{ scale: 1.01 }} style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ width: '40px', height: '40px', minWidth: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, #10b981, #059669)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}><Mail size={18} /></div>
+                <div style={{ flex: 1 }}><p style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-primary)', marginBottom: '2px' }}>Reports & Export</p><p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>CSV/Excel via email</p></div>
+                <ArrowRight size={14} style={{ color: 'var(--text-muted)' }} />
+              </motion.div>
+            </div>
+          </div>
+
+          {draftCycles.length > 0 && (
+            <>
+              <h2 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                <Trash2 size={14} style={{ color: '#f87171' }} /> Draft Cleanup
+              </h2>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                {draftCycles.map(cycle => (
+                  <div key={cycle.cycleId} className="glass-card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '3px solid #f87171' }}>
+                    <div><h3 style={{ fontSize: '13px', fontWeight: 600 }}>{cycle.cycleName}</h3><span style={{ fontSize: '11px', color: '#9ca3af' }}>{cycle.draftCount} drafts</span></div>
+                    <button onClick={() => setConfirmCycle(cycle)} disabled={deleting[cycle.cycleId]} style={{ padding: '6px 12px', borderRadius: '8px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171', cursor: 'pointer', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Trash2 size={11} /> {deleting[cycle.cycleId] ? 'Deleting...' : 'Clean'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Cleanup Confirm Modal */}
+      {confirmCycle && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setConfirmCycle(null); }}>
+          <div className="glass-card animate-fadeIn" style={{ padding: '28px', maxWidth: '440px', width: '90%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><AlertTriangle size={20} style={{ color: '#f87171' }} /></div>
+              <div><h3 style={{ fontSize: '16px', fontWeight: 600 }}>Delete Drafts</h3><p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{confirmCycle.cycleName}</p></div>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.6 }}>
+              Permanently delete <strong style={{ color: '#f87171' }}>{confirmCycle.draftCount} draft(s)</strong>.
+            </p>
+            {confirmCycle.returnedCount > 0 && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', marginBottom: '16px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <input type="checkbox" checked={includeReturned} onChange={e => setIncludeReturned(e.target.checked)} style={{ accentColor: '#f59e0b' }} />
+                Also delete {confirmCycle.returnedCount} returned
+              </label>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => { setConfirmCycle(null); setIncludeReturned(false); }} style={{ padding: '8px 20px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
+              <button onClick={() => handleBulkDelete(confirmCycle.cycleId)} disabled={deleting[confirmCycle.cycleId]} style={{ padding: '8px 20px', borderRadius: '10px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Trash2 size={13} /> {deleting[confirmCycle.cycleId] ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Export Modal */}
+      {showReportModal && (
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowReportModal(false); }}>
+          <div className="email-modal animate-fadeIn">
+            <button onClick={() => setShowReportModal(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'linear-gradient(135deg, #10b981, #059669)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export Report</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Choose format and receive via email</p>
+            </div>
+            <form onSubmit={handleSendReport}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Format</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {['csv', 'excel'].map(f => (
+                    <button key={f} type="button" onClick={() => setReportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: reportFormat === f ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)', border: reportFormat === f ? '1px solid rgba(16,185,129,0.3)' : '1px solid var(--border-color)', color: reportFormat === f ? '#34d399' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
+                  ))}
+                </div>
+              </div>
+              {adminCycles.length > 0 && (
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Cycle Year</label>
+                  <CustomDropdown options={adminCycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' (Active)' : ''}` }))} value={reportCycleId} onChange={v => setReportCycleId(v)} placeholder="Select cycle..." />
+                </div>
+              )}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+                <div style={{ position: 'relative' }}><Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} /><input type="email" className="input-dark" placeholder="recipient@company.com" value={reportEmail} onChange={e => setReportEmail(e.target.value)} required style={{ paddingLeft: '38px' }} /></div>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setShowReportModal(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" disabled={sendingReport} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', color: 'white', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: sendingReport ? 0.7 : 1 }}>{sendingReport ? <div className="spinner-sm" /> : <><Send size={16} /> Send Report</>}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <StatDetailModal open={!!statModal} onClose={() => setStatModal(null)} type={statModal} role={role} />
     </div>
   );

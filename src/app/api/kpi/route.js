@@ -38,12 +38,14 @@ export async function GET(request) {
     const employeeIds = employees.map(e => e._id);
     const totals = employeeIds.length === 0 ? [] : await Goal.aggregate([
       { $match: { cycleId: activeCycle._id, userId: { $in: employeeIds } } },
-      { $group: { _id: '$userId', total: { $sum: '$weightage' } } },
+      { $group: { _id: '$userId', total: { $sum: '$weightage' }, count: { $sum: 1 } } },
     ]);
-    const weightageByUserId = totals.reduce((acc, t) => {
-      acc[t._id.toString()] = t.total || 0;
-      return acc;
-    }, {});
+    const weightageByUserId = {};
+    const goalCountByUserId = {};
+    totals.forEach(t => {
+      weightageByUserId[t._id.toString()] = t.total || 0;
+      goalCountByUserId[t._id.toString()] = t.count || 0;
+    });
 
     // Group KPIs by title (the "template" KPI shared to multiple employees)
     const grouped = {};
@@ -64,6 +66,7 @@ export async function GET(request) {
       kpis: Object.values(grouped),
       employees,
       weightageByUserId,
+      goalCountByUserId,
       activeCycle: { _id: activeCycle._id, name: activeCycle.name },
     });
   } catch (error) {

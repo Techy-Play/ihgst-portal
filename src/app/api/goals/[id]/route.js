@@ -17,7 +17,7 @@ export async function GET(request, { params }) {
     if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
     const auditLogs = await AuditLog.find({ entityType: 'Goal', entityId: id }).sort({ createdAt: -1 }).lean();
     const goalSheet = await GoalSheet.findById(goal.goalSheetId).lean();
-    const managerComments = goalSheet?.comments || [];
+    const managerComments = goal.managerComments || [];
     return NextResponse.json({ goal, auditLogs, managerComments, goalSheetStatus: goalSheet?.status });
   } catch (error) {
     return handleApiError(error, 'goals/[id] GET');

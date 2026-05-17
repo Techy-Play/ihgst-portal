@@ -27,8 +27,7 @@ const navItems = {
   ],
   Admin: [
     { href: '/dashboard', icon: <LayoutDashboard size={18} />, label: 'Dashboard', exact: true },
-    { href: '/admin', icon: <Shield size={18} />, label: 'Admin Panel', exact: true },
-    { href: '/manager', icon: <Target size={18} />, label: 'Goal Approvals', exact: true },
+    { href: '/manager', icon: <Target size={18} />, label: 'Team Goals', exact: true },
     { href: '/manager/kpi', icon: <Target size={18} />, label: 'Assign KPIs', exact: true },
     { href: '/admin/users', icon: <Users size={18} />, label: 'Users', exact: true },
     { href: '/admin/cycles', icon: <Calendar size={18} />, label: 'Cycles', exact: true },

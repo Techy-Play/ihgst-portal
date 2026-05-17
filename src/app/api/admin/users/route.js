@@ -145,3 +145,61 @@ export async function PUT(request) {
     return handleApiError(error, 'admin/users PUT');
   }
 }
+
+export async function DELETE(request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'Admin') return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    await dbConnect();
+
+    const { data: body, error: parseErr } = await parseBody(request);
+    if (parseErr) return parseErr;
+
+    const { userId, confirmText } = body;
+    if (!userId) return NextResponse.json({ error: 'User ID is required.' }, { status: 400 });
+    if (confirmText !== 'confirm') return NextResponse.json({ error: 'Type "confirm" to delete this user.' }, { status: 400 });
+    if (userId === session.user.id) return NextResponse.json({ error: 'You cannot delete your own account.' }, { status: 400 });
+
+    const user = await User.findById(userId);
+    if (!user) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+    if (user.role === 'Admin') return NextResponse.json({ error: 'Admin accounts cannot be deleted.' }, { status: 400 });
+
+    const userName = user.name;
+    const userEmail = user.email;
+
+    // Import models for cascade delete
+    const Goal = (await import('@/models/Goal')).default;
+    const GoalSheet = (await import('@/models/GoalSheet')).default;
+    const CheckIn = (await import('@/models/CheckIn')).default;
+    const Notification = (await import('@/models/Notification')).default;
+
+    // Cascade delete all associated data
+    const [goalResult, sheetResult, checkinResult, notifResult] = await Promise.all([
+      Goal.deleteMany({ userId }),
+      GoalSheet.deleteMany({ userId }),
+      CheckIn.deleteMany({ userId }),
+      Notification.deleteMany({ userId }),
+    ]);
+
+    // Unassign this user as manager from other users
+    await User.updateMany({ managerId: userId }, { $unset: { managerId: 1 } });
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+    // Audit log
+    await AuditLog.create({
+      entityType: 'User', entityId: userId,
+      action: 'deleted', changedBy: session.user.id, changedByName: session.user.name,
+      description: `User "${userName}" (${userEmail}) deleted. Cascade: ${goalResult.deletedCount} goals, ${sheetResult.deletedCount} sheets, ${checkinResult.deletedCount} check-ins, ${notifResult.deletedCount} notifications removed.`,
+    });
+
+    return NextResponse.json({
+      message: `User "${userName}" and all associated data deleted.`,
+      deleted: { goals: goalResult.deletedCount, sheets: sheetResult.deletedCount, checkins: checkinResult.deletedCount, notifications: notifResult.deletedCount },
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    return handleApiError(error, 'admin/users DELETE');
+  }
+}

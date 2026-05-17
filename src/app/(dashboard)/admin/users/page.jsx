@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback } from 'react';
-import { Plus, Edit3, X, Save, Users, Search, UserPlus, ArrowRight } from 'lucide-react';
+import { Plus, Edit3, X, Save, Users, Search, UserPlus, ArrowRight, Trash2, AlertTriangle } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonTable, ErrorDisplay } from '@/components/ui/Skeletons';
 import CustomDropdown from '@/components/ui/CustomDropdown';
@@ -35,6 +35,9 @@ export default function AdminUsersPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', role: 'Employee', department: '', employeeId: '', managerId: '' });
   const [editForm, setEditForm] = useState({});
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { userId, userName }
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const toast = useToast();
 
   const transform = useCallback((d) => d, []);
@@ -84,6 +87,21 @@ export default function AdminUsersPage() {
       else toast(data.error, 'error');
     } catch { toast('Failed to update user', 'error'); }
     setSaving(false);
+  };
+
+  const handleDelete = async () => {
+    if (deleteInput !== 'confirm') { toast('Type "confirm" to proceed.', 'error'); return; }
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: deleteConfirm.userId, confirmText: deleteInput }),
+      });
+      const data = await res.json();
+      if (res.ok) { toast(data.message, 'success'); setDeleteConfirm(null); setDeleteInput(''); refresh(); }
+      else toast(data.error, 'error');
+    } catch { toast('Failed to delete user', 'error'); }
+    setDeleting(false);
   };
 
   if (error) return (
@@ -230,6 +248,11 @@ export default function AdminUsersPage() {
                               <ArrowRight size={12} />
                             </button>
                           )}
+                          {user.role !== 'Admin' && (
+                            <button onClick={() => { setDeleteConfirm({ userId: user._id, userName: user.name }); setDeleteInput(''); }} title="Delete user" style={{ padding: '4px 8px', borderRadius: '6px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', color: '#f87171', cursor: 'pointer' }}>
+                              <Trash2 size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </>
@@ -238,6 +261,44 @@ export default function AdminUsersPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setDeleteConfirm(null)}>
+          <div className="glass-card" style={{ padding: '28px', maxWidth: '440px', width: '90%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '10px', background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={20} style={{ color: '#f87171' }} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-primary)' }}>Delete User</h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>This action is irreversible</p>
+              </div>
+            </div>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: 1.5 }}>
+              Are you sure you want to permanently delete <strong style={{ color: '#f87171' }}>{deleteConfirm.userName}</strong> and <strong>all associated data</strong>?
+            </p>
+            <div style={{ padding: '10px 14px', borderRadius: '8px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)', marginBottom: '16px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.5 }}>
+                ⚠️ This will remove: goals, goal sheets, check-ins, notifications, and unassign any direct reports.
+              </p>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Type <strong style={{ color: '#f87171' }}>confirm</strong> to proceed</label>
+              <input className="input-dark" placeholder="confirm" value={deleteInput} onChange={e => setDeleteInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && deleteInput === 'confirm') handleDelete(); }}
+                style={{ borderColor: deleteInput === 'confirm' ? 'rgba(239,68,68,0.4)' : undefined }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setDeleteConfirm(null)} style={{ padding: '8px 20px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '14px' }}>Cancel</button>
+              <button onClick={handleDelete} disabled={deleteInput !== 'confirm' || deleting}
+                style={{ padding: '8px 20px', borderRadius: '10px', background: deleteInput === 'confirm' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.02)', border: `1px solid ${deleteInput === 'confirm' ? 'rgba(239,68,68,0.3)' : 'var(--border-color)'}`, color: deleteInput === 'confirm' ? '#f87171' : 'var(--text-muted)', cursor: deleteInput === 'confirm' ? 'pointer' : 'not-allowed', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', opacity: deleteInput === 'confirm' ? 1 : 0.5 }}>
+                <Trash2 size={14} /> {deleting ? 'Deleting...' : 'Delete User'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

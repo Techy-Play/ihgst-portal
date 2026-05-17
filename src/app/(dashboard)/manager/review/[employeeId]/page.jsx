@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2, MessageSquare, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/Toast';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -18,6 +18,8 @@ export default function ReviewPage({ params }) {
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [goalComments, setGoalComments] = useState({});
+  const [commentSubmitting, setCommentSubmitting] = useState({});
   const toast = useToast();
 
   useEffect(() => {
@@ -55,6 +57,24 @@ export default function ReviewPage({ params }) {
   const totalWeightage = goals.reduce((sum, g) => sum + (edits[g._id]?.weightage ?? g.weightage), 0);
   const canApprove = goalSheet?.status === 'Submitted';
   const weightageValid = totalWeightage === 100;
+
+  const submitComment = async (goalId) => {
+    const text = goalComments[goalId]?.trim();
+    if (!text) return;
+    setCommentSubmitting(p => ({ ...p, [goalId]: true }));
+    try {
+      const res = await fetch(`/api/goals/${goalId}/comment`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        toast('Feedback sent to employee', 'success');
+        setGoalComments(p => ({ ...p, [goalId]: '' }));
+      } else { toast(d.error || 'Failed', 'error'); }
+    } catch { toast('Failed to send comment', 'error'); }
+    setCommentSubmitting(p => ({ ...p, [goalId]: false }));
+  };
 
   const weightageData = goals.map(g => ({ name: g.title.length > 20 ? g.title.substring(0,20)+'...' : g.title, value: edits[g._id]?.weightage ?? g.weightage }));
   const thrustDist = {};
@@ -137,7 +157,7 @@ export default function ReviewPage({ params }) {
 
       <div className="glass-card" style={{ overflow: 'hidden', marginBottom: '24px' }}>
         <table className="table-dark">
-          <thead><tr><th>Goal</th><th>Thrust Area</th><th>UoM</th><th>Target</th><th>Weightage</th><th>Completion</th></tr></thead>
+          <thead><tr><th>Goal</th><th>Thrust Area</th><th>UoM</th><th>Target</th><th>Weightage</th><th>Completion</th><th style={{ minWidth: '160px' }}><MessageSquare size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />Feedback</th></tr></thead>
           <tbody>
             {goals.map(goal => {
               const w = edits[goal._id]?.weightage ?? goal.weightage;
@@ -197,6 +217,24 @@ export default function ReviewPage({ params }) {
                         <span style={{ fontSize: '12px', fontWeight: 700, color: goalProg >= 80 ? '#10b981' : goalProg >= 40 ? '#f59e0b' : '#ef4444' }}>{goalProg}%</span>
                       </div>
                     ) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>—</span>}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                      <input className="input-dark" placeholder="Add feedback..." style={{ fontSize: '12px', padding: '5px 8px', minWidth: '120px' }}
+                        value={goalComments[goal._id] || ''}
+                        onChange={e => setGoalComments(p => ({ ...p, [goal._id]: e.target.value }))}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(goal._id); } }}
+                      />
+                      <button onClick={() => submitComment(goal._id)} disabled={!goalComments[goal._id]?.trim() || commentSubmitting[goal._id]}
+                        style={{ padding: '5px 8px', borderRadius: '6px', background: goalComments[goal._id]?.trim() ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', color: goalComments[goal._id]?.trim() ? '#818cf8' : 'var(--text-muted)', cursor: goalComments[goal._id]?.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center' }}>
+                        <Send size={12} />
+                      </button>
+                    </div>
+                    {(goal.managerComments?.length > 0) && (
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                        {goal.managerComments.length} comment{goal.managerComments.length > 1 ? 's' : ''}
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

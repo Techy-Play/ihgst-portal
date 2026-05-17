@@ -169,7 +169,7 @@ export default function GoalDetailPage({ params }) {
     <motion.div className="animate-fadeIn" style={{ maxWidth: '720px' }}
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
-      <Link href={role === 'Admin' ? '/manager' : '/goals'} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> {role === 'Admin' ? 'Back to Goal Approvals' : 'Back to Goals'}</Link>
+      <Link href={role === 'Admin' ? '/manager' : '/goals'} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> {role === 'Admin' ? 'Back to Team Goals' : 'Back to Goals'}</Link>
       <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>
         {isEditable || isSharedEditable ? <span className="gradient-text">Edit Goal</span> : 'Goal Details'}
       </h1>
@@ -299,6 +299,36 @@ export default function GoalDetailPage({ params }) {
           )}
         </div>
       </form>
+
+      {/* Manager Feedback */}
+      {managerComments.length > 0 && (
+        <div style={{ marginTop: '28px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MessageSquare size={18} style={{ color: '#818cf8' }} /> Manager Feedback
+          </h2>
+          <div className="glass-card" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[...managerComments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((c, i) => (
+                <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  style={{ padding: '12px 16px', borderRadius: '10px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.12)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--gradient-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '10px', fontWeight: 700 }}>
+                        {(c.byName || 'M')[0]}
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#818cf8' }}>{c.byName || 'Manager'}</span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} • {new Date(c.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>{c.text}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Audit Trail - Premium Timeline */}
       {auditLogs.length > 0 && (

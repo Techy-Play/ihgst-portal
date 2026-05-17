@@ -110,26 +110,27 @@ export default function AssignKPIPage() {
   const kpis = data?.kpis || [];
   const activeCycle = data?.activeCycle;
   const weightageByUserId = data?.weightageByUserId || {};
+  const goalCountByUserId = data?.goalCountByUserId || {};
 
-  const isWeightageFull = (id) => (weightageByUserId[id] || 0) >= 100;
+  const isMaxGoals = (id) => (goalCountByUserId[id] || 0) >= 8;
 
   useEffect(() => {
     setSelectedEmployees(prev => {
-      const next = prev.filter(id => !isWeightageFull(id));
+      const next = prev.filter(id => !isMaxGoals(id));
       return next.length === prev.length ? prev : next;
     });
-  }, [weightageByUserId]);
+  }, [goalCountByUserId]);
 
   // Filter employees by role (for Admin to assign to managers vs employees)
   const filteredEmployees = filterRole === 'all' ? employees
     : employees.filter(e => e.role === filterRole);
 
   const toggleEmployee = (id) => {
-    if (isWeightageFull(id)) return;
+    if (isMaxGoals(id)) return;
     setSelectedEmployees(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]);
   };
-  const selectAll = () => setSelectedEmployees(filteredEmployees.filter(e => !isWeightageFull(e._id)).map(e => e._id));
-  const selectManagers = () => setSelectedEmployees(employees.filter(e => e.role === 'Manager' && !isWeightageFull(e._id)).map(e => e._id));
+  const selectAll = () => setSelectedEmployees(filteredEmployees.filter(e => !isMaxGoals(e._id)).map(e => e._id));
+  const selectManagers = () => setSelectedEmployees(employees.filter(e => e.role === 'Manager' && !isMaxGoals(e._id)).map(e => e._id));
   const clearAll = () => setSelectedEmployees([]);
 
   const handleSubmit = async (e) => {
@@ -305,9 +306,10 @@ export default function AssignKPIPage() {
                       const isSelected = selectedEmployees.includes(emp._id);
                       const isManagerRole = emp.role === 'Manager';
                       const currentWeightage = weightageByUserId[emp._id] || 0;
-                      const isFull = currentWeightage >= 100;
+                      const currentGoalCount = goalCountByUserId[emp._id] || 0;
+                      const isFull = currentGoalCount >= 8;
                       return (
-                        <button key={emp._id} type="button" onClick={() => toggleEmployee(emp._id)} disabled={isFull} title={isFull ? 'Already at 100% weightage' : ''}
+                        <button key={emp._id} type="button" onClick={() => toggleEmployee(emp._id)} disabled={isFull} title={isFull ? 'Maximum 8 goals reached' : ''}
                           style={{
                             display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px',
                             background: isSelected ? (isManagerRole ? 'rgba(139,92,246,0.12)' : 'rgba(99,102,241,0.12)') : 'rgba(255,255,255,0.02)',
@@ -316,17 +318,18 @@ export default function AssignKPIPage() {
                             opacity: isFull ? 0.5 : 1,
                           }}
                         >
-                          <div style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isSelected ? (isManagerRole ? '#8b5cf6' : '#6366f1') : 'rgba(255,255,255,0.06)', flexShrink: 0, transition: 'all 0.15s' }}>
+                          <div style={{ width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: isSelected ? (isManagerRole ? '#8b5cf6' : '#6366f1') : 'var(--surface-muted)', flexShrink: 0, transition: 'all 0.15s' }}>
                             {isSelected && <Check size={12} color="white" />}
                           </div>
                           <div style={{ minWidth: 0, flex: 1 }}>
-                            <div style={{ fontSize: '12px', fontWeight: 500, color: isSelected ? '#e0e7ff' : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</div>
+                            <div style={{ fontSize: '12px', fontWeight: 500, color: isSelected ? (isManagerRole ? '#7c3aed' : '#4f46e5') : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</div>
                             <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{emp.department || 'No dept'}</div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                            <span style={{ fontSize: '10px', color: currentWeightage >= 100 ? '#34d399' : 'var(--text-muted)', fontWeight: 600 }}>{currentWeightage}%</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>{currentWeightage}%</span>
+                            <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.1)', color: '#818cf8', fontWeight: 600 }}>{currentGoalCount}/8</span>
                             {isManagerRole && <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', fontWeight: 600 }}>MGR</span>}
-                            {isFull && <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(16,185,129,0.15)', color: '#34d399', fontWeight: 700 }}>FULL</span>}
+                            {isFull && <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', color: '#f87171', fontWeight: 700 }}>MAX</span>}
                           </div>
                         </button>
                       );
