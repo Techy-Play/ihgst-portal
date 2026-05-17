@@ -63,18 +63,20 @@ function StatDetailModal({ open, onClose, type, role }) {
                 {expanded === i && emp.goals?.length > 0 && (
                   <div style={{ padding: '0 16px 12px', borderTop: '1px solid var(--border-color)' }}>
                     {emp.goals.map(g => (
-                      <Link key={g._id} href={`/goals/${g._id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', textDecoration: 'none', color: 'inherit', fontSize: '13px' }}>
+                      <div key={g._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '13px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Target size={12} style={{ color: 'var(--text-muted)' }} />
                           <span style={{ fontWeight: 500 }}>{g.title}</span>
                           <span className="badge" style={{ fontSize: '9px', background: `${statusColors[g.status] || '#9ca3af'}20`, color: statusColors[g.status] || '#9ca3af' }}>{g.status}</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '12px', color: g.progress >= 80 ? '#34d399' : g.progress >= 40 ? '#fbbf24' : '#f87171', fontWeight: 700 }}>{g.progress}%</span>
-                          <ExternalLink size={11} style={{ color: 'var(--text-muted)' }} />
-                        </div>
-                      </Link>
+                        <span style={{ fontSize: '12px', color: g.progress >= 80 ? '#34d399' : g.progress >= 40 ? '#fbbf24' : '#f87171', fontWeight: 700 }}>{g.progress}%</span>
+                      </div>
                     ))}
+                    {role !== 'Employee' && (
+                      <Link href={`/manager/review/${emp._id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '10px', padding: '8px', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
+                        <ExternalLink size={12} /> View Full Review
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

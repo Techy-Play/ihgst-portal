@@ -46,15 +46,17 @@ export async function GET() {
       totalGoals = await Goal.countDocuments(query);
       approvedGoals = await Goal.countDocuments({ ...query, status: { $in: ['Approved', 'Locked'] } });
       pendingGoals = await Goal.countDocuments({ ...query, status: 'Submitted' });
-      const allGoals = await Goal.find(query).sort({ updatedAt: -1 }).limit(5).lean();
-      recentGoals = allGoals.map(g => ({ ...g, progress: calcGoalProgress(g) }));
+      const allGoals = await Goal.find(query).sort({ updatedAt: -1 }).lean();
+      recentGoals = allGoals.slice(0, 5).map(g => ({ ...g, progress: calcGoalProgress(g) }));
+      // Admin avg progress = average of ALL approved goals (org-wide)
+      const approvedAll = allGoals.filter(g => ['Approved', 'Locked'].includes(g.status));
+      avgProgress = approvedAll.length > 0 ? Math.round(approvedAll.reduce((s, g) => s + calcGoalProgress(g), 0) / approvedAll.length) : 0;
 
       // Admin pending actions
       if (pendingGoals > 0) pendingActions.push({ label: `${pendingGoals} goal sheet(s) pending approval`, link: '/manager', type: 'warning' });
       if (!activeCycle) pendingActions.push({ label: 'No active cycle — configure one', link: '/admin/cycles', type: 'error' });
       const totalUsers = await User.countDocuments();
       pendingActions.push({ label: `${totalUsers} users in the system`, link: '/admin/users', type: 'info' });
-      // KPI CTA for admin
       const adminKPIs = await Goal.countDocuments({ isShared: true, cycleId: activeCycle?._id });
       if (adminKPIs === 0) pendingActions.push({ label: 'Assign KPIs to managers & employees', link: '/manager/kpi', type: 'info' });
 
@@ -67,7 +69,8 @@ export async function GET() {
       const pApproved = ownGoals.filter(g => ['Approved', 'Locked'].includes(g.status)).length;
       const pPending = ownGoals.filter(g => g.status === 'Submitted').length;
       const pRecent = ownGoals.slice(0, 5).map(g => ({ ...g, progress: calcGoalProgress(g) }));
-      const pAvg = pRecent.length > 0 ? Math.round(pRecent.reduce((sum, g) => sum + (g.progress || 0), 0) / pRecent.length) : 0;
+      const pApprovedAll = ownGoals.filter(g => ['Approved', 'Locked'].includes(g.status));
+      const pAvg = pApprovedAll.length > 0 ? Math.round(pApprovedAll.reduce((s, g) => s + calcGoalProgress(g), 0) / pApprovedAll.length) : 0;
       
       const pActions = [];
       const ownSheet = await GoalSheet.findOne({ userId, cycleId: activeCycle?._id }).lean();
@@ -93,7 +96,8 @@ export async function GET() {
       const tApproved = teamGoals.filter(g => ['Approved', 'Locked'].includes(g.status)).length;
       const tPending = teamGoals.filter(g => g.status === 'Submitted').length;
       const tRecent = teamGoals.slice(0, 5).map(g => ({ ...g, progress: calcGoalProgress(g) }));
-      const tAvg = tRecent.length > 0 ? Math.round(tRecent.reduce((sum, g) => sum + (g.progress || 0), 0) / tRecent.length) : 0;
+      const tApprovedAll = teamGoals.filter(g => ['Approved', 'Locked'].includes(g.status));
+      const tAvg = tApprovedAll.length > 0 ? Math.round(tApprovedAll.reduce((s, g) => s + calcGoalProgress(g), 0) / tApprovedAll.length) : 0;
       
       const tActions = [];
       if (tPending > 0) tActions.push({ label: `${tPending} goal(s) pending your review`, link: '/manager', type: 'warning' });
