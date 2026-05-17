@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Bell, LogOut, ChevronDown, CheckCheck, X, Clock, Check, Trash2, BellOff, ArrowRight, ExternalLink } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import ThemeSwitch from '@/components/ui/ThemeSwitch';
 
 export default function Header() {
   const { data: session } = useSession();
@@ -227,7 +228,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="main-header" style={{ height: '72px', borderBottom: '1px solid var(--border-color)', background: 'rgba(18,18,26,0.8)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', gap: '16px', position: 'sticky', top: 0, zIndex: 30 }}>
+      <header className="main-header" style={{ height: '72px', borderBottom: '1px solid var(--border-color)', background: 'var(--surface-header)', backdropFilter: 'blur(20px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px', gap: '16px', position: 'sticky', top: 0, zIndex: 30 }}>
         {/* Mobile Logo */}
         <div className="mobile-logo" style={{ display: 'none', alignItems: 'center', gap: '10px' }}>
           <img src="/logo.png" alt="IHGST" style={{ width: '30px', height: '30px', borderRadius: '8px', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
@@ -237,11 +238,13 @@ export default function Header() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
 
+        <ThemeSwitch />
+
         {/* Notification bell */}
         <div ref={notifRef} style={{ position: 'relative' }}>
-          <button onClick={() => setShowNotifs(!showNotifs)} style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'all 0.2s' }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}>
+          <button onClick={() => setShowNotifs(!showNotifs)} style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--surface-muted)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'all 0.2s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.background = 'var(--surface-muted-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.background = 'var(--surface-muted)'; }}>
             <Bell size={18} />
             {unreadCount > 0 && (
               <motion.span
@@ -262,7 +265,7 @@ export default function Header() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.97 }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{ position: 'absolute', top: '48px', right: 0, width: '400px', maxHeight: '480px', background: 'rgba(22,22,38,0.98)', backdropFilter: 'blur(24px)', border: '1px solid var(--border-hover)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', zIndex: 50, overflow: 'hidden' }}
+                style={{ position: 'absolute', top: '48px', right: 0, width: '400px', maxHeight: '480px', background: 'var(--surface-popover)', backdropFilter: 'blur(24px)', border: '1px solid var(--border-hover)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)', zIndex: 50, overflow: 'hidden' }}
               >
                 {/* Header */}
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -314,7 +317,7 @@ export default function Header() {
 
         {/* User menu */}
         <div ref={menuRef} style={{ position: 'relative' }}>
-          <button onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 12px 6px 6px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', cursor: 'pointer', color: 'var(--text-primary)' }}>
+          <button onClick={() => setShowMenu(!showMenu)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 12px 6px 6px', borderRadius: '12px', background: 'var(--surface-muted)', border: '1px solid var(--border-color)', cursor: 'pointer', color: 'var(--text-primary)' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--gradient-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: '13px' }}>{session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}</div>
             <div style={{ textAlign: 'left' }}><p style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.2 }}>{session?.user?.name || 'User'}</p><p style={{ fontSize: '11px', color: rc.color }}>{session?.user?.role || 'Loading...'}</p></div>
             <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
@@ -327,7 +330,7 @@ export default function Header() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.97 }}
                 transition={{ duration: 0.15 }}
-                style={{ position: 'absolute', top: '52px', right: 0, width: '220px', background: 'rgba(22,22,38,0.98)', backdropFilter: 'blur(24px)', border: '1px solid var(--border-hover)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', overflow: 'hidden', zIndex: 50 }}
+                style={{ position: 'absolute', top: '52px', right: 0, width: '220px', background: 'var(--surface-popover)', backdropFilter: 'blur(24px)', border: '1px solid var(--border-hover)', borderRadius: '14px', boxShadow: '0 20px 60px rgba(0,0,0,0.4)', overflow: 'hidden', zIndex: 50 }}
               >
                 <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--border-color)' }}>
                   <p style={{ fontSize: '13px', fontWeight: 600 }}>{session?.user?.name}</p>
@@ -369,7 +372,7 @@ export default function Header() {
                   All Notifications
                   {unreadCount > 0 && <span style={{ fontSize: 11, color: 'var(--accent-secondary)', background: 'rgba(99,102,241,0.12)', padding: '2px 8px', borderRadius: '100px', fontWeight: 600 }}>{unreadCount} unread</span>}
                 </div>
-                <button onClick={() => setShowAllPanel(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <button onClick={() => setShowAllPanel(false)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--surface-muted)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <X size={16} />
                 </button>
               </div>

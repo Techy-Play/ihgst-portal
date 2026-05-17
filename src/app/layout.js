@@ -1,5 +1,6 @@
 import AuthProvider from '@/components/AuthProvider';
 import { ToastProvider } from '@/components/ui/Toast';
+import Script from 'next/script';
 import './globals.css';
 
 export const metadata = {
@@ -18,9 +19,19 @@ export const metadata = {
 };
 
 export default function RootLayout({ children }) {
+  const themeInitScript = `(() => {
+  try {
+    const stored = localStorage.getItem('theme-preference');
+    if (stored === 'dark' || stored === 'light') {
+      document.documentElement.setAttribute('data-theme', stored);
+    }
+  } catch {}
+})();`;
+
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <AuthProvider>
           <ToastProvider>
             {children}

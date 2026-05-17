@@ -48,7 +48,7 @@ export default function Sidebar() {
   const items = navItems[role] || navItems.Employee;
 
   return (
-    <aside style={{ width: collapsed ? '72px' : '250px', borderRight: '1px solid var(--border-color)', background: 'rgba(18,18,26,0.95)', backdropFilter: 'blur(20px)', display: 'flex', flexDirection: 'column', transition: 'width 0.3s ease', position: 'relative', minHeight: '100vh' }}>
+    <aside style={{ width: collapsed ? '72px' : '250px', borderRight: '1px solid var(--border-color)', background: 'var(--surface-sidebar)', backdropFilter: 'blur(20px)', display: 'flex', flexDirection: 'column', transition: 'width 0.3s ease', position: 'relative', minHeight: '100vh' }}>
       <div style={{ padding: collapsed ? '20px 16px' : '20px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <img src="/logo.png" alt="IHGST" style={{ width: '36px', height: '36px', minWidth: '36px', borderRadius: '10px', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
         <div style={{ width: '36px', height: '36px', minWidth: '36px', borderRadius: '10px', background: 'var(--gradient-1)', display: 'none', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 800, fontSize: '14px' }}>IG</div>
