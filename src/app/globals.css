@@ -1246,10 +1246,14 @@ input[type="number"].input-dark {
   opacity: 0.5;
 }
 
-/* Hero split login — hide right panel on mobile */
+/* Hero split login — stack right panel on mobile */
 @media (max-width: 768px) {
+  .landing-hero-container {
+    flex-direction: column !important;
+  }
   .landing-hero-right-panel {
-    display: none !important;
+    display: flex !important;
+    padding: 32px 24px !important;
   }
 }
 
