@@ -2433,16 +2433,90 @@ textarea:focus-visible {
   }
 }
 
-/* Goal detail bottom grid — wide screens get 2-col, normal stacks */
-.goal-bottom-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-  margin-top: 24px;
+/* ===== Goal Detail — Enterprise Dashboard Layout ===== */
+
+/* Outer page-level grid: single col by default, 2-col on xl */
+.goal-detail-page {
+  width: 100%;
 }
 
-@media (min-width: 1200px) {
-  .goal-bottom-grid {
-    grid-template-columns: 1fr 380px;
+/* Inner form grid: 2-col with sidebar on normal screens */
+.goal-inner-grid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+}
+
+/* Right collaboration panel: hidden by default, shown on xl */
+.goal-collab-panel {
+  display: none;
+}
+
+/* Mobile discussion: shown by default, hidden on xl */
+.goal-mobile-collab {
+  display: block;
+}
+
+/* Inner sidebar: shown by default */
+.goal-inner-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 1400px) {
+  .goal-detail-page {
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    gap: 24px;
+    width: 100%;
+    max-width: none;
+    align-items: start;
+  }
+
+  .goal-detail-main {
+    min-width: 0;
+  }
+
+  .goal-inner-grid {
+    grid-template-columns: 2fr 1fr;
+  }
+
+  /* Show outer collaboration panel for Discussion */
+  .goal-collab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 20px;
+    width: 100%;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+
+  /* Hide the scrollbar but keep scrollability */
+  .goal-collab-panel::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .goal-collab-panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .goal-collab-panel::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.15);
+    border-radius: 4px;
+  }
+
+  /* Hide mobile collab section on xl */
+  .goal-mobile-collab {
+    display: none;
+  }
+}
+
+/* Tablet: stack inner grid to single col */
+@media (max-width: 768px) {
+  .goal-inner-grid {
+    grid-template-columns: 1fr;
   }
 }

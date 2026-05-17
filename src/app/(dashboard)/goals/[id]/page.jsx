@@ -226,8 +226,61 @@ export default function GoalDetailPage({ params }) {
   if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}><div style={{ width: 40, height: 40, border: '3px solid var(--border-color)', borderTopColor: 'var(--accent-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /><style jsx>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div>;
   if (!goal) return <p>Goal not found</p>;
 
+  // Render sidebar content (used in both inner sidebar and xl collab panel)
+  const renderSidebarContent = () => (
+    <>
+      {insights.length > 0 && (
+        <div className="glass-card" style={{ padding: '18px' }}>
+          <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Zap size={13} style={{ color: '#fbbf24' }} /> Insights</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {insights.map((ins, i) => (<div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}><div style={{ width: 6, height: 6, borderRadius: '50%', background: ins.color, flexShrink: 0 }} />{ins.text}</div>))}
+          </div>
+        </div>
+      )}
+      <div className="glass-card" style={{ padding: '18px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><BarChart3 size={13} style={{ color: '#818cf8' }} /> Quarterly Performance</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          {['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
+            const ach = achievements.find(a => a.quarter === q); const val = ach?.value;
+            const qProg = val !== null && val !== undefined && targetNum ? Math.min(100, Math.round((Number(val) / targetNum) * 100)) : 0;
+            const qColor = qProg >= 80 ? '#34d399' : qProg >= 40 ? '#fbbf24' : qProg > 0 ? '#f87171' : 'var(--text-muted)';
+            return (<div key={q} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+              <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>{q}</p>
+              <p style={{ fontSize: '16px', fontWeight: 800, color: qColor }}>{val !== null && val !== undefined ? val : '—'}</p>
+              {val !== null && val !== undefined && (<div style={{ height: '3px', borderRadius: '2px', background: 'rgba(99,102,241,0.1)', marginTop: '6px' }}><div style={{ height: '100%', borderRadius: '2px', background: qColor, width: `${qProg}%` }} /></div>)}
+              <p style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '4px' }}>{ach ? (ach.status || 'Updated') : 'Pending'}</p>
+            </div>);
+          })}
+        </div>
+      </div>
+      <div className="glass-card" style={{ padding: '18px' }}>
+        <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>Quick Actions</h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <Link href="/checkin" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', textDecoration: 'none', fontSize: '12px', color: 'var(--text-secondary)', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><CheckCircle size={13} style={{ color: '#34d399' }} /> View Check-ins</Link>
+          <Link href="/analytics" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', textDecoration: 'none', fontSize: '12px', color: 'var(--text-secondary)', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><BarChart3 size={13} style={{ color: '#818cf8' }} /> Analytics</Link>
+        </div>
+      </div>
+      {goal.isShared && (<div className="glass-card" style={{ padding: '18px', borderColor: 'rgba(168,85,247,0.2)' }}><h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><Share2 size={13} style={{ color: '#a78bfa' }} /> Shared KPI</h3><p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>This is an organizational KPI assigned across teams.</p></div>)}
+    </>
+  );
+
+  // Render discussion (used in mobile and xl collab panel)
+  const renderCollabContent = () => (
+    <>
+      <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}><MessageSquare size={15} style={{ color: '#818cf8' }} /> Discussion</h2>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><Lock size={9} /> Append-only</span>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', margin: '-4px', padding: '4px' }}>
+          <DiscussionThread comments={managerComments} goalId={id} currentUser={{ name: session?.user?.name, role }} onCommentPosted={() => fetchGoalData(false)} />
+        </div>
+      </div>
+    </>
+  );
+
   return (
-    <motion.div className="animate-fadeIn" style={{ maxWidth: '960px' }}
+    <motion.div className="animate-fadeIn"
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -298,8 +351,13 @@ export default function GoalDetailPage({ params }) {
         )}
       </div>
 
-      {/* ── 2-COLUMN LAYOUT ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px' }}>
+      {/* ── PAGE-LEVEL FLEX CONTAINER ── */}
+      <div className="goal-detail-page">
+      {/* LEFT: Main Content */}
+      <div className="goal-detail-main">
+
+      {/* ── INNER 2-COLUMN LAYOUT ── */}
+      <div className="goal-inner-grid">
         {/* LEFT: Goal Form/Details */}
         <div>
           <form onSubmit={handleSave}>
@@ -402,94 +460,18 @@ export default function GoalDetailPage({ params }) {
           </form>
         </div>
 
-        {/* RIGHT: KPI Summary Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Insights Panel */}
-          {insights.length > 0 && (
-            <div className="glass-card" style={{ padding: '18px' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><Zap size={13} style={{ color: '#fbbf24' }} /> Insights</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {insights.map((ins, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: ins.color, flexShrink: 0 }} />
-                    {ins.text}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Quarterly Performance */}
-          <div className="glass-card" style={{ padding: '18px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}><BarChart3 size={13} style={{ color: '#818cf8' }} /> Quarterly Performance</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
-                const ach = achievements.find(a => a.quarter === q);
-                const val = ach?.value;
-                const qProg = val !== null && val !== undefined && targetNum ? Math.min(100, Math.round((Number(val) / targetNum) * 100)) : 0;
-                const qColor = qProg >= 80 ? '#34d399' : qProg >= 40 ? '#fbbf24' : qProg > 0 ? '#f87171' : 'var(--text-muted)';
-                return (
-                  <div key={q} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                    <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>{q}</p>
-                    <p style={{ fontSize: '16px', fontWeight: 800, color: qColor }}>{val !== null && val !== undefined ? val : '—'}</p>
-                    {val !== null && val !== undefined && (
-                      <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(99,102,241,0.1)', marginTop: '6px' }}>
-                        <div style={{ height: '100%', borderRadius: '2px', background: qColor, width: `${qProg}%` }} />
-                      </div>
-                    )}
-                    <p style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '4px' }}>{ach ? (ach.status || 'Updated') : 'Pending'}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="glass-card" style={{ padding: '18px' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>Quick Actions</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <Link href="/checkin" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', textDecoration: 'none', fontSize: '12px', color: 'var(--text-secondary)', transition: 'all 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <CheckCircle size={13} style={{ color: '#34d399' }} /> View Check-ins
-              </Link>
-              <Link href="/analytics" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', textDecoration: 'none', fontSize: '12px', color: 'var(--text-secondary)', transition: 'all 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                <BarChart3 size={13} style={{ color: '#818cf8' }} /> Analytics
-              </Link>
-            </div>
-          </div>
-
-          {/* Shared KPI Info */}
-          {goal.isShared && (
-            <div className="glass-card" style={{ padding: '18px', borderColor: 'rgba(168,85,247,0.2)' }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}><Share2 size={13} style={{ color: '#a78bfa' }} /> Shared KPI</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>This is an organizational KPI assigned across teams. Weightage can be customized per employee.</p>
-            </div>
-          )}
+        {/* RIGHT: KPI Summary Sidebar (visible on normal screens, hidden on xl) */}
+        <div className="goal-inner-sidebar">
+          {renderSidebarContent()}
         </div>
+      </div>{/* END goal-inner-grid */}
+
+      {/* Mobile/Tablet: Discussion (hidden on xl) */}
+      <div className="goal-mobile-collab" style={{ marginTop: '24px' }}>
+        {renderCollabContent()}
       </div>
 
-      {/* ── Feedback & Discussion (Threaded) ── */}
-      <div style={{ marginTop: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <MessageSquare size={16} style={{ color: '#818cf8' }} /> Feedback & Discussion
-          </h2>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Lock size={10} /> Append-only
-          </span>
-        </div>
-        <DiscussionThread
-          comments={managerComments}
-          goalId={id}
-          currentUser={{ name: session?.user?.name, role }}
-          onCommentPosted={() => fetchGoalData(false)}
-        />
-      </div>
-
-      {/* ── FULL-WIDTH: Audit Trail Timeline ── */}
+      {/* ── FULL-WIDTH: Activity Timeline (always under main content) ── */}
       {auditLogs.length > 0 && (
         <div style={{ marginTop: '24px' }}>
           <h2 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -521,6 +503,15 @@ export default function GoalDetailPage({ params }) {
           </div>
         </div>
       )}
+
+      </div>{/* END left column */}
+
+      {/* RIGHT: Collaboration Panel (xl only, sticky) */}
+      <div className="goal-collab-panel">
+        {renderCollabContent()}
+      </div>
+
+      </div>{/* END goal-detail-page */}
     </motion.div>
   );
 }
