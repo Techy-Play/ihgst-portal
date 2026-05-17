@@ -21,14 +21,6 @@ The portal follows a **three-layer architecture**:
 | **Application (Backend)** | Next.js API Routes | Business logic, auth, validation, data aggregation |
 | **Data** | MongoDB Atlas + Mongoose | Persistent storage across 8 collections |
 
-### Data Flow
-```
-User → Browser → Next.js App Router → API Route → Mongoose → MongoDB Atlas
-                      ↑                    ↓
-                  Session (JWT)      Business Rules
-                  via NextAuth       & Validation
-```
-
 ---
 
 ## 👥 Roles & Permissions
@@ -71,18 +63,9 @@ All Manager features, plus:
 ---
 
 ## 🔄 Goal Lifecycle Workflow
+![Goal Lifecycle Workflow Diagram](./Goal%20Cycle.png)
 
-```
-┌──────────┐     ┌───────────┐     ┌──────────────┐     ┌──────────┐
-│  CREATE   │────▶│  SUBMIT   │────▶│   MANAGER    │────▶│ APPROVED │
-│  (Draft)  │     │(Submitted)│     │   REVIEWS    │     │ (Locked) │
-└──────────┘     └───────────┘     └──────┬───────┘     └────┬─────┘
-                                          │                   │
-                                   ┌──────▼───────┐   ┌──────▼──────┐
-                                   │   RETURNED   │   │  QUARTERLY  │
-                                   │  (Rework)    │   │  CHECK-INS  │
-                                   └──────────────┘   └─────────────┘
-```
+
 
 1. **Create** → Employee sets goals with thrust area, UoM, target, weightage
 2. **Submit** → Goal sheet sent to Manager for review
@@ -215,7 +198,7 @@ cp .env.local.example .env.local
 # Edit .env.local with your MongoDB URI and NextAuth secret
 ```
 
-### Environment Variables
+### Environment Variables(*for hosting locally)
 
 ```env
 MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/ihgst
@@ -308,9 +291,9 @@ Admin User (HR)
 
 ## 🏁 Deployment
 
-The portal is deployed on **Vercel** with automatic deployments from the `main` branch:
+The portal is deployed on **Vercel** with deployments from the current `main` branch:
 
-```
+```url
 https://ihgst-portal.vercel.app
 ```
 
