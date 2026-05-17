@@ -35,6 +35,16 @@ export async function GET(request) {
       employees = await User.find({ managerId: session.user.id }).select('name email department role').lean();
     }
 
+    const employeeIds = employees.map(e => e._id);
+    const totals = employeeIds.length === 0 ? [] : await Goal.aggregate([
+      { $match: { cycleId: activeCycle._id, userId: { $in: employeeIds } } },
+      { $group: { _id: '$userId', total: { $sum: '$weightage' } } },
+    ]);
+    const weightageByUserId = totals.reduce((acc, t) => {
+      acc[t._id.toString()] = t.total || 0;
+      return acc;
+    }, {});
+
     // Group KPIs by title (the "template" KPI shared to multiple employees)
     const grouped = {};
     kpis.forEach(k => {
@@ -53,6 +63,7 @@ export async function GET(request) {
     return NextResponse.json({
       kpis: Object.values(grouped),
       employees,
+      weightageByUserId,
       activeCycle: { _id: activeCycle._id, name: activeCycle.name },
     });
   } catch (error) {

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { Mail, X, Send, Clock, FileText, Download, Calendar } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonTable, ErrorDisplay } from '@/components/ui/Skeletons';
@@ -18,6 +19,17 @@ function timeAgo(date) {
   if (days === 1) return 'Yesterday';
   if (days < 7) return `${days}d ago`;
   return new Date(date).toLocaleDateString();
+}
+
+// Portal-based modal to escape stacking contexts
+function PortalModal({ open, onClose, children }) {
+  if (!open) return null;
+  return ReactDOM.createPortal(
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      {children}
+    </div>,
+    document.body
+  );
 }
 
 export default function AdminReportsPage() {
@@ -73,7 +85,7 @@ export default function AdminReportsPage() {
     fetch('/api/admin/export-logs').then(r => r.json()).then(d => setExportLogs(d.logs || [])).catch(() => {});
   };
 
-  const openEmailModal = (format) => { setExportFormat(format); setEmailTo(''); setShowEmailModal(true); };
+  const openEmailModal = () => { setEmailTo(''); setShowEmailModal(true); };
 
   const handleSendEmail = async (e) => {
     e.preventDefault();
@@ -107,8 +119,7 @@ export default function AdminReportsPage() {
     <div className="animate-fadeIn">
       <PageHeader title="Reports" subtitle="Export goal data via email."
         onRefresh={refresh} lastUpdated={lastUpdated} loading={loading}>
-        <button onClick={() => openEmailModal('csv')} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', fontWeight: 600, fontSize: '14px', cursor: 'pointer' }}><Mail size={16} /> Export CSV</button>
-        <button onClick={() => openEmailModal('excel')} className="btn-glow" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}><Mail size={16} /> Export Excel</button>
+        <button onClick={openEmailModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', borderRadius: '10px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#34d399', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}><Mail size={14} /> Export Report</button>
       </PageHeader>
 
       {/* Export History */}
@@ -220,38 +231,43 @@ export default function AdminReportsPage() {
       )}
 
       {/* Email Modal */}
-      {showEmailModal && (
-        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowEmailModal(false); }}>
-          <div className="email-modal animate-fadeIn">
-            <button onClick={() => setShowEmailModal(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
-            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: exportFormat === 'excel' ? 'var(--gradient-1)' : 'linear-gradient(135deg, #10b981, #059669)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
-              <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export {exportFormat === 'excel' ? 'Excel' : 'CSV'} Report</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Enter email to receive the report</p>
-            </div>
-            <form onSubmit={handleSendEmail}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Cycle Year</label>
-                <CustomDropdown
-                  options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' (Active)' : ''}` }))}
-                  value={exportCycleId}
-                  onChange={v => setExportCycleId(v)}
-                  placeholder="Select cycle..."
-                />
-              </div>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
-                <div style={{ position: 'relative' }}><Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} /><input type="email" className="input-dark" placeholder="recipient@company.com" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} required style={{ paddingLeft: '38px' }} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button type="button" onClick={() => setShowEmailModal(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" className="btn-glow" disabled={sending} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', opacity: sending ? 0.7 : 1 }}>{sending ? <div className="spinner-sm" /> : <><Send size={16} /> Send Report</>}</button>
-              </div>
-            </form>
-            <p style={{ marginTop: '16px', fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center' }}>{reportData.length} records will be included</p>
+      <PortalModal open={showEmailModal} onClose={() => setShowEmailModal(false)}>
+        <div className="email-modal animate-fadeIn">
+          <button onClick={() => setShowEmailModal(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'var(--gradient-1)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
+            <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export Organization Report</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Receive your organization goals report via email</p>
           </div>
+          <form onSubmit={handleSendEmail}>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Format</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {['csv', 'excel'].map(f => (
+                  <button key={f} type="button" onClick={() => setExportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: exportFormat === f ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)', border: exportFormat === f ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)', color: exportFormat === f ? '#818cf8' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Cycle Year</label>
+              <CustomDropdown
+                options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' (Active)' : ''}` }))}
+                value={exportCycleId}
+                onChange={v => setExportCycleId(v)}
+                placeholder="Select cycle..."
+              />
+            </div>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+              <input type="email" className="input-dark" placeholder="your@email.com" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} required />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button type="button" onClick={() => setShowEmailModal(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+              <button type="submit" className="btn-glow" disabled={sending} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', opacity: sending ? 0.7 : 1 }}>{sending ? 'Sending...' : <><Send size={16} /> Send</>}</button>
+            </div>
+          </form>
         </div>
-      )}
+      </PortalModal>
     </div>
   );
 }

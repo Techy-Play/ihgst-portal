@@ -26,6 +26,26 @@ const quarterStatusLabels = {
   unknown: { label: '', color: '#9ca3af', bg: 'rgba(107,114,128,0.12)' },
 };
 
+const getAchievementMax = (goal) => {
+  if (!goal || goal.uom === 'Timeline') return null;
+  if (goal.uom === 'Percentage') return 100;
+  if (goal.uom === 'Zero') return null;
+  const t = Number(goal.target);
+  if (!Number.isFinite(t) || t <= 0) return null;
+  return t * t;
+};
+
+const normalizeAchievementInput = (goal, value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '';
+  let next = n;
+  if (next < 0) next = 0;
+  const max = getAchievementMax(goal);
+  if (max !== null && next > max) next = max;
+  return String(next);
+};
+
 export default function CheckInPage() {
   const [selectedQ, setSelectedQ] = useState(null); // null = not initialized
   const [saving, setSaving] = useState({});
@@ -74,6 +94,11 @@ export default function CheckInPage() {
       const numVal = Number(achievement);
       if (isNaN(numVal)) { toast('Achievement must be a valid number.', 'error'); return; }
       if (numVal < 0) { toast('Achievement cannot be negative.', 'error'); return; }
+      const maxVal = getAchievementMax(goal);
+      if (maxVal !== null && numVal > maxVal) {
+        toast(`Achievement cannot exceed ${maxVal}.`, 'error');
+        return;
+      }
     }
 
     setSaving(p => ({ ...p, [goal._id]: true }));
@@ -234,9 +259,11 @@ export default function CheckInPage() {
                         className="input-dark"
                         type="number"
                         value={ca}
-                        onChange={e => handleUpdate(goal._id, 'achievement', e.target.value)}
+                        onChange={e => handleUpdate(goal._id, 'achievement', normalizeAchievementInput(goal, e.target.value))}
                         placeholder={`Target: ${goal.target}`}
                         style={{ marginBottom: goal.uom === 'Percentage' && ca !== '' ? '8px' : 0 }}
+                        min={0}
+                        max={getAchievementMax(goal) ?? undefined}
                         disabled={quarterStatuses[selectedQ] !== 'active'}
                       />
                     )}
