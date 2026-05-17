@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ArrowLeft, Save, Clock, Gauge, Target as TargetIcon, AlertCircle, MessageSquare, CheckCircle, RotateCcw, Plus, Edit3, Info } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -60,6 +61,8 @@ function timeAgo(date) {
 export default function GoalDetailPage({ params }) {
   const { id } = use(params);
   const router = useRouter();
+  const { data: session } = useSession();
+  const role = session?.user?.role || 'Employee';
   const toast = useToast();
   const [goal, setGoal] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -153,7 +156,7 @@ export default function GoalDetailPage({ params }) {
       };
       const res = await fetch(`/api/goals/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
-      if (res.ok) { toast('Goal saved successfully!', 'success'); router.push('/goals'); }
+      if (res.ok) { toast('Goal saved successfully!', 'success'); router.push(role === 'Admin' ? '/manager' : '/goals'); }
       else { toast(data.error, 'error'); }
     } catch { toast('Failed to save', 'error'); }
     setSaving(false);
@@ -166,7 +169,7 @@ export default function GoalDetailPage({ params }) {
     <motion.div className="animate-fadeIn" style={{ maxWidth: '720px' }}
       initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
 
-      <Link href="/goals" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> Back to Goals</Link>
+      <Link href={role === 'Admin' ? '/manager' : '/goals'} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> {role === 'Admin' ? 'Back to Goal Approvals' : 'Back to Goals'}</Link>
       <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px' }}>
         {isEditable || isSharedEditable ? <span className="gradient-text">Edit Goal</span> : 'Goal Details'}
       </h1>
