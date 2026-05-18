@@ -464,7 +464,7 @@ export default function EscalationsPage() {
                 <span>Level</span>
                 <span>Status</span>
                 <span>Triggered</span>
-                <span></span>
+                <span style={{ textAlign: 'right' }}>Actions</span>
               </div>
 
               {/* Table rows */}
@@ -515,20 +515,32 @@ export default function EscalationsPage() {
                       {new Date(esc.triggeredAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })}
                     </div>
 
-                    {/* Dismiss */}
-                    {esc.status === 'ACTIVE' && (
+                    {/* Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
                       <button
-                        onClick={() => handleDismiss(esc._id)}
-                        disabled={dismissing[esc._id]}
-                        title="Dismiss escalation"
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.2)', color: '#9ca3af', cursor: 'pointer', transition: 'all 0.15s' }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(107,114,128,0.08)'; e.currentTarget.style.color = '#9ca3af'; }}
+                        onClick={(e) => { e.stopPropagation(); window.open(`/manager/review/${esc.userId?._id || esc.userId}`, '_blank'); }}
+                        title="View Goal Sheet"
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.15)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; }}
                       >
-                        <XCircle size={14} />
+                        <ArrowUpRight size={14} />
                       </button>
-                    )}
-                    {esc.status !== 'ACTIVE' && <div style={{ width: '28px' }} />}
+
+                      {esc.status === 'ACTIVE' && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDismiss(esc._id); }}
+                          disabled={dismissing[esc._id]}
+                          title="Dismiss escalation"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.2)', color: '#9ca3af', cursor: 'pointer', transition: 'all 0.15s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(107,114,128,0.08)'; e.currentTarget.style.color = '#9ca3af'; }}
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      )}
+                      {esc.status !== 'ACTIVE' && <div style={{ width: '28px' }} />}
+                    </div>
                   </div>
                 );
               })}
@@ -555,7 +567,18 @@ export default function EscalationsPage() {
             {/* Drawer header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Escalation Detail</h2>
-              <button onClick={() => setSelectedEsc(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}><X size={18} /></button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => window.open(`/manager/review/${selectedEsc.userId?._id || selectedEsc.userId}`, '_blank')}
+                  title="View Goal Sheet"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', cursor: 'pointer', fontSize: '12px', fontWeight: 600, transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; }}
+                >
+                  <ArrowUpRight size={14} /> Open
+                </button>
+                <button onClick={() => setSelectedEsc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px' }}><X size={16} /></button>
+              </div>
             </div>
 
             {/* Employee info */}
