@@ -1,16 +1,18 @@
 import mongoose from 'mongoose';
 
 const DiscussionSchema = new mongoose.Schema({
-  goalId: { type: mongoose.Schema.Types.ObjectId, ref: 'Goal', required: true, index: true },
-  parentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Discussion', default: null, index: true },
+  goalId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Goal', required: true, index: true },
+  parentId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Discussion', default: null, index: true },
   replyingTo: { type: String, default: null },
-  text: { type: String, required: true },
-  by: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  byName: { type: String, required: true },
-  role: { type: String, enum: ['Manager', 'Admin', 'Employee'], required: true },
+  quarter:    { type: String, enum: ['Q1', 'Q2', 'Q3', 'Q4', null], default: null },
+  text:       { type: String, required: true },
+  by:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  byName:     { type: String, required: true },
+  role:       { type: String, enum: ['Manager', 'Admin', 'Employee'], required: true },
 }, { timestamps: true });
 
-DiscussionSchema.index({ goalId: 1, createdAt: 1 });
+DiscussionSchema.index({ goalId: 1, createdAt: -1 });
+DiscussionSchema.index({ goalId: 1, quarter: 1, createdAt: -1 });
 
 // Delete cached model to ensure schema updates are applied (HMR fix)
 if (mongoose.models.Discussion) {
@@ -18,3 +20,4 @@ if (mongoose.models.Discussion) {
 }
 
 export default mongoose.model('Discussion', DiscussionSchema);
+

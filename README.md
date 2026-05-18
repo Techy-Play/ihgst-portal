@@ -276,7 +276,10 @@ Admin User (HR)
 ## ✅ Key Features
 
 - **🎯 Quarterly Goal Setting** — Goals with thrust areas, UoM types (Numeric, Percentage, Timeline, Zero), targets, and weighted KPIs
-- **💬 Hierarchical Discussions** — Contextual, threaded feedback on goal details featuring deep-linked notifications and responsive enterprise-grade "glass-card" layouts
+- **⚡ Automated Goal Completion** — Server-side logic automatically transitions goal status to `"Completed"` once progress reaches 100%
+- **🔗 Goal Deep-linking & Highlighting** — A contextual `"Go to Check-ins"` button on Goal Details (gated strictly to the goal owner) navigates to check-ins, auto-scrolls to the target goal, and applies a prominent visual highlight glow animation
+- **💬 Collapsible Quarter-specific Discussions** — Check-ins feature collapsible notes boards tagged specifically by quarter (Q1–Q4). General discussions can be tagged with quarters in the Goal Details view with interactive filter tabs
+- **👨‍💼 Live Manager Feedback Banners** — Real-time display of the latest top-level manager comments from the Discussion board directly on check-in cards
 - **✅ Approval Workflow** — Manager review with inline edit, approve, return with comments
 - **📊 Real-time Analytics** — PieCharts, BarCharts for goal distribution, quarterly trends, department comparisons
 - **🔄 Quarterly Check-ins** — Track actual vs. planned across Q1–Q4 with automated progress calculation

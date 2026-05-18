@@ -3,7 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Save, Clock, Gauge, Target as TargetIcon, AlertCircle, MessageSquare, CheckCircle, RotateCcw, Plus, Edit3, Info, Lock, TrendingUp, Share2, BarChart3, Zap, ExternalLink, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Clock, Gauge, Target as TargetIcon, AlertCircle, MessageSquare, CheckCircle, RotateCcw, Plus, Edit3, Info, Lock, TrendingUp, Share2, BarChart3, Zap, ExternalLink, RefreshCw, ClipboardCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import CustomDropdown from '@/components/ui/CustomDropdown';
@@ -77,6 +77,9 @@ export default function GoalDetailPage({ params }) {
   const [goalCount, setGoalCount] = useState(0);
 
   const [refreshing, setRefreshing] = useState(false);
+
+  // isGoalOwner: true only when the logged-in user owns this goal (not a manager/admin viewing it)
+  const isGoalOwner = goal ? session?.user?.id === (goal.userId?._id?.toString() || goal.userId?.toString()) : false;
 
   const fetchGoalData = async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -215,7 +218,8 @@ export default function GoalDetailPage({ params }) {
   // Smart insights
   const insights = [];
   if (goal) {
-    if (progress >= 80) insights.push({ text: 'On track for completion', color: '#34d399' });
+    if (progress >= 100) insights.push({ text: '🎉 Goal completed — target reached!', color: '#34d399' });
+    else if (progress >= 80) insights.push({ text: 'On track for completion', color: '#34d399' });
     else if (progress >= 40) insights.push({ text: 'Moderate progress — needs attention', color: '#fbbf24' });
     else if (progress > 0) insights.push({ text: 'Below target — action required', color: '#f87171' });
     if (goal.weightage >= 30) insights.push({ text: `High-impact goal (${goal.weightage}% weight)`, color: '#818cf8' });
@@ -256,7 +260,17 @@ export default function GoalDetailPage({ params }) {
       <div className="glass-card" style={{ padding: '18px' }}>
         <h3 style={{ fontSize: '13px', fontWeight: 700, marginBottom: '12px' }}>Quick Actions</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <Link href="/checkin" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', textDecoration: 'none', fontSize: '12px', color: 'var(--text-secondary)', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><CheckCircle size={13} style={{ color: '#34d399' }} /> View Check-ins</Link>
+          {/* Go to Check-ins: only visible to the goal owner */}
+          {isGoalOwner && goal?.status === 'Approved' && (
+            <Link
+              href={`/checkin?goal=${goal._id}`}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52,211,153,0.3)', textDecoration: 'none', fontSize: '12px', color: '#34d399', background: 'rgba(16,185,129,0.06)', fontWeight: 600, transition: 'all 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(16,185,129,0.12)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(16,185,129,0.06)'}
+            >
+              <ClipboardCheck size={14} /> Go to Check-ins
+            </Link>
+          )}
           <Link href="/analytics" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', textDecoration: 'none', fontSize: '12px', color: 'var(--text-secondary)', transition: 'all 0.15s' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><BarChart3 size={13} style={{ color: '#818cf8' }} /> Analytics</Link>
         </div>
       </div>
@@ -273,7 +287,7 @@ export default function GoalDetailPage({ params }) {
           <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><Lock size={9} /> Append-only</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', margin: '-4px', padding: '4px' }}>
-          <DiscussionThread comments={managerComments} goalId={id} currentUser={{ name: session?.user?.name, role }} onCommentPosted={() => fetchGoalData(false)} />
+          <DiscussionThread comments={managerComments} goalId={id} currentUser={{ name: session?.user?.name, role }} onCommentPosted={() => fetchGoalData(false)} groupByQuarter={true} />
         </div>
       </div>
     </>

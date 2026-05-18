@@ -7,6 +7,7 @@ import CheckIn from '@/models/CheckIn';
 import AuditLog from '@/models/AuditLog';
 import Cycle from '@/models/Cycle';
 import { handleApiError, parseBody } from '@/lib/apiError';
+import { calculateProgress } from '@/lib/progress';
 
 function getActiveQuarter(cycle) {
   if (!cycle?.quarters?.length) return 'Q1';
@@ -85,12 +86,16 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Achievement must be a valid number.' }, { status: 400 });
     }
     const validStatuses = ['Not Started', 'On Track', 'At Risk', 'Completed'];
-    const checkinStatus = status && validStatuses.includes(status) ? status : 'On Track';
+    let checkinStatus = status && validStatuses.includes(status) ? status : 'On Track';
 
     const goal = await Goal.findById(goalId);
     if (!goal) return NextResponse.json({ error: 'Goal not found.' }, { status: 404 });
 
-    // Bug #7: Enforce quarter lock — block editing completed quarters
+    // Auto-set status to Completed when progress hits 100%
+    const computedProgress = calculateProgress(goal, goal.uom === 'Timeline' ? achievement : Number(achievement));
+    if (computedProgress >= 100) checkinStatus = 'Completed';
+
+    // Enforce quarter lock — block editing completed quarters
     const activeCycle = await Cycle.findOne({ isActive: true }).lean();
     if (activeCycle?.quarters?.length) {
       const qIdx = parseInt(quarter.replace('Q', '')) - 1;

@@ -1,7 +1,10 @@
 'use client';
-import { useState, useCallback, useEffect } from 'react';
-import { CheckSquare, Save, TrendingUp, Target, AlertTriangle, Clock, MessageSquare } from 'lucide-react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { CheckSquare, Save, TrendingUp, Target, Clock, MessageSquare, ExternalLink, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { calculateProgress } from '@/lib/progress';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay } from '@/components/ui/Skeletons';
@@ -9,6 +12,7 @@ import CustomDropdown from '@/components/ui/CustomDropdown';
 import CustomDatePicker from '@/components/ui/CustomDatePicker';
 import { useToast } from '@/components/ui/Toast';
 import { safeFetch } from '@/lib/safeFetch';
+import DiscussionThread from '@/components/DiscussionThread';
 
 const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
 
@@ -46,10 +50,56 @@ const normalizeAchievementInput = (goal, value) => {
   return String(next);
 };
 
+/* Fetches and shows the latest Manager Discussion comment for a goal+quarter */
+function ManagerLatestNote({ goalId, quarter }) {
+  const [note, setNote] = useState(null);
+  useEffect(() => {
+    if (!goalId || !quarter) return;
+    fetch(`/api/goals/${goalId}/comment?quarter=${quarter}`)
+      .then(r => r.json())
+      .then(d => {
+        const mgr = (d.comments || [])
+          .filter(c => c.role === 'Manager' && !c.parentId)
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+        setNote(mgr || null);
+      })
+      .catch(() => {});
+  }, [goalId, quarter]);
+
+  if (!note) return null;
+  const ts = new Date(note.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+  return (
+    <div style={{ display: 'flex', gap: '10px', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)' }}>
+      <MessageSquare size={14} style={{ color: '#818cf8', marginTop: '2px', flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#818cf8' }}>{note.byName}</p>
+          <span style={{ fontSize: '9px', background: 'rgba(99,102,241,0.12)', color: '#818cf8', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>MANAGER</span>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: 'auto' }}>🕐 {ts}</span>
+        </div>
+        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{note.text}</p>
+      </div>
+    </div>
+  );
+}
+
+// Wrapped in Suspense because useSearchParams requires it in Next.js App Router
 export default function CheckInPage() {
-  const [selectedQ, setSelectedQ] = useState(null); // null = not initialized
+  return (
+    <Suspense fallback={<div className="animate-fadeIn"><PageHeader title="Quarterly Check-ins" subtitle="Update your progress."/></div>}>
+      <CheckInContent />
+    </Suspense>
+  );
+}
+
+function CheckInContent() {
+  const searchParams = useSearchParams();
+  const highlightGoalId = searchParams.get('goal') || null;
+  const { data: session } = useSession();
+  const [selectedQ, setSelectedQ] = useState(null);
   const [saving, setSaving] = useState({});
   const [updates, setUpdates] = useState({});
+  const [discussionRefresh, setDiscussionRefresh] = useState({});
   const toast = useToast();
   const [initialized, setInitialized] = useState(false);
 
@@ -73,6 +123,25 @@ export default function CheckInPage() {
         setInitialized(true);
       });
   }, [initialized]);
+
+  // Scroll to and highlight the goal specified in ?goal= URL param
+  useEffect(() => {
+    if (!highlightGoalId || !initialized || !data) return;
+    // Small delay for cards to render
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`checkin-goal-${highlightGoalId}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+      el.style.boxShadow = '0 0 0 2px #34d399, 0 0 24px rgba(52,211,153,0.35)';
+      el.style.borderColor = 'rgba(52,211,153,0.5)';
+      setTimeout(() => {
+        el.style.boxShadow = '';
+        el.style.borderColor = '';
+      }, 3500);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [highlightGoalId, initialized, data]);
 
   const goals = data?.goals || [];
   const quarterStatuses = data?.quarterStatuses || {};
@@ -184,18 +253,22 @@ export default function CheckInPage() {
             const ca = updates[goal._id]?.achievement ?? ex?.achievement ?? '';
             const cs = updates[goal._id]?.status ?? ex?.status ?? 'Not Started';
             const prog = ca !== '' ? calculateProgress(goal, goal.uom === 'Timeline' ? ca : Number(ca)) : 0;
-            const managerComment = ex?.managerComment;
+            const isHighlighted = goal._id === highlightGoalId;
+            const notesKey = `${goal._id}-notes`;
+            const notesOpen = !!discussionRefresh[notesKey]; // reuse state map as toggle
             return (
               <motion.div
                 key={goal._id}
+                id={`checkin-goal-${goal._id}`}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: gi * 0.05 }}
                 className="glass-card"
-                style={{ padding: '24px' }}
+                style={{ padding: '24px', border: isHighlighted ? '1px solid rgba(52,211,153,0.4)' : undefined }}
               >
+                {/* Card header row: title + Go to Detail button */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '4px' }}>{goal.title}{goal.isShared && <span style={{ fontSize: 11, color: '#a78bfa', marginLeft: 8 }}>🔗 Shared</span>}</h3>
                     {/* Target vs Actual - MAIN ENTERPRISE DETAIL */}
                     <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-muted)', alignItems: 'center' }}>
@@ -220,24 +293,21 @@ export default function CheckInPage() {
                       </div>
                     )}
                   </div>
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
                     <p style={{ fontSize: '24px', fontWeight: 800, color: prog >= 80 ? '#34d399' : prog >= 50 ? '#fbbf24' : '#f87171' }}>{prog}%</p>
+                    <Link
+                      href={`/goals/${goal._id}`}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, color: '#818cf8', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', padding: '4px 10px', borderRadius: '8px', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.14)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,102,241,0.08)'}
+                    >
+                      <ExternalLink size={11} /> Goal Detail
+                    </Link>
                   </div>
                 </div>
 
-                {/* Manager Feedback (if exists) */}
-                {managerComment && (
-                  <div style={{
-                    display: 'flex', gap: '10px', padding: '10px 14px', borderRadius: '10px', marginBottom: '14px',
-                    background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)',
-                  }}>
-                    <MessageSquare size={14} style={{ color: '#818cf8', marginTop: '2px', flexShrink: 0 }} />
-                    <div>
-                      <p style={{ fontSize: '11px', fontWeight: 600, color: '#818cf8', marginBottom: '2px' }}>Manager Feedback</p>
-                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{managerComment}</p>
-                    </div>
-                  </div>
-                )}
+                {/* Latest manager Discussion comment for this quarter */}
+                <ManagerLatestNote goalId={goal._id} quarter={selectedQ} key={`mgr-${goal._id}-${selectedQ}-${discussionRefresh[goal._id] || 0}`} />
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                   {/* Achievement */}
@@ -305,6 +375,27 @@ export default function CheckInPage() {
                   <button onClick={() => handleSave(goal)} disabled={saving[goal._id] || quarterStatuses[selectedQ] !== 'active'} className="btn-glow" style={{ fontSize: '13px', padding: '8px 18px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Save size={14} />{saving[goal._id] ? '...' : 'Save'}
                   </button>
+                </div>
+
+                {/* ── Discussion Notes (collapsible, closed by default) ── */}
+                <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                  <button
+                    onClick={() => setDiscussionRefresh(p => ({ ...p, [notesKey]: !p[notesKey] }))}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, cursor: 'pointer', padding: '0 0 10px', width: '100%' }}
+                  >
+                    {notesOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    {notesOpen ? 'Hide Notes' : `${selectedQ} Notes & Discussion`}
+                  </button>
+                  {notesOpen && (
+                    <DiscussionThread
+                      key={`${goal._id}-${selectedQ}-${discussionRefresh[goal._id] || 0}`}
+                      comments={[]}
+                      goalId={goal._id}
+                      currentUser={{ name: session?.user?.name, role: session?.user?.role }}
+                      quarter={selectedQ}
+                      onCommentPosted={() => setDiscussionRefresh(p => ({ ...p, [goal._id]: (p[goal._id] || 0) + 1 }))}
+                    />
+                  )}
                 </div>
               </motion.div>
             );

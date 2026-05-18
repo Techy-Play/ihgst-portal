@@ -7,7 +7,7 @@ import Discussion from '@/models/Discussion';
 import Notification from '@/models/Notification';
 import mongoose from 'mongoose';
 
-// GET — fetch all discussion comments for a goal
+// GET — fetch all discussion comments for a goal (optionally filter by quarter)
 export async function GET(request, { params }) {
   try {
     const session = await getServerSession(authOptions);
@@ -15,14 +15,22 @@ export async function GET(request, { params }) {
 
     await dbConnect();
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const quarter = searchParams.get('quarter') || null;
 
-    const comments = await Discussion.find({ goalId: id }).sort({ createdAt: 1 }).lean();
+    const query = { goalId: id };
+    if (quarter) query.quarter = quarter;
+
+    // Fetch all (filtered) comments sorted oldest→newest so we can build the tree correctly
+    const comments = await Discussion.find(query).sort({ createdAt: 1 }).lean();
+
     const serialized = comments.map(c => ({
       _id: c._id.toString(),
       goalId: c.goalId.toString(),
       by: c.by.toString(),
       parentId: c.parentId ? c.parentId.toString() : null,
       replyingTo: c.replyingTo || null,
+      quarter: c.quarter || null,
       text: c.text,
       byName: c.byName,
       role: c.role,
@@ -52,6 +60,10 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'Comment text is required.' }, { status: 400 });
     }
 
+    // Validate quarter if provided
+    const validQuarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const quarter = body.quarter && validQuarters.includes(body.quarter) ? body.quarter : null;
+
     const goal = await Goal.findById(id).select('userId title').lean();
     if (!goal) return NextResponse.json({ error: 'Goal not found.' }, { status: 404 });
 
@@ -79,6 +91,7 @@ export async function POST(request, { params }) {
       goalId: new mongoose.Types.ObjectId(id),
       parentId: parentObjId,
       replyingTo,
+      quarter,
       text: body.text.trim(),
       by: new mongoose.Types.ObjectId(session.user.id),
       byName: session.user.name || 'Unknown',
@@ -121,6 +134,7 @@ export async function POST(request, { params }) {
         goalId: comment.goalId.toString(),
         parentId: comment.parentId ? comment.parentId.toString() : null,
         replyingTo: comment.replyingTo || null,
+        quarter: comment.quarter || null,
         text: comment.text,
         by: comment.by.toString(),
         byName: comment.byName,
