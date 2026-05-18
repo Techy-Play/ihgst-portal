@@ -266,7 +266,7 @@ export default function EscalationsPage() {
       />
 
       {/* ── Stats row ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '14px' }}>
         <StatCard label="Active Escalations" value={stats.active} color="#ef4444" bg="rgba(239,68,68,0.1)" icon={<AlertOctagon size={18} />} />
         <StatCard label="High Severity (L3)" value={stats.byLevel?.LEVEL_3} color="#a855f7" bg="rgba(168,85,247,0.1)" icon={<ShieldAlert size={18} />} sublabel="Critical cases" />
         <StatCard label="Pending Approvals" value={stats.byType?.GOAL_APPROVAL} color="#f97316" bg="rgba(249,115,22,0.1)" icon={<Target size={18} />} sublabel="Manager action needed" />
@@ -274,8 +274,105 @@ export default function EscalationsPage() {
         <StatCard label="Resolved Today" value={stats.resolvedToday ?? 0} color="#22c55e" bg="rgba(34,197,94,0.1)" icon={<CheckCircle size={18} />} />
       </div>
 
+      {/* ── Insights row ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '24px', alignItems: 'stretch' }}>
+        <EscalationTimeline />
+
+        {/* Level breakdown */}
+        {stats.byLevel && (
+          <div className="glass-card" style={{ padding: '16px' }}>
+            <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
+              Active by Level
+            </h3>
+            {Object.entries(LEVEL_CONFIG).map(([key, cfg]) => {
+              const count = stats.byLevel?.[key] || 0;
+              const max   = Math.max(...Object.values(stats.byLevel || {}), 1);
+              return (
+                <div key={key} style={{ marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: cfg.color }}>{cfg.label} — {cfg.name}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: cfg.color }}>{count}</span>
+                  </div>
+                  <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${max ? (count / max) * 100 : 0}%`, background: cfg.color, borderRadius: '2px', transition: 'width 0.5s ease' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Department Breakdown */}
+        {stats.byDepartment?.length > 0 && (
+          <div className="glass-card" style={{ padding: '16px' }}>
+            <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Building2 size={12} /> Hotspot Departments
+            </h3>
+            {stats.byDepartment.slice(0, 5).map((d, i) => {
+              const maxDept = stats.byDepartment[0]?.count || 1;
+              const pct = Math.round((d.count / maxDept) * 100);
+              return (
+                <div key={d.department} style={{ marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: i === 0 ? '#f87171' : 'var(--text-secondary)' }}>{d.department}</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: i === 0 ? '#f87171' : 'var(--text-muted)' }}>{d.count}</span>
+                  </div>
+                  <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: i === 0 ? '#f87171' : 'rgba(99,102,241,0.5)', borderRadius: '2px', transition: 'width 0.5s ease' }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Compliance Rate */}
+        {stats.complianceRate !== undefined && (
+          <div className="glass-card" style={{ padding: '16px', borderLeft: `3px solid ${stats.complianceRate >= 70 ? '#22c55e' : stats.complianceRate >= 40 ? '#f59e0b' : '#ef4444'}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Percent size={14} style={{ color: stats.complianceRate >= 70 ? '#22c55e' : '#f59e0b' }} />
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Compliance Rate</span>
+            </div>
+            <p style={{ fontSize: '32px', fontWeight: 800, color: stats.complianceRate >= 70 ? '#22c55e' : stats.complianceRate >= 40 ? '#f59e0b' : '#ef4444', marginBottom: '4px' }}>{stats.complianceRate}%</p>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{stats.resolved || 0} resolved / {(stats.active || 0) + (stats.resolved || 0)} total</p>
+          </div>
+        )}
+
+        {/* 7-Day Trend & Info */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {stats.trend?.length > 0 && (
+            <div className="glass-card" style={{ padding: '16px', flex: 1 }}>
+              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <TrendingUp size={12} /> 7-Day Trend
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '50px' }}>
+                {stats.trend.map((d, i) => {
+                  const maxVal = Math.max(...stats.trend.map(t => t.created), 1);
+                  const h = Math.max(4, (d.created / maxVal) * 48);
+                  return (
+                    <div key={d._id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                      <div style={{ width: '100%', height: `${h}px`, borderRadius: '2px', background: d.created > 0 ? 'linear-gradient(to top, rgba(99,102,241,0.3), rgba(99,102,241,0.7))' : 'rgba(255,255,255,0.04)' }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[0]?._id?.slice(5)}</span>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[stats.trend.length-1]?._id?.slice(5)}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="glass-card" style={{ padding: '14px', borderLeft: '3px solid var(--accent-primary)' }}>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Auto-resolution</span> — Escalations are automatically resolved when the employee submits goals, the manager approves, or a check-in is saved.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* ── Layout: table + sidebar ───────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: '16px', alignItems: 'start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
           {/* ── Controls bar ─────────────────────────────────────────────── */}
           <div className="glass-card" style={{ padding: '14px 16px', marginBottom: '14px' }}>
@@ -442,102 +539,6 @@ export default function EscalationsPage() {
               Showing {escalations.length} of {data?.total ?? escalations.length} escalation{data?.total !== 1 ? 's' : ''}
             </p>
           )}
-        </div>
-
-        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <EscalationTimeline />
-
-          {/* Level breakdown */}
-          {stats.byLevel && (
-            <div className="glass-card" style={{ padding: '16px' }}>
-              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
-                Active by Level
-              </h3>
-              {Object.entries(LEVEL_CONFIG).map(([key, cfg]) => {
-                const count = stats.byLevel?.[key] || 0;
-                const max   = Math.max(...Object.values(stats.byLevel || {}), 1);
-                return (
-                  <div key={key} style={{ marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: cfg.color }}>{cfg.label} — {cfg.name}</span>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: cfg.color }}>{count}</span>
-                    </div>
-                    <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${max ? (count / max) * 100 : 0}%`, background: cfg.color, borderRadius: '2px', transition: 'width 0.5s ease' }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Department Breakdown */}
-          {stats.byDepartment?.length > 0 && (
-            <div className="glass-card" style={{ padding: '16px' }}>
-              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Building2 size={12} /> Hotspot Departments
-              </h3>
-              {stats.byDepartment.slice(0, 5).map((d, i) => {
-                const maxDept = stats.byDepartment[0]?.count || 1;
-                const pct = Math.round((d.count / maxDept) * 100);
-                return (
-                  <div key={d.department} style={{ marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: i === 0 ? '#f87171' : 'var(--text-secondary)' }}>{d.department}</span>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: i === 0 ? '#f87171' : 'var(--text-muted)' }}>{d.count}</span>
-                    </div>
-                    <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, background: i === 0 ? '#f87171' : 'rgba(99,102,241,0.5)', borderRadius: '2px', transition: 'width 0.5s ease' }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Compliance Rate */}
-          {stats.complianceRate !== undefined && (
-            <div className="glass-card" style={{ padding: '16px', borderLeft: `3px solid ${stats.complianceRate >= 70 ? '#22c55e' : stats.complianceRate >= 40 ? '#f59e0b' : '#ef4444'}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <Percent size={14} style={{ color: stats.complianceRate >= 70 ? '#22c55e' : '#f59e0b' }} />
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Compliance Rate</span>
-              </div>
-              <p style={{ fontSize: '32px', fontWeight: 800, color: stats.complianceRate >= 70 ? '#22c55e' : stats.complianceRate >= 40 ? '#f59e0b' : '#ef4444', marginBottom: '4px' }}>{stats.complianceRate}%</p>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{stats.resolved || 0} resolved / {(stats.active || 0) + (stats.resolved || 0)} total</p>
-            </div>
-          )}
-
-          {/* 7-Day Trend */}
-          {stats.trend?.length > 0 && (
-            <div className="glass-card" style={{ padding: '16px' }}>
-              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <TrendingUp size={12} /> 7-Day Trend
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '50px' }}>
-                {stats.trend.map((d, i) => {
-                  const maxVal = Math.max(...stats.trend.map(t => t.created), 1);
-                  const h = Math.max(4, (d.created / maxVal) * 48);
-                  return (
-                    <div key={d._id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                      <div style={{ width: '100%', height: `${h}px`, borderRadius: '2px', background: d.created > 0 ? 'linear-gradient(to top, rgba(99,102,241,0.3), rgba(99,102,241,0.7))' : 'rgba(255,255,255,0.04)' }} />
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[0]?._id?.slice(5)}</span>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[stats.trend.length-1]?._id?.slice(5)}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Info card */}
-          <div className="glass-card" style={{ padding: '14px', borderLeft: '3px solid var(--accent-primary)' }}>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Auto-resolution</span> — Escalations are automatically resolved when the employee submits goals, the manager approves, or a check-in is saved.
-            </p>
-          </div>
         </div>
       </div>
 
