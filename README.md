@@ -168,7 +168,7 @@ To ensure maximum reliability without complex overhead, the system implements ro
 The architecture is explicitly designed to maximize efficiency and minimize hosting costs, achieving enterprise scale on free/hobby tiers:
 
 - **Zero-Cost Serverless**: Next.js API routes deployed on Vercel scale to zero when idle. 
-- **Free GitHub Actions Cron**: Instead of paying for premium scheduled jobs, the escalation engine is triggered via a free GitHub Actions workflow.
+- **Free GitHub Actions Cron**: Instead of paying for premium scheduled jobs, the escalation engine is triggered via a free GitHub Actions workflow and runs once in every 6 hours.
 - **Query Optimization (`.lean()`)**: All Mongoose read operations (dashboards, exports, analytics) use `.lean()` to bypass heavy Mongoose Document hydration, returning raw JSON. This drastically reduces memory usage and execution time.
 - **Compound Indexes**: Database indexes (e.g., `{ userId: 1, cycleId: 1, type: 1 }` on Escalations) enforce uniqueness at the database level, preventing race conditions and reducing complex JS-side deduplication logic.
 
