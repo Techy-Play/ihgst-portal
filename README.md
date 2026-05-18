@@ -9,6 +9,27 @@
 
 ---
 
+## 📑 Table of Contents
+
+- [🏗️ Architecture](#️-architecture)
+- [👥 Roles & Permissions](#-roles--permissions)
+- [🔄 Goal Lifecycle Workflow](#-goal-lifecycle-workflow)
+- [⚡ Escalation Engine](#-escalation-engine)
+- [📊 Business Rules & Validations](#-business-rules--validations)
+- [🛡️ Reliability & Observability (Enterprise-Grade)](#️-reliability--observability-enterprise-grade)
+- [📉 Performance & Cost Optimization](#-performance--cost-optimization)
+- [🗄️ Database Schema](#️-database-schema)
+- [🛠️ Tech Stack](#️-tech-stack)
+- [📁 Project Structure](#-project-structure)
+- [🚀 Getting Started](#-getting-started)
+- [🔐 Demo Credentials](#-demo-credentials)
+- [📡 API Endpoints](#-api-endpoints)
+- [✅ Key Features & BRD Adherence](#-key-features--brd-adherence)
+- [🏁 Deployment](#-deployment)
+- [📝 License](#-license)
+
+---
+
 ## 🏗️ Architecture
 
 ![IHGST Portal Architecture Diagram](./Architure%20diagram.png)
