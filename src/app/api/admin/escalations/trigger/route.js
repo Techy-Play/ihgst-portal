@@ -12,7 +12,10 @@ export async function POST() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const results = await runEscalationEngine();
+    const results = await runEscalationEngine({
+      triggeredBy: 'admin',
+      triggeredByName: session.user.name || 'Admin',
+    });
 
     return NextResponse.json({
       success: true,

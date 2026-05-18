@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
-import { AlertTriangle, AlertOctagon, Bell, CheckCircle, XCircle, ChevronRight, Play, RefreshCw, Filter, X, User, Clock, Target, FileText, Download, TrendingUp, BarChart3, ShieldAlert, Building2, Percent, ArrowUpRight, ArrowDownRight, Eye, Mail, Send } from 'lucide-react';
+import { AlertTriangle, AlertOctagon, Bell, CheckCircle, XCircle, ChevronRight, Play, RefreshCw, Filter, X, User, Clock, Target, FileText, Download, TrendingUp, BarChart3, ShieldAlert, Building2, Percent, ArrowUpRight, ArrowDownRight, Eye, Mail, Send, Activity, Zap, Terminal } from 'lucide-react';
 import ReactDOM from 'react-dom';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, ErrorDisplay } from '@/components/ui/Skeletons';
@@ -160,8 +160,9 @@ export default function EscalationsPage() {
     `/api/admin/escalations?${queryString}`, { transform }
   );
   const { data: statsData, refresh: refreshStats } = useDataFetcher('/api/admin/escalations/stats', { transform });
+  const { data: logsData, refresh: refreshLogs } = useDataFetcher('/api/admin/escalations/logs', { transform });
 
-  const refreshAll = () => { refresh(); refreshStats(); };
+  const refreshAll = () => { refresh(); refreshStats(); refreshLogs(); };
 
   const escalations = (data?.escalations || []).filter(e => {
     if (!search) return true;
@@ -211,6 +212,7 @@ export default function EscalationsPage() {
   };
 
   const stats = statsData || {};
+  const cronLogs = logsData?.logs || [];
 
   // ── Email Export ──────────────────────────────────────────────────────────────
   const handleSendEmail = async (e) => {
@@ -371,6 +373,80 @@ export default function EscalationsPage() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* ── Engine Run History ─────────────────────────────────────────────── */}
+      <div className="glass-card" style={{ marginBottom: '24px', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Terminal size={14} style={{ color: 'var(--accent-secondary)' }} />
+            <span style={{ fontSize: '13px', fontWeight: 700 }}>Engine Run History</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2px 8px' }}>Last 20 runs</span>
+          </div>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cron: every 6h · Manual: on demand</span>
+        </div>
+        {cronLogs.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+            <Activity size={24} style={{ opacity: 0.3, marginBottom: '8px', display: 'block', margin: '0 auto 8px' }} />
+            No engine runs recorded yet. Trigger the engine to see logs here.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(255,255,255,0.02)' }}>
+                  {['Timestamp', 'Triggered By', 'Status', 'Created', 'Resolved', 'Duration', 'Summary'].map(h => (
+                    <th key={h} style={{ padding: '8px 14px', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {cronLogs.map((log, i) => (
+                  <tr
+                    key={log._id}
+                    style={{ borderBottom: i < cronLogs.length - 1 ? '1px solid var(--border-color)' : 'none', transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Clock size={10} style={{ flexShrink: 0 }} />
+                        {new Date(log.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </div>
+                    </td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', fontWeight: 600,
+                        color: log.triggeredBy === 'admin' ? '#818cf8' : '#34d399',
+                        background: log.triggeredBy === 'admin' ? 'rgba(99,102,241,0.08)' : 'rgba(16,185,129,0.08)',
+                        border: `1px solid ${log.triggeredBy === 'admin' ? 'rgba(99,102,241,0.2)' : 'rgba(16,185,129,0.2)'}`,
+                        borderRadius: '20px', padding: '2px 8px'
+                      }}>
+                        {log.triggeredBy === 'admin' ? <Zap size={10} /> : <Activity size={10} />}
+                        {log.triggeredByName}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '20px',
+                        background: log.status === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                        color: log.status === 'success' ? '#22c55e' : '#f87171'
+                      }}>
+                        {log.status === 'success' ? '✓ Success' : '✗ Error'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 700, color: log.created > 0 ? '#f97316' : 'var(--text-muted)', textAlign: 'center' }}>{log.created}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '12px', fontWeight: 700, color: log.resolved > 0 ? '#22c55e' : 'var(--text-muted)', textAlign: 'center' }}>{log.resolved}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{log.durationMs ? `${log.durationMs}ms` : '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '11px', color: 'var(--text-muted)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {log.errorDetails?.length > 0 ? (
+                        <span style={{ color: '#f87171' }}>⚠ {log.errorDetails[0]}</span>
+                      ) : log.message}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* ── Layout: table + sidebar ───────────────────────────────────────── */}
