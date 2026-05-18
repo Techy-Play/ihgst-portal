@@ -558,15 +558,19 @@ export default function EscalationsPage() {
 
       {/* ── Detail Drawer ────────────────────────────────────────────────────────── */}
       {selectedEsc && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }} onClick={() => setSelectedEsc(null)}>
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
+        <>
+          <div className="notif-overlay" onClick={() => setSelectedEsc(null)} style={{ zIndex: 1000 }} />
           <div
-            style={{ position: 'relative', width: '460px', maxWidth: '90vw', height: '100vh', background: 'var(--bg-card)', borderLeft: '1px solid var(--border-color)', overflowY: 'auto', padding: '28px', animation: 'slideInRight 0.25s ease' }}
+            className="notif-slide-panel"
+            style={{ animation: 'slideInRight 0.25s ease', zIndex: 1001, maxWidth: '460px' }}
             onClick={e => e.stopPropagation()}
           >
             {/* Drawer header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Escalation Detail</h2>
+            <div className="notif-panel-header">
+              <div className="notif-panel-title">
+                <ShieldAlert size={18} style={{ color: 'var(--accent-secondary)' }} />
+                Escalation Detail
+              </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => window.open(`/manager/review/${selectedEsc.userId?._id || selectedEsc.userId}`, '_blank')}
@@ -577,9 +581,12 @@ export default function EscalationsPage() {
                 >
                   <ArrowUpRight size={14} /> Open
                 </button>
-                <button onClick={() => setSelectedEsc(null)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '30px', height: '30px' }}><X size={16} /></button>
+                <button onClick={() => setSelectedEsc(null)} style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--surface-muted)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
               </div>
             </div>
+
+            {/* Drawer Body */}
+            <div className="notif-panel-body" style={{ padding: '24px', gap: '16px' }}>
 
             {/* Employee info */}
             <div className="glass-card" style={{ padding: '16px', marginBottom: '16px', borderLeft: `3px solid ${(LEVEL_CONFIG[selectedEsc.level] || LEVEL_CONFIG.LEVEL_1).color}` }}>
@@ -655,18 +662,23 @@ export default function EscalationsPage() {
                 )}
               </div>
             </div>
+            </div>
 
             {/* Actions */}
             {selectedEsc.status === 'ACTIVE' && (
-              <button
-                onClick={() => { handleDismiss(selectedEsc._id); setSelectedEsc(null); }}
-                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.2)', color: '#9ca3af', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                <XCircle size={14} /> Dismiss Escalation
-              </button>
+              <div className="notif-panel-footer">
+                <button
+                  onClick={() => { handleDismiss(selectedEsc._id); setSelectedEsc(null); }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.2)', color: '#9ca3af', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#f87171'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(107,114,128,0.08)'; e.currentTarget.style.color = '#9ca3af'; }}
+                >
+                  <XCircle size={14} /> Dismiss Escalation
+                </button>
+              </div>
             )}
           </div>
-        </div>
+        </>
       )}
 
       {/* ── Email Export Modal ──────────────────────────────────────────────── */}
