@@ -13,6 +13,7 @@ jobs:
       - name: Trigger Escalation Engine
         run: |
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -L \
             -X GET \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/escalations")
