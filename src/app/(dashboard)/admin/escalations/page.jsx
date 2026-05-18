@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
-import { AlertTriangle, AlertOctagon, Bell, CheckCircle, XCircle, ChevronRight, Play, RefreshCw, Filter, X, User, Clock, Target, FileText } from 'lucide-react';
+import { AlertTriangle, AlertOctagon, Bell, CheckCircle, XCircle, ChevronRight, Play, RefreshCw, Filter, X, User, Clock, Target, FileText, Download, TrendingUp, BarChart3, ShieldAlert, Building2, Percent, ArrowUpRight, ArrowDownRight, Eye } from 'lucide-react';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, ErrorDisplay } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
@@ -142,6 +142,8 @@ export default function EscalationsPage() {
   const [search, setSearch] = useState('');
   const [triggering, setTriggering] = useState(false);
   const [dismissing, setDismissing] = useState({});
+  const [selectedEsc, setSelectedEsc] = useState(null);
+  const [exporting, setExporting] = useState(false);
 
   // Build query string from filters
   const queryString = Object.entries(filters)
@@ -206,6 +208,30 @@ export default function EscalationsPage() {
 
   const stats = statsData || {};
 
+  // ── CSV Export ──────────────────────────────────────────────────────────────
+  const handleExport = () => {
+    if (!escalations.length) return;
+    setExporting(true);
+    const headers = ['Employee','Department','Type','Level','Status','Message','Quarter','Triggered'];
+    const rows = escalations.map(e => [
+      e.userId?.name || 'Unknown',
+      e.userId?.department || '—',
+      TYPE_LABELS[e.type] || e.type,
+      LEVEL_CONFIG[e.level]?.label || e.level,
+      STATUS_CONFIG[e.status]?.label || e.status,
+      `"${(e.message || '').replace(/"/g, '""')}"`,
+      e.quarter || '—',
+      new Date(e.triggeredAt).toLocaleDateString('en-IN'),
+    ]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = `escalations_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Escalations exported', 'success');
+    setExporting(false);
+  };
+
   const typeOptions = [
     { value: 'all',             label: 'All Types' },
     { value: 'GOAL_SUBMISSION', label: 'Draft Not Submitted' },
@@ -245,10 +271,10 @@ export default function EscalationsPage() {
       {/* ── Stats row ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '24px' }}>
         <StatCard label="Active Escalations" value={stats.active} color="#ef4444" bg="rgba(239,68,68,0.1)" icon={<AlertOctagon size={18} />} />
-        <StatCard label="Draft Not Submitted" value={stats.byType?.GOAL_SUBMISSION} color="#eab308" bg="rgba(234,179,8,0.1)" icon={<FileText size={18} />} sublabel="GOAL_SUBMISSION" />
-        <StatCard label="Approval Pending" value={stats.byType?.GOAL_APPROVAL} color="#f97316" bg="rgba(249,115,22,0.1)" icon={<Target size={18} />} sublabel="GOAL_APPROVAL" />
-        <StatCard label="Check-ins Missing" value={stats.byType?.CHECKIN_PENDING} color="#8b5cf6" bg="rgba(139,92,246,0.1)" icon={<Bell size={18} />} sublabel="CHECKIN_PENDING" />
-        <StatCard label="Resolved" value={stats.resolved} color="#22c55e" bg="rgba(34,197,94,0.1)" icon={<CheckCircle size={18} />} />
+        <StatCard label="High Severity (L3)" value={stats.byLevel?.LEVEL_3} color="#a855f7" bg="rgba(168,85,247,0.1)" icon={<ShieldAlert size={18} />} sublabel="Critical cases" />
+        <StatCard label="Pending Approvals" value={stats.byType?.GOAL_APPROVAL} color="#f97316" bg="rgba(249,115,22,0.1)" icon={<Target size={18} />} sublabel="Manager action needed" />
+        <StatCard label="Missed Check-ins" value={stats.byType?.CHECKIN_PENDING} color="#8b5cf6" bg="rgba(139,92,246,0.1)" icon={<Bell size={18} />} />
+        <StatCard label="Resolved Today" value={stats.resolvedToday ?? 0} color="#22c55e" bg="rgba(34,197,94,0.1)" icon={<CheckCircle size={18} />} />
       </div>
 
       {/* ── Layout: table + sidebar ───────────────────────────────────────── */}
@@ -306,6 +332,15 @@ export default function EscalationsPage() {
                 </button>
               )}
 
+              {/* Export button */}
+              <button
+                onClick={handleExport}
+                disabled={exporting || !escalations.length}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '36px', borderRadius: '8px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap', opacity: exporting ? 0.7 : 1 }}
+              >
+                <Download size={13} /> Export CSV
+              </button>
+
               {/* Trigger button */}
               <button
                 onClick={handleTrigger}
@@ -356,7 +391,9 @@ export default function EscalationsPage() {
                       borderBottom: idx < escalations.length - 1 ? '1px solid var(--border-color)' : 'none',
                       borderLeft: `3px solid ${levelCfg.color}`,
                       transition: 'background 0.15s',
+                      cursor: 'pointer',
                     }}
+                    onClick={() => setSelectedEsc(esc)}
                     onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
@@ -446,6 +483,66 @@ export default function EscalationsPage() {
             </div>
           )}
 
+          {/* Department Breakdown */}
+          {stats.byDepartment?.length > 0 && (
+            <div className="glass-card" style={{ padding: '16px' }}>
+              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Building2 size={12} /> Hotspot Departments
+              </h3>
+              {stats.byDepartment.slice(0, 5).map((d, i) => {
+                const maxDept = stats.byDepartment[0]?.count || 1;
+                const pct = Math.round((d.count / maxDept) * 100);
+                return (
+                  <div key={d.department} style={{ marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: i === 0 ? '#f87171' : 'var(--text-secondary)' }}>{d.department}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: i === 0 ? '#f87171' : 'var(--text-muted)' }}>{d.count}</span>
+                    </div>
+                    <div style={{ height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, background: i === 0 ? '#f87171' : 'rgba(99,102,241,0.5)', borderRadius: '2px', transition: 'width 0.5s ease' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Compliance Rate */}
+          {stats.complianceRate !== undefined && (
+            <div className="glass-card" style={{ padding: '16px', borderLeft: `3px solid ${stats.complianceRate >= 70 ? '#22c55e' : stats.complianceRate >= 40 ? '#f59e0b' : '#ef4444'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Percent size={14} style={{ color: stats.complianceRate >= 70 ? '#22c55e' : '#f59e0b' }} />
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Compliance Rate</span>
+              </div>
+              <p style={{ fontSize: '32px', fontWeight: 800, color: stats.complianceRate >= 70 ? '#22c55e' : stats.complianceRate >= 40 ? '#f59e0b' : '#ef4444', marginBottom: '4px' }}>{stats.complianceRate}%</p>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{stats.resolved || 0} resolved / {(stats.active || 0) + (stats.resolved || 0)} total</p>
+            </div>
+          )}
+
+          {/* 7-Day Trend */}
+          {stats.trend?.length > 0 && (
+            <div className="glass-card" style={{ padding: '16px' }}>
+              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <TrendingUp size={12} /> 7-Day Trend
+              </h3>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '50px' }}>
+                {stats.trend.map((d, i) => {
+                  const maxVal = Math.max(...stats.trend.map(t => t.created), 1);
+                  const h = Math.max(4, (d.created / maxVal) * 48);
+                  return (
+                    <div key={d._id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                      <div style={{ width: '100%', height: `${h}px`, borderRadius: '2px', background: d.created > 0 ? 'linear-gradient(to top, rgba(99,102,241,0.3), rgba(99,102,241,0.7))' : 'rgba(255,255,255,0.04)' }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[0]?._id?.slice(5)}</span>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[stats.trend.length-1]?._id?.slice(5)}</span>
+              </div>
+            </div>
+          )}
+
           {/* Info card */}
           <div className="glass-card" style={{ padding: '14px', borderLeft: '3px solid var(--accent-primary)' }}>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
@@ -455,8 +552,111 @@ export default function EscalationsPage() {
         </div>
       </div>
 
+      {/* ── Detail Drawer ────────────────────────────────────────────────────────── */}
+      {selectedEsc && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', justifyContent: 'flex-end' }} onClick={() => setSelectedEsc(null)}>
+          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} />
+          <div
+            style={{ position: 'relative', width: '460px', maxWidth: '90vw', height: '100vh', background: 'var(--bg-card)', borderLeft: '1px solid var(--border-color)', overflowY: 'auto', padding: '28px', animation: 'slideInRight 0.25s ease' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Drawer header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 700 }}>Escalation Detail</h2>
+              <button onClick={() => setSelectedEsc(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}><X size={18} /></button>
+            </div>
+
+            {/* Employee info */}
+            <div className="glass-card" style={{ padding: '16px', marginBottom: '16px', borderLeft: `3px solid ${(LEVEL_CONFIG[selectedEsc.level] || LEVEL_CONFIG.LEVEL_1).color}` }}>
+              <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>{selectedEsc.userId?.name || 'Unknown'}</p>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedEsc.userId?.email} · {selectedEsc.userId?.department || '—'}</p>
+            </div>
+
+            {/* Meta grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+              <div className="glass-card" style={{ padding: '12px' }}>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Type</p>
+                <TypeBadge type={selectedEsc.type} />
+              </div>
+              <div className="glass-card" style={{ padding: '12px' }}>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Level</p>
+                <LevelBadge level={selectedEsc.level} />
+              </div>
+              <div className="glass-card" style={{ padding: '12px' }}>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Status</p>
+                <StatusBadge status={selectedEsc.status} />
+              </div>
+              <div className="glass-card" style={{ padding: '12px' }}>
+                <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Quarter</p>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{selectedEsc.quarter || '—'}</span>
+              </div>
+            </div>
+
+            {/* Message */}
+            <div className="glass-card" style={{ padding: '14px', marginBottom: '16px' }}>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>Message</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{selectedEsc.message}</p>
+            </div>
+
+            {/* Timeline */}
+            <div className="glass-card" style={{ padding: '16px', marginBottom: '16px' }}>
+              <p style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '12px' }}>Escalation Timeline</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+                {/* Triggered */}
+                <div style={{ display: 'flex', gap: '10px', position: 'relative' }}>
+                  {selectedEsc.resolvedAt && <div style={{ position: 'absolute', left: '13px', top: '28px', width: '2px', height: '40px', background: 'rgba(99,102,241,0.2)' }} />}
+                  <div style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '50%', background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', zIndex: 1 }}><AlertTriangle size={12} /></div>
+                  <div style={{ paddingBottom: '16px' }}>
+                    <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>Escalation Triggered</p>
+                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(selectedEsc.triggeredAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                  </div>
+                </div>
+                {/* Level progression */}
+                {['LEVEL_1', 'LEVEL_2', 'LEVEL_3'].filter(l => {
+                  const levels = ['LEVEL_1', 'LEVEL_2', 'LEVEL_3'];
+                  return levels.indexOf(l) <= levels.indexOf(selectedEsc.level);
+                }).map((l, i, arr) => {
+                  const cfg = LEVEL_CONFIG[l];
+                  return (
+                    <div key={l} style={{ display: 'flex', gap: '10px', position: 'relative' }}>
+                      {i < arr.length - 1 && <div style={{ position: 'absolute', left: '13px', top: '28px', width: '2px', height: '36px', background: `${cfg.color}33` }} />}
+                      <div style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '50%', background: cfg.bg, border: `1px solid ${cfg.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, zIndex: 1, fontSize: '9px', fontWeight: 800 }}>{cfg.label}</div>
+                      <div style={{ paddingBottom: '12px' }}>
+                        <p style={{ fontSize: '12px', fontWeight: 600, color: cfg.color }}>{cfg.name}</p>
+                        <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Notification sent to {l === 'LEVEL_1' ? 'employee' : l === 'LEVEL_2' ? 'manager' : 'HR/Admin'}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Resolved */}
+                {selectedEsc.resolvedAt && (
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '50%', background: 'rgba(34,197,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#22c55e', zIndex: 1 }}><CheckCircle size={12} /></div>
+                    <div>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e' }}>Resolved</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(selectedEsc.resolvedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            {selectedEsc.status === 'ACTIVE' && (
+              <button
+                onClick={() => { handleDismiss(selectedEsc._id); setSelectedEsc(null); }}
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.2)', color: '#9ca3af', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              >
+                <XCircle size={14} /> Dismiss Escalation
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .skeleton-pulse { animation: skeletonPulse 1.4s ease-in-out infinite; }
         @keyframes skeletonPulse { 0%,100% { opacity:0.5; } 50% { opacity:1; } }
       `}</style>

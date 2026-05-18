@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Target, CheckSquare, Users, Shield, BarChart3, Calendar, FileText, History, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Target, CheckSquare, Users, Shield, BarChart3, Calendar, FileText, History, ChevronLeft, ChevronRight, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 
 const navItems = {
@@ -33,6 +33,7 @@ const navItems = {
     { href: '/admin/cycles', icon: <Calendar size={18} />, label: 'Cycles', exact: true },
     { href: '/admin/reports', icon: <FileText size={18} />, label: 'Reports', exact: true },
     { href: '/admin/audit', icon: <History size={18} />, label: 'Audit Log', exact: true },
+    { href: '/admin/escalations', icon: <ShieldAlert size={18} />, label: 'Escalations', exact: true },
     { href: '/analytics', icon: <BarChart3 size={18} />, label: 'Analytics', exact: true },
   ],
 };
