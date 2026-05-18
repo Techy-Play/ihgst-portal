@@ -73,14 +73,12 @@ export async function POST(request) {
       to: email,
       subject: 'IHGST Portal — Escalations Report',
       html: `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-          <h2 style="color:#6366f1;">IHGST Portal — Escalations Report</h2>
-          <p>Hi,</p>
-          <p>Please find the attached escalations report (${format === 'excel' ? 'Excel' : 'CSV'} format) exported from the IHGST Portal.</p>
-          <p style="color:#888;">This report contains <strong>${rows.length}</strong> escalation records (<strong>${activeCount}</strong> active).</p>
-          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;">
-          <p style="font-size:12px;color:#999;">Exported by ${session.user.name} (${session.user.email}) on ${new Date().toLocaleString()}</p>
-        </div>
+        <h2 style="color:#6366f1;">IHGST Portal — Escalations Report</h2>
+        <p>Hi,</p>
+        <p>Please find the attached escalations report (${format === 'excel' ? 'Excel' : 'CSV'} format) exported from the IHGST Portal.</p>
+        <p style="color:#64748b;">This report contains <strong>${rows.length}</strong> escalation records (<strong>${activeCount}</strong> active).</p>
+        <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0;">
+        <p style="font-size:12px;color:#94a3b8;">Exported by ${session.user.name} (${session.user.email}) on ${new Date().toLocaleString()}</p>
       `,
       attachments: [{ filename, content: buffer, contentType }],
     });

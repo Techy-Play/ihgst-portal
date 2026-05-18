@@ -63,17 +63,15 @@ export async function POST(request) {
         to: email,
         subject: 'Welcome to IHGST Portal - Your Account Details',
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2>Welcome to IHGST Portal</h2>
-            <p>Hello ${name},</p>
-            <p>Your account has been successfully created. Here are your login details:</p>
-            <div style="background: #f4f4f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
-              <p style="margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
-              <p style="margin: 0;"><strong>Temporary Password:</strong> Password123!</p>
-            </div>
-            <p style="color: #eab308; font-weight: bold;">⚠️ IMPORTANT: You must change this temporary password immediately after your first login.</p>
-            <a href="${loginUrl}/login" style="display: inline-block; padding: 10px 20px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin-top: 16px;">Login to Portal</a>
+          <h2>Welcome to IHGST Portal</h2>
+          <p>Hello ${name},</p>
+          <p>Your account has been successfully created. Here are your login details:</p>
+          <div style="background: #f4f4f5; padding: 16px; border-radius: 8px; margin: 16px 0;">
+            <p style="margin: 0 0 8px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 0;"><strong>Temporary Password:</strong> Password123!</p>
           </div>
+          <p style="color: #eab308; font-weight: bold;">⚠️ IMPORTANT: You must change this temporary password immediately after your first login.</p>
+          <a href="${loginUrl}/login" style="display: inline-block; padding: 10px 20px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin-top: 16px;">Login to Portal</a>
         `
       });
     } catch (mailErr) {
