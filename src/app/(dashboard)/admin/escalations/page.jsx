@@ -1,6 +1,7 @@
 'use client';
 import { useState, useCallback, useEffect } from 'react';
-import { AlertTriangle, AlertOctagon, Bell, CheckCircle, XCircle, ChevronRight, Play, RefreshCw, Filter, X, User, Clock, Target, FileText, Download, TrendingUp, BarChart3, ShieldAlert, Building2, Percent, ArrowUpRight, ArrowDownRight, Eye } from 'lucide-react';
+import { AlertTriangle, AlertOctagon, Bell, CheckCircle, XCircle, ChevronRight, Play, RefreshCw, Filter, X, User, Clock, Target, FileText, Download, TrendingUp, BarChart3, ShieldAlert, Building2, Percent, ArrowUpRight, ArrowDownRight, Eye, Mail, Send } from 'lucide-react';
+import ReactDOM from 'react-dom';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, ErrorDisplay } from '@/components/ui/Skeletons';
 import { useToast } from '@/components/ui/Toast';
@@ -143,7 +144,10 @@ export default function EscalationsPage() {
   const [triggering, setTriggering] = useState(false);
   const [dismissing, setDismissing] = useState({});
   const [selectedEsc, setSelectedEsc] = useState(null);
-  const [exporting, setExporting] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState('csv');
+  const [emailTo, setEmailTo] = useState('');
+  const [sending, setSending] = useState(false);
 
   // Build query string from filters
   const queryString = Object.entries(filters)
@@ -208,28 +212,21 @@ export default function EscalationsPage() {
 
   const stats = statsData || {};
 
-  // ── CSV Export ──────────────────────────────────────────────────────────────
-  const handleExport = () => {
-    if (!escalations.length) return;
-    setExporting(true);
-    const headers = ['Employee','Department','Type','Level','Status','Message','Quarter','Triggered'];
-    const rows = escalations.map(e => [
-      e.userId?.name || 'Unknown',
-      e.userId?.department || '—',
-      TYPE_LABELS[e.type] || e.type,
-      LEVEL_CONFIG[e.level]?.label || e.level,
-      STATUS_CONFIG[e.status]?.label || e.status,
-      `"${(e.message || '').replace(/"/g, '""')}"`,
-      e.quarter || '—',
-      new Date(e.triggeredAt).toLocaleDateString('en-IN'),
-    ]);
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = `escalations_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click(); URL.revokeObjectURL(a.href);
-    toast('Escalations exported', 'success');
-    setExporting(false);
+  // ── Email Export ──────────────────────────────────────────────────────────────
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    if (!emailTo) return;
+    setSending(true);
+    try {
+      const res = await fetch('/api/admin/escalations/email', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailTo, format: exportFormat }),
+      });
+      const result = await res.json();
+      if (res.ok) { toast(result.message || 'Report sent!', 'success'); setShowEmailModal(false); }
+      else toast(result.error || 'Failed to send', 'error');
+    } catch { toast('Failed to send email', 'error'); }
+    setSending(false);
   };
 
   const typeOptions = [
@@ -282,9 +279,9 @@ export default function EscalationsPage() {
         <div>
           {/* ── Controls bar ─────────────────────────────────────────────── */}
           <div className="glass-card" style={{ padding: '14px 16px', marginBottom: '14px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-              {/* Search */}
-              <div style={{ position: 'relative', flex: '1', minWidth: '180px' }}>
+            {/* Row 1: Search + Dropdowns */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
+              <div style={{ position: 'relative', flex: '1', minWidth: '160px' }}>
                 <User size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   className="input-dark"
@@ -294,33 +291,26 @@ export default function EscalationsPage() {
                   style={{ paddingLeft: '32px', fontSize: '13px', height: '36px' }}
                 />
               </div>
-
-              {/* Dropdowns */}
-              <div style={{ minWidth: '170px' }}>
+              <div style={{ minWidth: '140px' }}>
                 <CustomDropdown options={statusOptions} value={filters.status} onChange={v => setFilter('status', v)} placeholder="Status…" />
               </div>
-              <div style={{ minWidth: '200px' }}>
+              <div style={{ minWidth: '170px' }}>
                 <CustomDropdown options={typeOptions} value={filters.type} onChange={v => setFilter('type', v)} placeholder="Type…" />
               </div>
-              <div style={{ minWidth: '200px' }}>
+              <div style={{ minWidth: '170px' }}>
                 <CustomDropdown options={levelOptions} value={filters.level} onChange={v => setFilter('level', v)} placeholder="Level…" />
               </div>
+            </div>
+            {/* Row 2: Date range + Actions */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>From</span>
+                <input type="date" className="input-dark" value={filters.dateFrom} onChange={e => setFilter('dateFrom', e.target.value)} style={{ fontSize: '12px', height: '36px', width: '150px' }} />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>To</span>
+                <input type="date" className="input-dark" value={filters.dateTo} onChange={e => setFilter('dateTo', e.target.value)} style={{ fontSize: '12px', height: '36px', width: '150px' }} />
+              </div>
 
-              {/* Date range */}
-              <input
-                type="date"
-                className="input-dark"
-                value={filters.dateFrom}
-                onChange={e => setFilter('dateFrom', e.target.value)}
-                style={{ fontSize: '12px', height: '36px', minWidth: '140px' }}
-              />
-              <input
-                type="date"
-                className="input-dark"
-                value={filters.dateTo}
-                onChange={e => setFilter('dateTo', e.target.value)}
-                style={{ fontSize: '12px', height: '36px', minWidth: '140px' }}
-              />
+              <div style={{ flex: 1 }} />
 
               {/* Clear */}
               {(filters.type !== 'all' || filters.level !== 'all' || filters.status !== 'ACTIVE' || filters.dateFrom || filters.dateTo || search) && (
@@ -332,13 +322,12 @@ export default function EscalationsPage() {
                 </button>
               )}
 
-              {/* Export button */}
+              {/* Export Email */}
               <button
-                onClick={handleExport}
-                disabled={exporting || !escalations.length}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '36px', borderRadius: '8px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap', opacity: exporting ? 0.7 : 1 }}
+                onClick={() => { setEmailTo(''); setShowEmailModal(true); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 16px', height: '36px', borderRadius: '8px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', color: '#34d399', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}
               >
-                <Download size={13} /> Export CSV
+                <Mail size={13} /> Export Report
               </button>
 
               {/* Trigger button */}
@@ -652,6 +641,39 @@ export default function EscalationsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Email Export Modal ──────────────────────────────────────────────── */}
+      {showEmailModal && ReactDOM.createPortal(
+        <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) setShowEmailModal(false); }}>
+          <div className="email-modal animate-fadeIn">
+            <button onClick={() => setShowEmailModal(false)} style={{ position: 'absolute', top: 16, right: 16, width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={18} /></button>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '52px', height: '52px', borderRadius: '14px', background: 'var(--gradient-1)', marginBottom: '14px' }}><Mail size={24} color="white" /></div>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '6px' }}>Export Escalations Report</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Receive escalation data via email</p>
+            </div>
+            <form onSubmit={handleSendEmail}>
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Format</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {['csv', 'excel'].map(f => (
+                    <button key={f} type="button" onClick={() => setExportFormat(f)} style={{ flex: 1, padding: '8px', borderRadius: '8px', background: exportFormat === f ? 'rgba(99,102,241,0.1)' : 'rgba(255,255,255,0.02)', border: exportFormat === f ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)', color: exportFormat === f ? '#818cf8' : 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>{f}</button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>Email Address</label>
+                <input type="email" className="input-dark" placeholder="your@email.com" value={emailTo} onChange={(e) => setEmailTo(e.target.value)} required />
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button type="button" onClick={() => setShowEmailModal(false)} style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" className="btn-glow" disabled={sending} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', opacity: sending ? 0.7 : 1 }}>{sending ? 'Sending...' : <><Send size={16} /> Send</>}</button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
 
       <style jsx>{`
