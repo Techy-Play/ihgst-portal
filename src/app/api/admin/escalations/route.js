@@ -4,6 +4,10 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Escalation from '@/models/Escalation';
 import AuditLog from '@/models/AuditLog';
+// These imports register the schemas Mongoose needs for .populate() calls
+import '@/models/Cycle';
+import '@/models/User';
+import '@/models/GoalSheet';
 import { handleApiError, parseBody } from '@/lib/apiError';
 
 export async function GET(request) {
