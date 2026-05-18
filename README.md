@@ -277,6 +277,9 @@ Admin User (HR)
 
 - **🎯 Quarterly Goal Setting** — Goals with thrust areas, UoM types (Numeric, Percentage, Timeline, Zero), targets, and weighted KPIs
 - **⚡ Automated Goal Completion** — Server-side logic automatically transitions goal status to `"Completed"` once progress reaches 100%
+- **🏛️ Enterprise Cycle Lifecycle Management** — Robust closure validation checking for pending check-ins, unapproved goals, and incomplete KPIs before allowing administrative cycles to close. Supports active, incomplete, and archived cycle states.
+- **🔒 Deep-Linked Archival Integrity** — Past cycles become strictly read-only with persistent URL state parameters across Check-in views, Analytics dashboards, and Goal Details. Feedback and comments are completely disabled for closed cycles.
+- **💎 Premium Analytics UI** — Dashboard KPI cards upgraded with glassmorphism, responsive grid scaling, hover animations, and integrated icons to match an enterprise-grade aesthetic.
 - **🔗 Goal Deep-linking & Highlighting** — A contextual `"Go to Check-ins"` button on Goal Details (gated strictly to the goal owner) navigates to check-ins, auto-scrolls to the target goal, and applies a prominent visual highlight glow animation
 - **💬 Collapsible Quarter-specific Discussions** — Check-ins feature collapsible notes boards tagged specifically by quarter (Q1–Q4). General discussions can be tagged with quarters in the Goal Details view with interactive filter tabs
 - **👨‍💼 Live Manager Feedback Banners** — Real-time display of the latest top-level manager comments from the Discussion board directly on check-in cards

@@ -32,7 +32,7 @@ function fullDate(date) {
 }
 
 /* ── Single comment node (recursive) ── */
-function CommentNode({ comment, depth = 0, onReply, currentUser, replySortAsc }) {
+function CommentNode({ comment, depth = 0, onReply, currentUser, replySortAsc, isCycleClosed }) {
   const [expanded, setExpanded] = useState(true);
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -101,12 +101,14 @@ function CommentNode({ comment, depth = 0, onReply, currentUser, replySortAsc })
 
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '34px' }}>
-          <button
-            onClick={() => setShowReplyBox(!showReplyBox)}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', border: 'none', background: showReplyBox ? 'rgba(99,102,241,0.12)' : 'transparent', color: showReplyBox ? '#818cf8' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
-          >
-            <Reply size={11} /> Reply
-          </button>
+          {!isCycleClosed && (
+            <button
+              onClick={() => setShowReplyBox(!showReplyBox)}
+              style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', border: 'none', background: showReplyBox ? 'rgba(99,102,241,0.12)' : 'transparent', color: showReplyBox ? '#818cf8' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              <Reply size={11} /> Reply
+            </button>
+          )}
           {hasReplies && (
             <button
               onClick={() => setExpanded(!expanded)}
@@ -151,7 +153,7 @@ function CommentNode({ comment, depth = 0, onReply, currentUser, replySortAsc })
         {expanded && hasReplies && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}>
             {sortedReplies.map(reply => (
-              <CommentNode key={reply._id} comment={reply} depth={depth + 1} onReply={onReply} currentUser={currentUser} replySortAsc={replySortAsc} />
+              <CommentNode key={reply._id} comment={reply} depth={depth + 1} onReply={onReply} currentUser={currentUser} replySortAsc={replySortAsc} isCycleClosed={isCycleClosed} />
             ))}
           </motion.div>
         )}
@@ -195,6 +197,7 @@ function QuarterLabel({ quarter }) {
  *   quarter         – if set: filter/tag to this quarter (checkin mode, self-fetch)
  *   groupByQuarter  – if true: goal-detail mode with group headers + filter tabs
  *   selfFetch       – if true: component fetches its own comments
+ *   isCycleClosed   – if true: hide reply and new comment inputs
  */
 export default function DiscussionThread({
   comments: commentsProp = [],
@@ -204,6 +207,7 @@ export default function DiscussionThread({
   quarter = null,
   groupByQuarter = false,
   selfFetch = false,
+  isCycleClosed = false,
 }) {
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
@@ -304,7 +308,7 @@ export default function DiscussionThread({
           <div key={q}>
             <QuarterLabel quarter={q} />
             {groups[q].map(c => (
-              <CommentNode key={c._id} comment={c} depth={0} onReply={postComment} currentUser={currentUser} replySortAsc={replySortAsc} />
+              <CommentNode key={c._id} comment={c} depth={0} onReply={postComment} currentUser={currentUser} replySortAsc={replySortAsc} isCycleClosed={isCycleClosed} />
             ))}
           </div>
         ))}
@@ -318,7 +322,7 @@ export default function DiscussionThread({
               </div>
             )}
             {noQuarter.map(c => (
-              <CommentNode key={c._id} comment={c} depth={0} onReply={postComment} currentUser={currentUser} replySortAsc={replySortAsc} />
+              <CommentNode key={c._id} comment={c} depth={0} onReply={postComment} currentUser={currentUser} replySortAsc={replySortAsc} isCycleClosed={isCycleClosed} />
             ))}
           </div>
         )}
@@ -328,7 +332,7 @@ export default function DiscussionThread({
 
   const renderFlat = () =>
     sortedRoots.map(c => (
-      <CommentNode key={c._id} comment={c} depth={0} onReply={postComment} currentUser={currentUser} replySortAsc={replySortAsc} />
+      <CommentNode key={c._id} comment={c} depth={0} onReply={postComment} currentUser={currentUser} replySortAsc={replySortAsc} isCycleClosed={isCycleClosed} />
     ));
 
   /* ═══════════ RENDER ═══════════ */
@@ -367,61 +371,68 @@ export default function DiscussionThread({
       )}
 
       {/* ── New comment box ── */}
-      <div className="glass-card" style={{ padding: '14px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: rc.dot, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 700, flexShrink: 0, marginTop: '4px' }}>
-            {(currentUser?.name || 'U')[0]}
-          </div>
-          <div style={{ flex: 1 }}>
-            <textarea
-              className="input-dark"
-              value={newComment}
-              onChange={e => setNewComment(e.target.value)}
-              placeholder={quarter ? `Add a ${quarter} note... (Enter to post)` : 'Start a discussion...'}
-              rows={2}
-              style={{ width: '100%', resize: 'none', minHeight: '56px', fontSize: '12px', marginBottom: '8px' }}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleNewComment(); } }}
-              onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-              {/* Quarter tag selector — only in goal detail mode */}
-              {groupByQuarter && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                  <Tag size={11} style={{ color: 'var(--text-muted)' }} />
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginRight: '2px' }}>Tag:</span>
-                  {QUARTERS.map(q => {
-                    const col = quarterColors[q];
-                    const active = postQuarter === q;
-                    return (
-                      <button
-                        key={q}
-                        onClick={() => setPostQuarter(active ? null : q)}
-                        style={{ padding: '2px 8px', borderRadius: '99px', border: `1px solid ${active ? col : 'var(--border-color)'}`, background: active ? `${col}18` : 'transparent', color: active ? col : 'var(--text-muted)', fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.12s' }}
-                      >
-                        {q}
-                      </button>
-                    );
-                  })}
-                  {postQuarter && (
-                    <button onClick={() => setPostQuarter(null)} style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Clear</button>
-                  )}
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    {postQuarter ? `Will tag as ${postQuarter}` : '(No tag = general only)'}
-                  </span>
-                </div>
-              )}
-              <button
-                onClick={handleNewComment}
-                disabled={!newComment.trim() || posting}
-                className="btn-glow"
-                style={{ padding: '6px 14px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px', opacity: newComment.trim() ? 1 : 0.4, marginLeft: 'auto' }}
-              >
-                <MessageSquare size={12} /> {posting ? 'Posting...' : 'Post'}
-              </button>
+      {isCycleClosed ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '12px', borderRadius: '10px', background: 'rgba(107,114,128,0.06)', border: '1px solid rgba(107,114,128,0.15)', marginBottom: '16px' }}>
+          <MessageSquare size={14} style={{ color: '#6b7280' }} />
+          <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 600 }}>Archived Cycle — Discussions are read-only</span>
+        </div>
+      ) : (
+        <div className="glass-card" style={{ padding: '14px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', background: rc.dot, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 700, flexShrink: 0, marginTop: '4px' }}>
+              {(currentUser?.name || 'U')[0]}
+            </div>
+            <div style={{ flex: 1 }}>
+              <textarea
+                className="input-dark"
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                placeholder={quarter ? `Add a ${quarter} note... (Enter to post)` : 'Start a discussion...'}
+                rows={2}
+                style={{ width: '100%', resize: 'none', minHeight: '56px', fontSize: '12px', marginBottom: '8px' }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleNewComment(); } }}
+                onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                {/* Quarter tag selector — only in goal detail mode */}
+                {groupByQuarter && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                    <Tag size={11} style={{ color: 'var(--text-muted)' }} />
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginRight: '2px' }}>Tag:</span>
+                    {QUARTERS.map(q => {
+                      const col = quarterColors[q];
+                      const active = postQuarter === q;
+                      return (
+                        <button
+                          key={q}
+                          onClick={() => setPostQuarter(active ? null : q)}
+                          style={{ padding: '2px 8px', borderRadius: '99px', border: `1px solid ${active ? col : 'var(--border-color)'}`, background: active ? `${col}18` : 'transparent', color: active ? col : 'var(--text-muted)', fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.12s' }}
+                        >
+                          {q}
+                        </button>
+                      );
+                    })}
+                    {postQuarter && (
+                      <button onClick={() => setPostQuarter(null)} style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Clear</button>
+                    )}
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      {postQuarter ? `Will tag as ${postQuarter}` : '(No tag = general only)'}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={handleNewComment}
+                  disabled={!newComment.trim() || posting}
+                  className="btn-glow"
+                  style={{ padding: '6px 14px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px', opacity: newComment.trim() ? 1 : 0.4, marginLeft: 'auto' }}
+                >
+                  <MessageSquare size={12} /> {posting ? 'Posting...' : 'Post'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Reply sort toggle ── */}
       {allRoots.length > 0 && (

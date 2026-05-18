@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2, MessageSquare, Send } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2, MessageSquare, Send, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/Toast';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -11,9 +11,13 @@ import { calculateProgress } from '@/lib/progress';
 export default function ReviewPage({ params }) {
   const { employeeId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const cycleIdParam = searchParams.get('cycleId');
+  const quarterParam = searchParams.get('quarter');
   const [employee, setEmployee] = useState(null);
   const [goalSheet, setGoalSheet] = useState(null);
   const [goals, setGoals] = useState([]);
+  const [cycleInfo, setCycleInfo] = useState(null);
   const [edits, setEdits] = useState({});
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,11 +32,22 @@ export default function ReviewPage({ params }) {
   }, []);
 
   useEffect(() => {
-    fetch(`/api/manager/review/${employeeId}`)
+    const url = cycleIdParam
+      ? `/api/manager/review/${employeeId}?cycleId=${cycleIdParam}`
+      : `/api/manager/review/${employeeId}`;
+    fetch(url)
       .then(r => r.json())
-      .then(data => { setEmployee(data.employee); setGoalSheet(data.goalSheet); setGoals(data.goals || []); setLoading(false); })
+      .then(data => {
+        setEmployee(data.employee);
+        setGoalSheet(data.goalSheet);
+        setGoals(data.goals || []);
+        setCycleInfo(data.cycle || null);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
-  }, [employeeId]);
+  }, [employeeId, cycleIdParam]);
+
+  const isCycleClosed = cycleInfo?.isClosed === true;
 
   const handleEdit = (goalId, field, value) => {
     setEdits(prev => {
@@ -98,7 +113,7 @@ export default function ReviewPage({ params }) {
 
   return (
     <div className="animate-fadeIn">
-      <Link href="/manager" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> Back to Team</Link>
+      <a href={`/manager/checkins${cycleIdParam ? `?cycleId=${cycleIdParam}` : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> Back to Team</a>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div><h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '4px' }}>Review: {employee?.name}</h1><p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{employee?.department} • {employee?.email}</p></div>
         <span className="badge" style={getStatusStyle(goalSheet?.status)}>{goalSheet?.status === 'Submitted' ? 'Pending Review' : (goalSheet?.status || 'No Sheet')}</span>
@@ -228,17 +243,24 @@ export default function ReviewPage({ params }) {
                     ) : <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>—</span>}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                      <input className="input-dark" placeholder="Add feedback..." style={{ fontSize: '12px', padding: '5px 8px', minWidth: '120px' }}
-                        value={goalComments[goal._id] || ''}
-                        onChange={e => setGoalComments(p => ({ ...p, [goal._id]: e.target.value }))}
-                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(goal._id); } }}
-                      />
-                      <button onClick={() => submitComment(goal._id)} disabled={!goalComments[goal._id]?.trim() || commentSubmitting[goal._id]}
-                        style={{ padding: '5px 8px', borderRadius: '6px', background: goalComments[goal._id]?.trim() ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', color: goalComments[goal._id]?.trim() ? '#818cf8' : 'var(--text-muted)', cursor: goalComments[goal._id]?.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center' }}>
-                        <Send size={12} />
-                      </button>
-                    </div>
+                    {isCycleClosed ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 8px', borderRadius: '6px', background: 'rgba(107,114,128,0.06)', border: '1px solid rgba(107,114,128,0.15)' }}>
+                        <Lock size={10} style={{ color: '#6b7280' }} />
+                        <span style={{ fontSize: '10px', color: '#6b7280' }}>Archived — read only</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <input className="input-dark" placeholder="Add feedback..." style={{ fontSize: '12px', padding: '5px 8px', minWidth: '120px' }}
+                          value={goalComments[goal._id] || ''}
+                          onChange={e => setGoalComments(p => ({ ...p, [goal._id]: e.target.value }))}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitComment(goal._id); } }}
+                        />
+                        <button onClick={() => submitComment(goal._id)} disabled={!goalComments[goal._id]?.trim() || commentSubmitting[goal._id]}
+                          style={{ padding: '5px 8px', borderRadius: '6px', background: goalComments[goal._id]?.trim() ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', color: goalComments[goal._id]?.trim() ? '#818cf8' : 'var(--text-muted)', cursor: goalComments[goal._id]?.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center' }}>
+                          <Send size={12} />
+                        </button>
+                      </div>
+                    )}
                     {(goal.managerComments?.length > 0) && (
                       <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '3px' }}>
                         {goal.managerComments.length} comment{goal.managerComments.length > 1 ? 's' : ''}

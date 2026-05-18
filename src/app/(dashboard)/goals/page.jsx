@@ -3,7 +3,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Target, Plus, Send, Trash2, Calendar, Lock, Share2 } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Target, Plus, Send, Trash2, Calendar, Lock, Share2, Filter, X } from 'lucide-react';
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonGoalCards, ErrorDisplay, SkeletonBox } from '@/components/ui/Skeletons';
@@ -12,6 +13,11 @@ import { calculateProgress } from '@/lib/progress';
 
 export default function GoalsPage() {
   const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // Contextual filters driven by query params (from analytics drill-down)
+  const filterStatus = searchParams.get('status') || '';
+  const filterThrustArea = searchParams.get('thrustArea') || '';
   const isAdmin = session?.user?.role === 'Admin';
   const isManager = session?.user?.role === 'Manager';
   const [submitting, setSubmitting] = useState(false);
@@ -20,6 +26,8 @@ export default function GoalsPage() {
   const [selectedCycle, setSelectedCycle] = useState('');
   const toast = useToast();
   const transform = useCallback((d) => d, []);
+  const hasFilter = !!(filterStatus || filterThrustArea);
+  const clearFilter = () => router.replace('/goals');
 
   // Build the API URL with cycle filter
   const apiUrl = useMemo(() => {
@@ -28,7 +36,14 @@ export default function GoalsPage() {
 
   const { data, loading, error, refresh, lastUpdated } = useDataFetcher(apiUrl, { transform });
 
-  const goals = data?.goals || [];
+  const goals = useMemo(() => {
+    const raw = data?.goals || [];
+    return raw.filter(g => {
+      if (filterStatus && g.status !== filterStatus) return false;
+      if (filterThrustArea && g.thrustArea !== filterThrustArea) return false;
+      return true;
+    });
+  }, [data?.goals, filterStatus, filterThrustArea]);
   const goalSheet = data?.goalSheet;
   const totalWeightage = data?.totalWeightage || 0;
   const cycles = data?.cycles || [];
@@ -153,7 +168,23 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* KPI Rebalance Banner — shown when sheet was auto-reopened for KPI assignment */}
+      {/* Active Filter Banner — shown when navigated from analytics with a filter */}
+      {hasFilter && !loading && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', marginBottom: '12px', borderRadius: '10px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+          <Filter size={13} style={{ color: '#818cf8', flexShrink: 0 }} />
+          <p style={{ fontSize: '12px', color: '#818cf8', flex: 1 }}>
+            Showing filtered results:
+            {filterStatus && <><strong style={{ marginLeft: '4px' }}>Status = {filterStatus}</strong></>}
+            {filterThrustArea && <><strong style={{ marginLeft: '4px' }}>Thrust Area = {filterThrustArea}</strong></>}
+            {' '}<span style={{ color: 'var(--text-muted)' }}>({goals.length} goal{goals.length !== 1 ? 's' : ''} shown)</span>
+          </p>
+          <button onClick={clearFilter} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', color: '#818cf8', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}>
+            <X size={10} /> Clear Filter
+          </button>
+        </div>
+      )}
+
+      {/* KPI Rebalance Banner */}
       {goalSheet?.status === 'Returned' && goals.some(g => g.isShared) && (
         <div className="glass-card" style={{ padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(245,158,11,0.06))', borderColor: 'rgba(245,158,11,0.25)' }}>
           <Share2 size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />

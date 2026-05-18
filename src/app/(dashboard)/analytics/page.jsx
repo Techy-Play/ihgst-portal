@@ -2,10 +2,11 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useDataFetcher } from '@/lib/useDataFetcher';
 import { PageHeader, SkeletonStatCards, SkeletonChart, ErrorDisplay } from '@/components/ui/Skeletons';
-import { User, Users, Building2, Mail, Send, X, ArrowRight, Target, CheckSquare, Maximize2, AlertTriangle, ChevronDown, ChevronUp, Clock, ShieldAlert } from 'lucide-react';
+import { User, Users, Building2, Mail, Send, X, ArrowRight, ArrowUpRight, Target, CheckSquare, Maximize2, AlertTriangle, ChevronDown, ChevronUp, Clock, ShieldAlert, TrendingUp } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 import CustomDropdown from '@/components/ui/CustomDropdown';
 import Link from 'next/link';
@@ -44,9 +45,10 @@ function PortalModal({ open, onClose, children }) {
   );
 }
 
-// Detail modal for chart drill-down
-function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, scope, role, dataKey, nameKey }) {
+// Detail modal for chart drill-down — now with row-level drill-down navigation
+function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, scope, role, dataKey, nameKey, filterParam }) {
   const [isMounted, setIsMounted] = useState(false);
+  const router = useRouter();
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -54,6 +56,15 @@ function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, 
   if (!open || !chartData?.length) return null;
   // Role-aware links
   const goalLink = role === 'Employee' ? '/goals' : '/manager';
+
+  const handleRowClick = (item) => {
+    if (!filterParam) return;
+    const val = item[nameKey || 'name'];
+    if (!val) return;
+    router.push(`${goalLink}?${filterParam}=${encodeURIComponent(val)}`);
+    onClose();
+  };
+
   return (
     <PortalModal open={open} onClose={onClose}>
       <div className="glass-card animate-fadeIn" style={{ padding: '28px', maxWidth: '640px', width: '92%', maxHeight: '80vh', overflowY: 'auto' }}>
@@ -74,15 +85,28 @@ function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, 
             </ResponsiveContainer>
           )}
         </div>
-        {/* Data Table */}
+        {/* Data Table — rows are clickable to drill into /goals with filter applied */}
         <div style={{ borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead><tr style={{ background: 'rgba(255,255,255,0.03)' }}><th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Name</th><th style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Value</th></tr></thead>
+            <thead><tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Name</th>
+              <th style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Count</th>
+              {filterParam && <th style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase' }}>Action</th>}
+            </tr></thead>
             <tbody>
               {chartData.map((item, i) => (
-                <tr key={i} style={{ borderTop: '1px solid var(--border-color)' }}>
-                  <td style={{ padding: '10px 14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: 10, height: 10, borderRadius: 2, background: (colors || COLORS)[i % (colors || COLORS).length], flexShrink: 0 }} />{item[nameKey || 'name']}</td>
+                <tr key={i} style={{ borderTop: '1px solid var(--border-color)', cursor: filterParam ? 'pointer' : 'default', transition: 'background 0.12s' }}
+                  onMouseEnter={e => { if (filterParam) e.currentTarget.style.background = 'rgba(99,102,241,0.04)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                  onClick={() => handleRowClick(item)}>
+                  <td style={{ padding: '10px 14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: (colors || COLORS)[i % (colors || COLORS).length], flexShrink: 0 }} />
+                    {item[nameKey || 'name']}
+                  </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{item[dataKey || 'value']}</td>
+                  {filterParam && <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                    <span style={{ fontSize: '10px', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end' }}>View <ArrowUpRight size={10} /></span>
+                  </td>}
                 </tr>
               ))}
             </tbody>
@@ -277,46 +301,66 @@ export default function AnalyticsPage() {
   const RISK_COLORS = { 'On Track': '#10b981', 'Delayed': '#f59e0b', 'Critical': '#ef4444', 'Completed': '#3b82f6', 'Not Started': '#6b7280' };
   const riskColorArray = (data?.riskDistribution || []).map(d => RISK_COLORS[d.name] || '#6b7280');
 
-  // Clickable chart wrapper
-  const ChartCard = ({ title, onClick, children, style }) => (
-    <div className="glass-card" onClick={onClick} style={{ padding: '20px', cursor: 'pointer', transition: 'all 0.2s', position: 'relative', overflow: 'hidden', ...style }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = ''; }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 600 }}>{title}</h3>
-        <Maximize2 size={13} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+  const router = useRouter();
+
+  // Build drill-down URL — role-aware (Employees → /goals, managers → /manager)
+  const goalsBase = (session?.user?.role === 'Employee') ? '/goals' : '/manager';
+  const drillDown = (params = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    router.push(`${goalsBase}${qs ? '?' + qs : ''}`);
+  };
+
+  // Clickable chart wrapper — shows ArrowUpRight on hover to signal navigation
+  const ChartCard = ({ title, onClick, children, style, href }) => {
+    const isClickable = !!(onClick || href);
+    const handleClick = href ? () => router.push(href) : onClick;
+    return (
+      <div className="glass-card" onClick={handleClick}
+        style={{ padding: '20px', cursor: isClickable ? 'pointer' : 'default', transition: 'all 0.2s', position: 'relative', overflow: 'hidden', ...style }}
+        onMouseEnter={e => { if (isClickable) e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
+        onMouseLeave={e => { if (isClickable) e.currentTarget.style.borderColor = ''; }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 600 }}>{title}</h3>
+          {isClickable && <ArrowUpRight size={13} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 32px)', overflow: 'hidden' }}>
+          {children}
+        </div>
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 32px)', overflow: 'hidden' }}>
-        {children}
-      </div>
-    </div>
-  );
+    );
+  };
 
   const qColors = { Q1: '#34d399', Q2: '#60a5fa', Q3: '#fbbf24', Q4: '#f87171' };
+  const cycleIsClosed = data?.cycleIsClosed === true;
+  const cycleStatus = data?.cycleStatus || (cycleIsClosed ? 'closed' : 'on_track');
+
+  // Status config driven entirely by admin-set cycleStatus, NOT by % completion
+  const cycleStatusConfig = {
+    closed:     { label: 'Closed',     color: '#6b7280', bg: 'rgba(107,114,128,0.06)', border: 'rgba(107,114,128,0.18)' },
+    incomplete: { label: 'Incomplete', color: '#f59e0b', bg: 'rgba(245,158,11,0.05)',  border: 'rgba(245,158,11,0.18)'  },
+    on_track:   { label: 'On Track',   color: '#34d399', bg: 'rgba(52,211,153,0.04)',  border: 'rgba(52,211,153,0.14)'  },
+  };
+  const statusCfg = cycleStatusConfig[cycleStatus] || cycleStatusConfig.on_track;
+
   const allQuarters = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
     const qData = (data?.quarterProgress || []).find(x => x.quarter === q);
     if (qData && qData.count > 0) {
-      const prog = qData.avgProgress;
-      let status = 'On Track';
-      let statusColor = '#34d399';
-      let bg = 'rgba(52,211,153,0.03)';
-      let border = 'rgba(52,211,153,0.12)';
-      if (prog >= 100) {
-        status = 'Completed';
-        statusColor = '#60a5fa';
-        bg = 'rgba(96,165,250,0.03)';
-        border = 'rgba(96,165,250,0.12)';
-      }
-      return { quarter: q, progress: prog, status, statusColor, bg, border, hasData: true };
+      return {
+        quarter: q,
+        progress: qData.avgProgress,
+        status: statusCfg.label,
+        statusColor: statusCfg.color,
+        bg: statusCfg.bg,
+        border: statusCfg.border,
+        hasData: true,
+      };
     }
     return {
-      quarter: q,
-      progress: 0,
-      status: 'Upcoming',
+      quarter: q, progress: 0,
+      status: cycleIsClosed ? 'No Data' : 'Upcoming',
       statusColor: 'var(--text-muted)',
-      bg: 'rgba(255,255,255,0.01)',
-      border: 'var(--border-color)',
-      hasData: false
+      bg: 'rgba(255,255,255,0.01)', border: 'var(--border-color)',
+      hasData: false,
     };
   });
 
@@ -335,7 +379,7 @@ export default function AnalyticsPage() {
         <div className="glass-card" style={{ padding: '12px 16px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span className="badge" style={{ ...cfg.badgeColor, fontSize: '11px', padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>{cfg.icon} {cfg.badge}</span>
-            {cycles.length > 0 && <div style={{ width: '200px' }}><CustomDropdown options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' ✓' : ''}` }))} value={selectedCycle} onChange={v => setSelectedCycle(v)} placeholder="Select Cycle" /></div>}
+            {cycles.length > 0 && <div style={{ width: '200px' }}><CustomDropdown options={cycles.map(c => ({ value: c._id, label: `${c.name}${c.isActive ? ' ✓ Active' : c.isClosed ? ' 🔒 Archived' : ''}` }))} value={selectedCycle} onChange={v => setSelectedCycle(v)} placeholder="Select Cycle" /></div>}
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <Link href={scope === 'personal' ? '/goals' : '/manager'} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', color: '#34d399', fontSize: '12px', fontWeight: 500 }}><Target size={12} /> {scope === 'personal' ? 'My Goals' : 'Team Review'}</Link>
@@ -344,39 +388,135 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Stats */}
-      {loading && !data ? <SkeletonStatCards count={3} /> : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-          <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{scope === 'personal' ? (data?.totalGoals || 0) : (data?.totalEmployees || 0)}</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat1Label}</p></div>
-          <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{scope === 'personal' ? `${data?.totalWeightage || 0}%` : (data?.totalGoals || 0)}</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat2Label}</p></div>
-          <div className="stat-card"><p style={{ fontSize: '28px', fontWeight: 800 }}>{latestQProgress}%</p><p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cfg.stat3Label}</p></div>
-          <div className="stat-card" onClick={() => setShowIncomplete(true)} style={{ cursor: 'pointer', borderColor: (data?.incompleteCount || 0) > 0 ? 'rgba(245,158,11,0.3)' : undefined }}>
-            <p style={{ fontSize: '28px', fontWeight: 800, color: (data?.incompleteCount || 0) > 0 ? '#fbbf24' : 'var(--text-primary)' }}>{data?.incompleteCount || 0}</p>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> Incomplete Goals</p>
-          </div>
+      {/* Archived Cycle Banner */}
+      {cycleIsClosed && !loading && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 16px', marginBottom: '16px', borderRadius: '10px', background: 'rgba(107,114,128,0.08)', border: '1px solid rgba(107,114,128,0.2)' }}>
+          <ShieldAlert size={14} style={{ color: '#9ca3af', flexShrink: 0 }} />
+          <p style={{ fontSize: '12px', color: '#9ca3af', lineHeight: 1.5 }}>
+            <strong style={{ color: 'var(--text-secondary)' }}>Archived Cycle</strong> — This cycle has been closed and is read-only. All data shown is historical. Quarter progress shows final achieved values.
+          </p>
         </div>
       )}
 
-      {/* Personal Progress Analytics */}
-      {scope === 'personal' && !loading && data && (
+      {/* Stats — all cards navigate to filtered goal views */}
+      {loading && !data ? <SkeletonStatCards count={4} /> : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          {/* Stat 1 */}
+          <div className="glass-card stat-card-hover" onClick={() => scope === 'personal' ? router.push('/goals') : router.push('/admin/users')} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '12px', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
+                <Users size={20} />
+              </div>
+              <ArrowUpRight size={16} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+            </div>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>{cfg.stat1Label}</p>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{scope === 'personal' ? (data?.totalGoals || 0) : (data?.totalEmployees || 0)}</p>
+          </div>
+
+          {/* Stat 2 */}
+          <div className="glass-card stat-card-hover" onClick={() => drillDown(scope === 'personal' ? {} : {})} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '12px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
+                <Target size={20} />
+              </div>
+              <ArrowUpRight size={16} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+            </div>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>{cfg.stat2Label}</p>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{scope === 'personal' ? `${data?.totalWeightage || 0}%` : (data?.totalGoals || 0)}</p>
+          </div>
+
+          {/* Stat 3 */}
+          <div className="glass-card stat-card-hover" onClick={() => router.push(scope === 'personal' ? '/checkin' : '/manager/checkins')} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '12px', background: 'rgba(56,189,248,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
+                <TrendingUp size={20} />
+              </div>
+              <ArrowUpRight size={16} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+            </div>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>{cfg.stat3Label}</p>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>{latestQProgress}%</p>
+          </div>
+
+          {/* Stat 4 */}
+          <div className="glass-card stat-card-hover" onClick={() => setShowIncomplete(true)} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden', borderColor: (data?.incompleteCount || 0) > 0 ? 'rgba(245,158,11,0.3)' : undefined }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <div style={{ width: 40, height: 40, borderRadius: '12px', background: (data?.incompleteCount || 0) > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
+                <AlertTriangle size={20} />
+              </div>
+              <ArrowUpRight size={16} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
+            </div>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>Incomplete Goals</p>
+            <p style={{ fontSize: '28px', fontWeight: 800, color: (data?.incompleteCount || 0) > 0 ? '#fbbf24' : 'var(--text-primary)', letterSpacing: '-0.02em' }}>{data?.incompleteCount || 0}</p>
+          </div>
+          <style jsx>{`
+            .stat-card-hover:hover {
+              border-color: rgba(99, 102, 241, 0.4) !important;
+              transform: translateY(-3px);
+              box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(99, 102, 241, 0.1) !important;
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Performance & Risk Analytics */}
+      {!loading && data && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-          <ChartCard title="Quarterly Performance" style={{ height: '320px' }} onClick={() => openDetail('Quarterly Performance', data?.quarterProgress, 'line', ['#2563eb'], 'avgProgress', 'quarter')}>
-            {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No quarterly data yet</p> : (
-              isMounted && (
-                <ResponsiveContainer width="100%" height={230} minWidth={0}>
-                  <LineChart data={data?.quarterProgress || []}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                    <XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} />
-                    <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} />
-                    <Tooltip cursor={{ stroke: 'var(--border-hover)' }} contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="avgProgress" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )
-            )}
+          <ChartCard title={scope === 'personal' ? 'My Quarterly Progress' : 'Quarterly Average Progress'} style={{ height: '320px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', height: '100%', padding: '2px 0' }}>
+              {allQuarters.map((q) => (
+                <div key={q.quarter}
+                  onClick={() => { const base = scope === 'personal' ? '/checkin' : '/manager/checkins'; const params = new URLSearchParams({ quarter: q.quarter }); if (selectedCycle) params.set('cycleId', selectedCycle); router.push(`${base}?${params.toString()}`); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px',
+                    background: q.bg, border: `1px solid ${q.border}`, transition: 'all 0.15s',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = q.statusColor !== 'var(--text-muted)' ? `${q.statusColor}10` : 'rgba(255,255,255,0.03)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = q.bg; }}>
+                  {/* Quarter Badge */}
+                  <div style={{
+                    width: '34px', height: '34px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: `linear-gradient(135deg, ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.06)' : q.statusColor + '20'}, ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.02)' : q.statusColor + '10'})`,
+                    border: `1px solid ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.1)' : q.statusColor + '35'}`,
+                    color: q.statusColor === 'var(--text-muted)' ? 'var(--text-secondary)' : q.statusColor,
+                    fontWeight: 800, fontSize: '13px', flexShrink: 0
+                  }}>
+                    {q.quarter}
+                  </div>
+
+                  {/* Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {q.quarter} • {q.hasData ? `${q.progress}%` : q.status}
+                      </span>
+                      <span style={{
+                        fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: q.statusColor === 'var(--text-muted)' ? 'var(--text-muted)' : q.statusColor,
+                        background: q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.04)' : `${q.statusColor}12`,
+                        padding: '1px 6px', borderRadius: '99px'
+                      }}>
+                        {q.status}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar / Subtitle */}
+                    {q.hasData ? (
+                      <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${q.progress}%`, background: q.statusColor, borderRadius: '2px', transition: 'width 0.4s ease' }} />
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                        {q.status === 'Upcoming' ? 'Awaiting activation window' : 'No progress logged yet'}
+                      </span>
+                    )}
+                  </div>
+                  <ArrowUpRight size={12} style={{ color: 'var(--text-muted)', opacity: 0.4, flexShrink: 0 }} />
+                </div>
+              ))}
+            </div>
           </ChartCard>
 
-          <ChartCard title="Goal Risk Distribution" style={{ height: '320px' }} onClick={() => openDetail('Goal Risk Distribution', data?.riskDistribution, 'pie', riskColorArray)}>
+          <ChartCard title="Goal Risk Distribution" style={{ height: '320px' }} onClick={() => drillDown({ status: 'Approved' })}>
             {(data?.riskDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No active goals to assess</p> : (() => {
               const riskData = data?.riskDistribution || [];
               const totalRisk = riskData.reduce((s, d) => s + d.value, 0);
@@ -430,12 +570,12 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}><SkeletonChart height={280} /><SkeletonChart height={280} /></div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-          <ChartCard title="Goal Status Distribution" style={{ height: '320px' }} onClick={() => openDetail('Goal Status Distribution', data?.statusDistribution, 'pie')}>
+          <ChartCard title="Goal Status Distribution" style={{ height: '320px' }} onClick={() => drillDown({})}>
             {(data?.statusDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
               <>{isMounted && <ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
             )}
           </ChartCard>
-          <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2))}>
+          <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2), 'value', 'name')}>
             {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
               <>{isMounted && <ResponsiveContainer width="100%" height={200} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={40} outerRadius={72} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<div style={{ maxHeight: '52px', overflowY: 'auto', flexShrink: 0 }}><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></div></>
             )}
@@ -448,59 +588,12 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}><SkeletonChart height={280} /><SkeletonChart height={280} /></div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-          <ChartCard title="Target vs Actual" style={{ height: '320px' }} onClick={() => openDetail('Target vs Actual', data?.targetVsActual, 'bar', ['#3b82f6'], 'target')}>
+          <ChartCard title="Target vs Actual" style={{ height: '320px' }} onClick={() => drillDown({ status: 'Approved' })}>
             {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
               <>{isMounted && <ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer>}<ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
             )}
           </ChartCard>
-          <ChartCard title={scope === 'personal' ? 'My Quarterly Progress' : 'Quarterly Average Progress'} style={{ height: '320px', cursor: 'default' }} onClick={null}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', height: '100%', padding: '2px 0' }}>
-              {allQuarters.map((q) => (
-                <div key={q.quarter} style={{
-                  display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px',
-                  background: q.bg, border: `1px solid ${q.border}`, transition: 'all 0.15s'
-                }}>
-                  {/* Quarter Badge */}
-                  <div style={{
-                    width: '34px', height: '34px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: `linear-gradient(135deg, ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.06)' : q.statusColor + '20'}, ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.02)' : q.statusColor + '10'})`,
-                    border: `1px solid ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.1)' : q.statusColor + '35'}`,
-                    color: q.statusColor === 'var(--text-muted)' ? 'var(--text-secondary)' : q.statusColor,
-                    fontWeight: 800, fontSize: '13px', flexShrink: 0
-                  }}>
-                    {q.quarter}
-                  </div>
 
-                  {/* Details */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        {q.quarter} • {q.hasData ? `${q.progress}%` : q.status}
-                      </span>
-                      <span style={{
-                        fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: q.statusColor === 'var(--text-muted)' ? 'var(--text-muted)' : q.statusColor,
-                        background: q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.04)' : `${q.statusColor}12`,
-                        padding: '1px 6px', borderRadius: '99px'
-                      }}>
-                        {q.status}
-                      </span>
-                    </div>
-
-                    {/* Progress Bar / Subtitle */}
-                    {q.hasData ? (
-                      <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${q.progress}%`, background: q.statusColor, borderRadius: '2px', transition: 'width 0.4s ease' }} />
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                        {q.status === 'Upcoming' ? 'Awaiting activation window' : 'No progress logged yet'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </ChartCard>
         </div>
       )}
 

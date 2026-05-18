@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
+import Cycle from '@/models/Cycle';
 import AuditLog from '@/models/AuditLog';
 import { handleApiError, parseBody } from '@/lib/apiError';
 
@@ -17,8 +18,13 @@ export async function GET(request, { params }) {
     if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
     const auditLogs = await AuditLog.find({ entityType: 'Goal', entityId: id }).sort({ createdAt: -1 }).lean();
     const goalSheet = await GoalSheet.findById(goal.goalSheetId).lean();
+    let isCycleClosed = false;
+    if (goalSheet?.cycleId) {
+      const cycle = await Cycle.findById(goalSheet.cycleId).lean();
+      isCycleClosed = cycle?.isClosed === true;
+    }
     const managerComments = goal.managerComments || [];
-    return NextResponse.json({ goal, auditLogs, managerComments, goalSheetStatus: goalSheet?.status });
+    return NextResponse.json({ goal, auditLogs, managerComments, goalSheetStatus: goalSheet?.status, isCycleClosed });
   } catch (error) {
     return handleApiError(error, 'goals/[id] GET');
   }

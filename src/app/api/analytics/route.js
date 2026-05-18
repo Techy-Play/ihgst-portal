@@ -145,6 +145,11 @@ export async function GET(request) {
     const query = cycleObjectId ? { cycleId: cycleObjectId } : {};
     const sheetQuery = cycleObjectId ? { cycleId: cycleObjectId } : {};
 
+    // Fetch selected cycle to know if it's closed (archived) and its admin-set status
+    const selectedCycle = cycleObjectId ? await Cycle.findById(cycleObjectId).lean() : null;
+    const cycleIsClosed = selectedCycle?.isClosed === true;
+    const cycleStatus = selectedCycle?.cycleStatus || (cycleIsClosed ? 'closed' : 'on_track');
+
     const reqScope = searchParams.get('scope');
 
     // ─── Employee: personal analytics only ───
@@ -173,6 +178,8 @@ export async function GET(request) {
 
       return NextResponse.json({
         scope: 'personal',
+        cycleIsClosed,
+        cycleStatus,
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
         thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
         riskDistribution: buildRiskDistribution(goals),
@@ -230,6 +237,8 @@ export async function GET(request) {
 
       return NextResponse.json({
         scope: 'team',
+        cycleIsClosed,
+        cycleStatus,
         statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
         thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
         riskDistribution: buildRiskDistribution(goals),
@@ -277,6 +286,8 @@ export async function GET(request) {
 
     return NextResponse.json({
       scope: 'organization',
+      cycleIsClosed,
+      cycleStatus,
       statusDistribution: Object.entries(statusDist).map(([name, value]) => ({ name, value })),
       thrustAreaDistribution: Object.entries(thrustDist).map(([name, value]) => ({ name, value })),
       riskDistribution: buildRiskDistribution(goals),

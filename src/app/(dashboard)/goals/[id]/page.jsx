@@ -75,6 +75,7 @@ export default function GoalDetailPage({ params }) {
   const [touched, setTouched] = useState({});
   const [usedWeightage, setUsedWeightage] = useState(0);
   const [goalCount, setGoalCount] = useState(0);
+  const [isCycleClosed, setIsCycleClosed] = useState(false);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -93,6 +94,7 @@ export default function GoalDetailPage({ params }) {
       setGoal(detail.goal);
       setAuditLogs(detail.auditLogs || []);
       setManagerComments(discussionData.comments || []);
+      setIsCycleClosed(detail.isCycleClosed || false);
       if (showLoader) {
         setForm({
           thrustArea: detail.goal.thrustArea, title: detail.goal.title,
@@ -250,7 +252,7 @@ export default function GoalDetailPage({ params }) {
             const qColor = qProg >= 80 ? '#34d399' : qProg >= 40 ? '#fbbf24' : qProg > 0 ? '#f87171' : 'var(--text-muted)';
             return (<div key={q} style={{ padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
               <p style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px' }}>{q}</p>
-              <p style={{ fontSize: '16px', fontWeight: 800, color: qColor }}>{val !== null && val !== undefined ? val : '—'}</p>
+              <p style={{ fontSize: '16px', fontWeight: 800, color: qColor }}>{val !== null && val !== undefined ? (goal.uom === 'Percentage' ? `${val}%` : val) : '—'}</p>
               {val !== null && val !== undefined && (<div style={{ height: '3px', borderRadius: '2px', background: 'rgba(99,102,241,0.1)', marginTop: '6px' }}><div style={{ height: '100%', borderRadius: '2px', background: qColor, width: `${qProg}%` }} /></div>)}
               <p style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '4px' }}>{ach ? (ach.status || 'Updated') : 'Pending'}</p>
             </div>);
@@ -287,7 +289,7 @@ export default function GoalDetailPage({ params }) {
           <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}><Lock size={9} /> Append-only</span>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', margin: '-4px', padding: '4px' }}>
-          <DiscussionThread comments={managerComments} goalId={id} currentUser={{ name: session?.user?.name, role }} onCommentPosted={() => fetchGoalData(false)} groupByQuarter={true} />
+          <DiscussionThread comments={managerComments} goalId={id} currentUser={{ name: session?.user?.name, role }} onCommentPosted={() => fetchGoalData(false)} groupByQuarter={true} isCycleClosed={isCycleClosed} />
         </div>
       </div>
     </>
