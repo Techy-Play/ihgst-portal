@@ -126,13 +126,15 @@ Escalations **automatically resolve** (no admin action needed) when:
 
 A compound index on `{ userId, cycleId, type, level, status }` ensures a new escalation is only created when no `ACTIVE` record for the same condition already exists — preventing notification spam.
 
-### Manual Trigger (Demo)
+### Manual Trigger & Export (Demo)
 
 Admins can trigger the engine on-demand from the Escalation Dashboard without waiting for the 6-hour cron:
 
 ```http
 POST /api/admin/escalations/trigger
 ```
+
+Admins can also generate a downloadable Excel report of all escalations or have it emailed directly to stakeholders via the integrated `Nodemailer` export feature.
 
 ---
 
@@ -378,6 +380,8 @@ Admin User (HR)
 - **✨ UX Polish & Refinements** — Enhanced pie chart paddings to eliminate overflow, dynamic pulse-highlighted auto-scroll functionality for demo credentials, and fully clickable data rows (with input exclusion) for seamless navigation during manager reviews
 - **🛡️ Role-Based Access** — Route-level protection via proxy middleware + API-level auth checks
 - **🚨 Automated Escalation Engine** — Continuous cron-driven workflow escalation system that detects overdue goal submissions, pending approvals, and missing check-ins — notifies employees, managers, and admins at escalating severity levels (L1→L2→L3), and auto-resolves when the triggering action is completed
+- **🧠 Intelligent KPI Rebalancing** — When a user is removed from a shared KPI, the system safely rolls back the user's overall state and weightage to precisely what it was before the KPI was assigned, maintaining data integrity
+- **🔍 Escalation Governance Dashboard** — High-density 3-column responsive layout with 7-Day Trend analysis, Hotspot Departments breakdown, dynamic compliance rates, row-level deep links, and an integrated "All Notifications" styled slide-out Detail Drawer
 
 ---
 
