@@ -1,0 +1,27 @@
+name: Escalation Engine Cron
+
+on:
+  schedule:
+    # Runs every 6 hours at minute 0 (UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Also allows manual trigger from GitHub Actions tab
+
+jobs:
+  trigger-escalations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Escalation Engine
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/escalations")
+          
+          echo "Response status: $RESPONSE"
+          
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "❌ Escalation engine call failed with status $RESPONSE"
+            exit 1
+          else
+            echo "✅ Escalation engine triggered successfully"
+          fi
