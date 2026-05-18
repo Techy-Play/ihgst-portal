@@ -17,9 +17,9 @@ The portal follows a **three-layer architecture**:
 
 | Layer | Technology | Responsibility |
 |---|---|---|
-| **Client (Frontend)** | Next.js App Router + React 19 | UI rendering, routing, client-side state |
-| **Application (Backend)** | Next.js API Routes | Business logic, auth, validation, data aggregation |
-| **Data** | MongoDB Atlas + Mongoose | Persistent storage across 9 collections |
+| **Client (Frontend)** | Next.js App Router + React 19 | UI rendering, routing, client-side state. Hosted on Vercel Edge. |
+| **Application (Backend)** | Next.js API Routes | Business logic, auth, validation (Zod), data aggregation. Serverless functions for high scalability and zero idle cost. |
+| **Data** | MongoDB Atlas + Mongoose | Persistent storage across 9 collections. Compound indexes prevent duplicates, reducing DB load. |
 
 ---
 
@@ -149,6 +149,28 @@ Admins can also generate a downloadable Excel report of all escalations or have 
 | **Quarter Locking** | Only the active quarter is editable; past/future quarters are locked |
 | **KPI Uniqueness** | Shared KPIs cannot be duplicated per user |
 | **Approval Flow** | Goals must be approved before check-ins can be submitted |
+
+---
+
+## 🛡️ Reliability & Observability (Enterprise-Grade)
+
+To ensure maximum reliability without complex overhead, the system implements robust built-in monitoring and data validation:
+
+- **Cron Engine History (`CronLog`)**: Every automated run of the escalation engine is recorded with execution duration (ms), trigger source (GitHub Actions vs Manual), success/failure status, and detailed error logs.
+- **Immutable Audit Logging (`AuditLog`)**: Complete historical tracking of who changed what and when, across users, goals, cycles, and escalations.
+- **Strict Data Validation**: Zod schemas strictly validate all incoming API requests (e.g., ensuring weightages always equal 100%, targets are valid numbers).
+- **Graceful Error Handling**: A centralized `handleApiError` middleware catches all server exceptions, returning standard HTTP codes, while the frontend's `safeFetch` wrapper prevents UI crashes on network failures.
+
+---
+
+## 📉 Performance & Cost Optimization
+
+The architecture is explicitly designed to maximize efficiency and minimize hosting costs, achieving enterprise scale on free/hobby tiers:
+
+- **Zero-Cost Serverless**: Next.js API routes deployed on Vercel scale to zero when idle. 
+- **Free GitHub Actions Cron**: Instead of paying for premium scheduled jobs, the escalation engine is triggered via a free GitHub Actions workflow.
+- **Query Optimization (`.lean()`)**: All Mongoose read operations (dashboards, exports, analytics) use `.lean()` to bypass heavy Mongoose Document hydration, returning raw JSON. This drastically reduces memory usage and execution time.
+- **Compound Indexes**: Database indexes (e.g., `{ userId: 1, cycleId: 1, type: 1 }` on Escalations) enforce uniqueness at the database level, preventing race conditions and reducing complex JS-side deduplication logic.
 
 ---
 
@@ -358,30 +380,34 @@ Admin User (HR)
 
 ---
 
-## ✅ Key Features
+## ✅ Key Features & BRD Adherence
 
-- **🎯 Quarterly Goal Setting** — Goals with thrust areas, UoM types (Numeric, Percentage, Timeline, Zero), targets, and weighted KPIs
-- **⚡ Automated Goal Completion** — Server-side logic automatically transitions goal status to `"Completed"` once progress reaches 100%
+The system fully implements all mandatory BRD requirements from both phases, plus several enterprise-grade "Good-to-Have" features:
+
+### 1. Extremely Complete Workflow Coverage
+- **🎯 Quarterly Goal Setting** — Goals with thrust areas, UoM types (Numeric, Percentage, Timeline, Zero), targets, and weighted KPIs.
+- **✅ Approval Workflow** — Manager review with inline edit, approve, return with comments.
+- **🔄 Quarterly Check-ins** — Track actual vs. planned across Q1–Q4 with automated progress calculation.
+- **⚡ Automated Goal Completion** — Server-side logic automatically transitions goal status to `"Completed"` once progress reaches 100%.
 - **🏛️ Enterprise Cycle Lifecycle Management** — Robust closure validation checking for pending check-ins, unapproved goals, and incomplete KPIs before allowing administrative cycles to close. Supports active, incomplete, and archived cycle states.
-- **🔒 Deep-Linked Archival Integrity** — Past cycles become strictly read-only with persistent URL state parameters across Check-in views, Analytics dashboards, and Goal Details. Feedback and comments are completely disabled for closed cycles.
+
+### 2. Escalation & Governance (Good-to-Have)
+- **🚨 Automated Escalation Engine** — Continuous cron-driven workflow escalation system that detects overdue goal submissions, pending approvals, and missing check-ins.
+- **📧 Multi-Channel Alerts** — Notifies employees, managers, and admins at escalating severity levels (L1→L2→L3) via both in-app alerts and integrated **Nodemailer** direct email.
+- **🔍 Escalation Governance Dashboard** — High-density 3-column responsive layout with 7-Day Trend analysis, Hotspot Departments breakdown, dynamic compliance rates, row-level deep links, and an integrated "All Notifications" styled slide-out Detail Drawer.
+
+### 3. Analytics & Reporting
+- **📊 Real-time Analytics** — PieCharts, BarCharts for goal distribution, quarterly trends, department comparisons.
+- **🔗 Shared KPIs** — Organization-wide KPIs pushed by Admin/Manager — locked title, editable weightage.
+- **🧠 Intelligent KPI Rebalancing** — When a user is removed from a shared KPI, the system safely rolls back the user's overall state and weightage to precisely what it was before the KPI was assigned, maintaining data integrity.
+- **📧 Report Export** — CSV/Excel (`xlsx`) generation with email delivery to stakeholders.
+
+### 4. Enterprise UX & Deep-Linking (User Friendliness)
 - **💎 Premium Analytics UI** — Dashboard KPI cards upgraded with glassmorphism, responsive grid scaling, hover animations, and integrated icons to match an enterprise-grade aesthetic.
-- **🔗 Goal Deep-linking & Highlighting** — A contextual `"Go to Check-ins"` button on Goal Details (gated strictly to the goal owner) navigates to check-ins, auto-scrolls to the target goal, and applies a prominent visual highlight glow animation
-- **💬 Collapsible Quarter-specific Discussions** — Check-ins feature collapsible notes boards tagged specifically by quarter (Q1–Q4). General discussions can be tagged with quarters in the Goal Details view with interactive filter tabs
-- **👨‍💼 Live Manager Feedback Banners** — Real-time display of the latest top-level manager comments from the Discussion board directly on check-in cards
-- **✅ Approval Workflow** — Manager review with inline edit, approve, return with comments
-- **📊 Real-time Analytics** — PieCharts, BarCharts for goal distribution, quarterly trends, department comparisons
-- **🔄 Quarterly Check-ins** — Track actual vs. planned across Q1–Q4 with automated progress calculation
-- **🔗 Shared KPIs** — Organization-wide KPIs pushed by Admin/Manager — locked title, editable weightage
-- **📋 Audit Trail** — Complete change history for accountability
-- **📧 Report Export** — CSV/Excel generation with email delivery
-- **🔔 Notifications** — In-app alerts for approvals, returns, assignments, escalations, and discussion replies
-- **📱 Responsive Design** — Desktop sidebar + mobile bottom nav, with proportional grid layouts on ultra-wide screens
-- **🎨 Dark Theme** — Glassmorphism effects, gradient accents, smooth animations
-- **✨ UX Polish & Refinements** — Enhanced pie chart paddings to eliminate overflow, dynamic pulse-highlighted auto-scroll functionality for demo credentials, and fully clickable data rows (with input exclusion) for seamless navigation during manager reviews
-- **🛡️ Role-Based Access** — Route-level protection via proxy middleware + API-level auth checks
-- **🚨 Automated Escalation Engine** — Continuous cron-driven workflow escalation system that detects overdue goal submissions, pending approvals, and missing check-ins — notifies employees, managers, and admins at escalating severity levels (L1→L2→L3) via both in-app alerts and direct email, auto-resolving when the triggering action is completed
-- **🧠 Intelligent KPI Rebalancing** — When a user is removed from a shared KPI, the system safely rolls back the user's overall state and weightage to precisely what it was before the KPI was assigned, maintaining data integrity
-- **🔍 Escalation Governance Dashboard** — High-density 3-column responsive layout with 7-Day Trend analysis, Hotspot Departments breakdown, dynamic compliance rates, row-level deep links, and an integrated "All Notifications" styled slide-out Detail Drawer
+- **🔗 Goal Deep-linking & Highlighting** — A contextual `"Go to Check-ins"` button on Goal Details navigates to check-ins, auto-scrolls to the target goal, and applies a prominent visual highlight glow animation.
+- **💬 Collapsible Quarter-specific Discussions** — Check-ins feature collapsible notes boards tagged specifically by quarter (Q1–Q4). General discussions can be tagged with quarters in the Goal Details view with interactive filter tabs.
+- **👨‍💼 Live Manager Feedback Banners** — Real-time display of the latest top-level manager comments from the Discussion board directly on check-in cards.
+- **🔒 Deep-Linked Archival Integrity** — Past cycles become strictly read-only with persistent URL state parameters across Check-in views, Analytics dashboards, and Goal Details.
 
 ---
 
