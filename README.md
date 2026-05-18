@@ -111,9 +111,9 @@ Auto-Resolve When Action Completed
 
 | Level | Color | Who is notified |
 |---|---|---|
-| **L1** | 🟡 Yellow | Employee — reminder to take action |
-| **L2** | 🟠 Orange | Manager — action overdue escalation |
-| **L3** | 🔴 Red | HR / Admin — critical threshold exceeded |
+| **L1** | 🟡 Yellow | Employee — reminder to take action (In-app + Email) |
+| **L2** | 🟠 Orange | Manager — action overdue escalation (In-app + Email) |
+| **L3** | 🔴 Red | HR / Admin — critical threshold exceeded (In-app + Email) |
 
 ### Auto-Resolution
 
@@ -379,7 +379,7 @@ Admin User (HR)
 - **🎨 Dark Theme** — Glassmorphism effects, gradient accents, smooth animations
 - **✨ UX Polish & Refinements** — Enhanced pie chart paddings to eliminate overflow, dynamic pulse-highlighted auto-scroll functionality for demo credentials, and fully clickable data rows (with input exclusion) for seamless navigation during manager reviews
 - **🛡️ Role-Based Access** — Route-level protection via proxy middleware + API-level auth checks
-- **🚨 Automated Escalation Engine** — Continuous cron-driven workflow escalation system that detects overdue goal submissions, pending approvals, and missing check-ins — notifies employees, managers, and admins at escalating severity levels (L1→L2→L3), and auto-resolves when the triggering action is completed
+- **🚨 Automated Escalation Engine** — Continuous cron-driven workflow escalation system that detects overdue goal submissions, pending approvals, and missing check-ins — notifies employees, managers, and admins at escalating severity levels (L1→L2→L3) via both in-app alerts and direct email, auto-resolving when the triggering action is completed
 - **🧠 Intelligent KPI Rebalancing** — When a user is removed from a shared KPI, the system safely rolls back the user's overall state and weightage to precisely what it was before the KPI was assigned, maintaining data integrity
 - **🔍 Escalation Governance Dashboard** — High-density 3-column responsive layout with 7-Day Trend analysis, Hotspot Departments breakdown, dynamic compliance rates, row-level deep links, and an integrated "All Notifications" styled slide-out Detail Drawer
 
