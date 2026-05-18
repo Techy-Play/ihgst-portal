@@ -316,7 +316,7 @@ export default function AnalyticsPage() {
     const handleClick = href ? () => router.push(href) : onClick;
     return (
       <div className="glass-card" onClick={handleClick}
-        style={{ padding: '20px', cursor: isClickable ? 'pointer' : 'default', transition: 'all 0.2s', position: 'relative', overflow: 'hidden', ...style }}
+        style={{ padding: '24px', cursor: isClickable ? 'pointer' : 'default', transition: 'all 0.2s', position: 'relative', overflow: 'hidden', ...style }}
         onMouseEnter={e => { if (isClickable) e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)'; }}
         onMouseLeave={e => { if (isClickable) e.currentTarget.style.borderColor = ''; }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -402,7 +402,7 @@ export default function AnalyticsPage() {
       {loading && !data ? <SkeletonStatCards count={4} /> : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
           {/* Stat 1 */}
-          <div className="glass-card stat-card-hover" onClick={() => scope === 'personal' ? router.push('/goals') : router.push('/admin/users')} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+          <div className="glass-card stat-card-hover" onClick={() => scope === 'personal' ? router.push('/goals') : router.push('/admin/users')} style={{ cursor: 'pointer', padding: '24px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div style={{ width: 40, height: 40, borderRadius: '12px', background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8' }}>
                 <Users size={20} />
@@ -414,7 +414,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Stat 2 */}
-          <div className="glass-card stat-card-hover" onClick={() => drillDown(scope === 'personal' ? {} : {})} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+          <div className="glass-card stat-card-hover" onClick={() => drillDown(scope === 'personal' ? {} : {})} style={{ cursor: 'pointer', padding: '24px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div style={{ width: 40, height: 40, borderRadius: '12px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
                 <Target size={20} />
@@ -426,7 +426,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Stat 3 */}
-          <div className="glass-card stat-card-hover" onClick={() => router.push(scope === 'personal' ? '/checkin' : '/manager/checkins')} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden' }}>
+          <div className="glass-card stat-card-hover" onClick={() => router.push(scope === 'personal' ? '/checkin' : '/manager/checkins')} style={{ cursor: 'pointer', padding: '24px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div style={{ width: 40, height: 40, borderRadius: '12px', background: 'rgba(56,189,248,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
                 <TrendingUp size={20} />
@@ -438,7 +438,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Stat 4 */}
-          <div className="glass-card stat-card-hover" onClick={() => setShowIncomplete(true)} style={{ cursor: 'pointer', padding: '20px', position: 'relative', overflow: 'hidden', borderColor: (data?.incompleteCount || 0) > 0 ? 'rgba(245,158,11,0.3)' : undefined }}>
+          <div className="glass-card stat-card-hover" onClick={() => setShowIncomplete(true)} style={{ cursor: 'pointer', padding: '24px', position: 'relative', overflow: 'hidden', borderColor: (data?.incompleteCount || 0) > 0 ? 'rgba(245,158,11,0.3)' : undefined }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div style={{ width: 40, height: 40, borderRadius: '12px', background: (data?.incompleteCount || 0) > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(245,158,11,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
                 <AlertTriangle size={20} />
@@ -461,13 +461,13 @@ export default function AnalyticsPage() {
       {/* Performance & Risk Analytics */}
       {!loading && data && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-          <ChartCard title={scope === 'personal' ? 'My Quarterly Progress' : 'Quarterly Average Progress'} style={{ height: '320px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', height: '100%', padding: '2px 0' }}>
+          <ChartCard title={scope === 'personal' ? 'My Quarterly Progress' : 'Quarterly Average Progress'} style={{ height: '350px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', justifyContent: 'center', height: '100%', padding: '0' }}>
               {allQuarters.map((q) => (
                 <div key={q.quarter}
                   onClick={() => { const base = scope === 'personal' ? '/checkin' : '/manager/checkins'; const params = new URLSearchParams({ quarter: q.quarter }); if (selectedCycle) params.set('cycleId', selectedCycle); router.push(`${base}?${params.toString()}`); }}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px',
+                    display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 14px', borderRadius: '10px',
                     background: q.bg, border: `1px solid ${q.border}`, transition: 'all 0.15s',
                     cursor: 'pointer'
                   }}
@@ -516,7 +516,7 @@ export default function AnalyticsPage() {
             </div>
           </ChartCard>
 
-          <ChartCard title="Goal Risk Distribution" style={{ height: '320px' }} onClick={() => drillDown({ status: 'Approved' })}>
+          <ChartCard title="Goal Risk Distribution" style={{ height: '350px' }} onClick={() => drillDown({ status: 'Approved' })}>
             {(data?.riskDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No active goals to assess</p> : (() => {
               const riskData = data?.riskDistribution || [];
               const totalRisk = riskData.reduce((s, d) => s + d.value, 0);
@@ -525,11 +525,11 @@ export default function AnalyticsPage() {
               const healthPct = totalRisk > 0 ? Math.round(((totalRisk - critCount - delayCount) / totalRisk) * 100) : 0;
               return (
                 <>
-                  <div style={{ position: 'relative', height: 180 }}>
+                  <div style={{ position: 'relative', height: 200, paddingTop: '10px' }}>
                     {isMounted && (
                       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                        <PieChart>
-                          <Pie data={riskData} cx="50%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={4} dataKey="value" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} fontSize={10} labelLine={{ stroke: 'var(--text-muted)' }}>
+                        <PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                          <Pie data={riskData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={4} dataKey="value" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} fontSize={10} labelLine={{ stroke: 'var(--text-muted)', length1: 10, length2: 10 }}>
                             {riskData.map((entry, i) => <Cell key={i} fill={RISK_COLORS[entry.name] || '#6b7280'} stroke="transparent" />)}
                           </Pie>
                           <Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [`${value} goal${value !== 1 ? 's' : ''}`, name]} />
@@ -570,14 +570,14 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}><SkeletonChart height={280} /><SkeletonChart height={280} /></div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-          <ChartCard title="Goal Status Distribution" style={{ height: '320px' }} onClick={() => drillDown({})}>
+          <ChartCard title="Goal Status Distribution" style={{ height: '350px' }} onClick={() => drillDown({})}>
             {(data?.statusDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <>{isMounted && <ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
+              <>{isMounted && <ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11} labelLine={{ stroke: 'var(--text-muted)', length1: 10, length2: 10 }}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
             )}
           </ChartCard>
-          <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2), 'value', 'name')}>
+          <ChartCard title="Thrust Area Breakdown" style={{ height: '350px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2), 'value', 'name')}>
             {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <>{isMounted && <ResponsiveContainer width="100%" height={200} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={40} outerRadius={72} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<div style={{ maxHeight: '52px', overflowY: 'auto', flexShrink: 0 }}><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></div></>
+              <>{isMounted && <ResponsiveContainer width="100%" height={200} minWidth={0}><PieChart margin={{ top: 15, right: 15, bottom: 15, left: 15 }}><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<div style={{ maxHeight: '52px', overflowY: 'auto', flexShrink: 0 }}><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></div></>
             )}
           </ChartCard>
         </div>
@@ -588,7 +588,7 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}><SkeletonChart height={280} /><SkeletonChart height={280} /></div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-          <ChartCard title="Target vs Actual" style={{ height: '320px' }} onClick={() => drillDown({ status: 'Approved' })}>
+          <ChartCard title="Target vs Actual" style={{ height: '350px' }} onClick={() => drillDown({ status: 'Approved' })}>
             {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
               <>{isMounted && <ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer>}<ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
             )}

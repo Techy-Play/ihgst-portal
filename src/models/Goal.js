@@ -12,7 +12,9 @@ const GoalSchema = new mongoose.Schema({
   uomDirection: { type: String, enum: ['Min', 'Max'], default: 'Min' },
   target: { type: mongoose.Schema.Types.Mixed, required: true },
   weightage: { type: Number, required: true, min: 10 },
-  status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Returned', 'Locked'], default: 'Draft' },
+  previousWeightage: { type: Number, default: null }, // preserved from pre-rebalance approval
+  previousStatus: { type: String, default: null },    // preserved status before Rebalancing
+  status: { type: String, enum: ['Draft', 'Submitted', 'Approved', 'Returned', 'Locked', 'Rebalancing'], default: 'Draft' },
   isShared: { type: Boolean, default: false },
   sharedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   primaryOwnerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -31,4 +33,8 @@ const GoalSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 GoalSchema.index({ userId: 1, goalSheetId: 1 });
-export default mongoose.models.Goal || mongoose.model('Goal', GoalSchema);
+
+// Delete cached model to ensure updated enum (including 'Rebalancing') is always picked up on hot-reload
+if (mongoose.models.Goal) delete mongoose.models.Goal;
+export default mongoose.model('Goal', GoalSchema);
+

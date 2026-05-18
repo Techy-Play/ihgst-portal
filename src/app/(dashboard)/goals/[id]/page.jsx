@@ -141,8 +141,11 @@ export default function GoalDetailPage({ params }) {
   const maxWeightage = Math.min(remaining, 100);
   const weightageColor = remaining <= 0 ? 'danger' : remaining <= 20 ? 'warning' : '';
 
-  const isEditable = goal && ['Draft', 'Returned'].includes(goal.status) && !goal.isShared;
-  const isSharedEditable = goal && goal.isShared && ['Draft', 'Returned'].includes(goal.status);
+  const isRebalancing = goal?.status === 'Rebalancing';
+  // Editable: employee's own goal in Draft/Returned/Rebalancing (not shared)
+  const isEditable = goal && ['Draft', 'Returned', 'Rebalancing'].includes(goal.status) && !goal.isShared;
+  // Shared KPI: weightage-only editing in Draft/Returned (but LOCKED during Rebalancing — org-controlled)
+  const isSharedEditable = goal && goal.isShared && ['Draft', 'Returned'].includes(goal.status) && !isRebalancing;
 
   // Inline validation
   const validate = () => {
@@ -213,7 +216,7 @@ export default function GoalDetailPage({ params }) {
     return Math.min(100, Math.round((currentValue / targetNum) * 100));
   })();
   const progressColor = progress >= 80 ? '#34d399' : progress >= 40 ? '#fbbf24' : '#f87171';
-  const statusColors = { Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', label: '🔒 Approved & Locked' }, Submitted: { bg: 'rgba(99,102,241,0.12)', color: '#818cf8', label: '🕐 Pending Review' }, Draft: { bg: 'rgba(156,163,175,0.12)', color: '#9ca3af', label: 'Draft' }, Returned: { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24', label: '⚠️ Returned' } };
+  const statusColors = { Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', label: '🔒 Approved & Locked' }, Submitted: { bg: 'rgba(99,102,241,0.12)', color: '#818cf8', label: '🕐 Pending Review' }, Draft: { bg: 'rgba(156,163,175,0.12)', color: '#9ca3af', label: 'Draft' }, Returned: { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24', label: '⚠️ Returned' }, Rebalancing: { bg: 'rgba(234,179,8,0.12)', color: '#facc15', label: '⚖️ Rebalancing' } };
   const sc = statusColors[goal?.status] || statusColors.Draft;
   const lastCheckinQuarter = achievements.length > 0 ? achievements[achievements.length - 1].quarter : null;
 
@@ -456,14 +459,32 @@ export default function GoalDetailPage({ params }) {
                       </span>
                     </div>
                   )}
-                  <input className="input-dark" type="number" value={form.weightage || ''} onChange={(e) => { const v = Math.max(0, Math.min(maxWeightage, parseInt(e.target.value) || 0)); setForm(p => ({ ...p, weightage: v })); }} onBlur={() => handleBlur('weightage')} disabled={!isEditable && !isSharedEditable} min={10} max={maxWeightage} style={{ marginBottom: (isEditable || isSharedEditable) ? '8px' : 0, borderColor: fieldError('weightage') ? '#f87171' : undefined }} />
-                  {(isEditable || isSharedEditable) && remaining > 0 && (
-                    <div className="slider-container">
-                      <input type="range" className="range-slider" min={10} max={maxWeightage} value={Math.min(form.weightage || 10, maxWeightage)} onChange={e => setForm(p => ({ ...p, weightage: parseInt(e.target.value) }))} />
-                      <span className="slider-value-badge">{form.weightage || 10}%</span>
+                  {/* Previous weightage reference during Rebalancing */}
+                  {isRebalancing && goal.previousWeightage != null && (
+                    <div style={{ marginBottom: '8px', padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Previously approved</span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#9ca3af' }}>{goal.previousWeightage}%</span>
                     </div>
                   )}
-                  {fieldError('weightage') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('weightage')}</p>}
+                  {/* Lock weightage for shared KPI goals during rebalancing */}
+                  {isRebalancing && goal.isShared && (
+                    <div style={{ padding: '10px 12px', borderRadius: '10px', background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Lock size={13} style={{ color: '#a78bfa' }} />
+                      <span style={{ fontSize: '12px', color: '#c084fc', fontWeight: 600 }}>{form.weightage}% — Org-controlled (locked)</span>
+                    </div>
+                  )}
+                  {!isRebalancing || !goal.isShared ? (
+                    <>
+                      <input className="input-dark" type="number" value={form.weightage || ''} onChange={(e) => { const v = Math.max(0, Math.min(maxWeightage, parseInt(e.target.value) || 0)); setForm(p => ({ ...p, weightage: v })); }} onBlur={() => handleBlur('weightage')} disabled={!isEditable && !isSharedEditable} min={10} max={maxWeightage} style={{ marginBottom: (isEditable || isSharedEditable) ? '8px' : 0, borderColor: fieldError('weightage') ? '#f87171' : undefined }} />
+                      {(isEditable || isSharedEditable) && remaining > 0 && (
+                        <div className="slider-container">
+                          <input type="range" className="range-slider" min={10} max={maxWeightage} value={Math.min(form.weightage || 10, maxWeightage)} onChange={e => setForm(p => ({ ...p, weightage: parseInt(e.target.value) }))} />
+                          <span className="slider-value-badge">{form.weightage || 10}%</span>
+                        </div>
+                      )}
+                      {fieldError('weightage') && <p style={{ fontSize: '12px', color: '#f87171', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} />{fieldError('weightage')}</p>}
+                    </>
+                  ) : null}
                 </div>
               </div>
 

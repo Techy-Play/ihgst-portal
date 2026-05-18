@@ -4,10 +4,13 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
+import Cycle from '@/models/Cycle';
 import AuditLog from '@/models/AuditLog';
 import Notification from '@/models/Notification';
 import User from '@/models/User';
 import { handleApiError, parseBody } from '@/lib/apiError';
+import { resolveEscalations } from '@/lib/resolveEscalations';
+import { createAuditLog } from '@/lib/auditLog';
 
 export async function POST(request) {
   try {
@@ -17,21 +20,27 @@ export async function POST(request) {
     const { goalSheetId } = await request.json();
     const goalSheet = await GoalSheet.findById(goalSheetId);
     if (!goalSheet) return NextResponse.json({ error: 'Goal sheet not found' }, { status: 404 });
-    if (!['Draft', 'Returned'].includes(goalSheet.status)) return NextResponse.json({ error: 'Goal sheet cannot be submitted in current state.' }, { status: 400 });
+    if (!['Draft', 'Returned', 'Rebalancing'].includes(goalSheet.status)) return NextResponse.json({ error: 'Goal sheet cannot be submitted in current state.' }, { status: 400 });
 
     const goals = await Goal.find({ goalSheetId: goalSheet._id });
     const totalWeightage = goals.reduce((sum, g) => sum + g.weightage, 0);
     if (totalWeightage !== 100) return NextResponse.json({ error: `Total weightage must be exactly 100%. Current: ${totalWeightage}%` }, { status: 400 });
 
-    goalSheet.status = 'Submitted'; goalSheet.submittedAt = new Date();
+    goalSheet.status = 'Submitted'; goalSheet.submittedAt = new Date(); goalSheet.previousStatus = null;
     await goalSheet.save();
-    await Goal.updateMany({ goalSheetId: goalSheet._id }, { $set: { status: 'Submitted' } });
+    await Goal.updateMany({ goalSheetId: goalSheet._id }, { $set: { status: 'Submitted', previousStatus: null, previousWeightage: null } });
 
-    await AuditLog.create({ entityType: 'GoalSheet', entityId: goalSheet._id, action: 'submitted', changedBy: session.user.id, changedByName: session.user.name, description: 'Goal sheet submitted for approval' });
+    await createAuditLog({ entityType: 'GoalSheet', entityId: goalSheet._id, action: 'submitted', changedBy: session.user.id, changedByName: session.user.name, description: 'Goal sheet submitted for approval' }, request);
 
     const user = await User.findById(session.user.id);
     if (user?.managerId) {
       await Notification.create({ userId: user.managerId, type: 'goal_submitted', title: 'Goal Sheet Submitted', message: `${session.user.name} has submitted their goal sheet for review.`, link: `/manager/review/${session.user.id}` });
+    }
+
+    // Auto-resolve any active GOAL_SUBMISSION escalations for this user
+    const activeCycleDoc = await Cycle.findOne({ isActive: true }).lean();
+    if (activeCycleDoc) {
+      await resolveEscalations(session.user.id, activeCycleDoc._id.toString(), 'GOAL_SUBMISSION');
     }
 
     return NextResponse.json({ message: 'Goals submitted for review' });

@@ -116,74 +116,147 @@ export async function POST(request) {
         let goalSheet = await GoalSheet.findOne({ userId: empId, cycleId: activeCycle._id });
         if (!goalSheet) goalSheet = await GoalSheet.create({ userId: empId, cycleId: activeCycle._id, status: 'Draft' });
 
-        // Check if this KPI is already assigned to this employee
+        // Check if this KPI is already assigned to this employee (any status)
         const existing = await Goal.findOne({ userId: empId, cycleId: activeCycle._id, title: body.title, isShared: true });
         if (existing) { errors.push(`Already assigned to user ${empId}`); continue; }
 
-        // Determine if goal sheet is already approved/locked (Phase 5 enterprise flow)
-        const wasApproved = ['Approved', 'Locked'].includes(goalSheet.status);
+        // Trigger rebalancing for any "frozen" state: Approved, Locked, Submitted, or already-Rebalancing
+        // ALSO trigger for Draft sheets where adding the new KPI would push total weightage over 100%
+        let needsRebalancing = ['Approved', 'Locked', 'Submitted', 'Rebalancing'].includes(goalSheet.status);
+        if (!needsRebalancing && goalSheet.status === 'Draft') {
+          const draftGoals = await Goal.find({ goalSheetId: goalSheet._id });
+          const currentTotal = draftGoals.reduce((s, g) => s + (g.weightage || 0), 0);
+          if (currentTotal + defaultWeightage > 100) needsRebalancing = true;
+        }
+        const wasApproved = needsRebalancing;
 
-        // Set the new KPI's status to match the sheet's reopened state
-        const kpiGoalStatus = wasApproved ? 'Returned' : 'Draft';
-
-        const goal = await Goal.create({
-          userId: empId,
-          cycleId: activeCycle._id,
-          cycleName: activeCycle.name,
-          goalSheetId: goalSheet._id,
-          thrustArea: body.thrustArea,
-          title: body.title,
-          description: body.description,
-          uom: body.uom,
-          uomDirection: body.uomDirection || 'Min',
-          target: body.uom === 'Timeline' ? body.target : Number(body.target),
-          weightage: defaultWeightage,
-          status: kpiGoalStatus,
-          isShared: true,
-          sharedBy: session.user.id,
-        });
-
-        createdGoals.push(goal);
-
-        // --- Phase 5: Auto-reopen approved goal sheets ---
+        // --- ENTERPRISE REBALANCING FLOW ---
         if (wasApproved) {
-          // 1. Reopen the goal sheet (Approved/Locked → Returned)
+          // 1. Fetch ALL goals for this employee so we get accurate weightage totals
+          //    (includes Draft and Rebalancing KPIs that also consume weightage)
+          const existingGoals = await Goal.find({ goalSheetId: goalSheet._id });
+
+          // Only snapshot/reset goals that are in a frozen state (not already in Rebalancing/Draft)
+          const frozenGoals = existingGoals.filter(g =>
+            ['Approved', 'Locked', 'Submitted'].includes(g.status)
+          );
+
+          const kpiWeightage = defaultWeightage; // locked org-controlled weightage
+          // Use ALL goals for weightage math (not just frozen ones) so pre-existing Draft/Rebalancing KPIs are counted
+          const allEditableGoals = existingGoals.filter(g => !g.isShared);   // employee's own goals (all statuses)
+          const allLockedKpiGoals = existingGoals.filter(g => g.isShared);   // already-assigned KPIs (all statuses)
+
+          // 2. Calculate available weightage for editable goals after new KPI is inserted
+          const lockedKpiTotal = allLockedKpiGoals.reduce((s, g) => s + g.weightage, 0) + kpiWeightage;
+          const availableForEditable = Math.max(100 - lockedKpiTotal, 0);
+          const editableCount = allEditableGoals.length;
+
+          // 3. Distribute available weightage equally among editable goals (floor, remainder to first)
+          let baselineWeightage = editableCount > 0 ? Math.floor(availableForEditable / editableCount) : 0;
+          if (baselineWeightage < 10 && editableCount > 0) baselineWeightage = 10; // min floor
+          const remainder = editableCount > 0 ? availableForEditable - (baselineWeightage * editableCount) : 0;
+
+          // 4. Only snapshot/reset frozen goals — skip ones already in Rebalancing/Draft
+          const frozenEditableGoals = frozenGoals.filter(g => !g.isShared);
+          const frozenLockedKpiGoals = frozenGoals.filter(g => g.isShared);
+
+          for (let i = 0; i < allEditableGoals.length; i++) {
+            const g = allEditableGoals[i];
+            const newW = i === 0 ? baselineWeightage + remainder : baselineWeightage;
+            await Goal.findByIdAndUpdate(g._id, {
+              $set: {
+                previousWeightage: g.previousWeightage ?? g.weightage, // preserve if not already snapshotted
+                previousStatus: g.previousStatus ?? g.status,          // preserve if not already snapshotted
+                weightage: newW,
+                status: 'Rebalancing',
+              },
+            });
+          }
+
+          // 5. Also update locked KPI goals (frozen ones get snapshotted; existing Rebalancing ones just stay)
+          for (const g of allLockedKpiGoals) {
+            await Goal.findByIdAndUpdate(g._id, {
+              $set: {
+                previousWeightage: g.previousWeightage ?? g.weightage,
+                previousStatus: g.previousStatus ?? g.status,
+                status: 'Rebalancing',
+              },
+            });
+          }
+
+          // 6. Create the new KPI goal with its locked weightage + Rebalancing status
+          const goal = await Goal.create({
+            userId: empId,
+            cycleId: activeCycle._id,
+            cycleName: activeCycle.name,
+            goalSheetId: goalSheet._id,
+            thrustArea: body.thrustArea,
+            title: body.title,
+            description: body.description,
+            uom: body.uom,
+            uomDirection: body.uomDirection || 'Min',
+            target: body.uom === 'Timeline' ? body.target : Number(body.target),
+            weightage: kpiWeightage,
+            previousWeightage: null,
+            status: 'Rebalancing',
+            isShared: true,
+            sharedBy: session.user.id,
+          });
+
+          createdGoals.push(goal);
+
+          // 7. Transition GoalSheet to Rebalancing state, remembering previous status for rollback
           await GoalSheet.findByIdAndUpdate(goalSheet._id, {
-            $set: { status: 'Returned' },
+            $set: { status: 'Rebalancing', previousStatus: goalSheet.status },
             $push: {
               comments: {
-                text: `Goal sheet automatically reopened: A new organizational KPI "${body.title}" has been assigned. Please rebalance your goal weightages to total 100%.`,
+                text: `🔄 Goal sheet entered Rebalancing state. A new organizational KPI "${body.title}" (${kpiWeightage}%) has been assigned. Editable goals have been reset to baseline weightages. Please redistribute until your total equals 100%, then resubmit.`,
                 byName: 'System',
                 role: 'System',
                 createdAt: new Date(),
-              }
-            }
+              },
+            },
           });
 
-          // 2. Change all existing goals from Approved/Locked → Returned
-          //    (achievements/progress are NOT touched — only status changes)
-          await Goal.updateMany(
-            { goalSheetId: goalSheet._id, status: { $in: ['Approved', 'Locked'] }, _id: { $ne: goal._id } },
-            { $set: { status: 'Returned' } }
-          );
+          // 8. Non-critical: notify + audit — failures here must NOT abort goal creation
+          try {
+            await Notification.create({
+              userId: empId,
+              type: 'kpi_rebalance',
+              title: '⚖️ Rebalancing Required — New KPI Assigned',
+              message: `A new organizational KPI "${body.title}" (${kpiWeightage}%) has been assigned. Your goal sheet is in Rebalancing state. Adjust your weightages to total 100%, then resubmit for approval.`,
+              link: '/goals',
+            });
+            await AuditLog.create({
+              entityType: 'GoalSheet', entityId: goalSheet._id,
+              action: 'sheet_rebalancing', changedBy: session.user.id, changedByName: session.user.name,
+              description: `Goal sheet set to Rebalancing for employee ${empId} — KPI "${body.title}" assigned (${kpiWeightage}%). Editable goals reset to baseline (${baselineWeightage}% each).`,
+            });
+          } catch (notifErr) {
+            console.warn('Non-critical: notification/audit failed during KPI rebalance:', notifErr.message);
+          }
 
-          // 3. Send specific rebalance notification
-          await Notification.create({
-            userId: empId,
-            type: 'kpi_rebalance',
-            title: 'Goal Sheet Reopened — KPI Assigned',
-            message: `A new organizational KPI "${body.title}" has been assigned to you. Your goal sheet has been reopened so you can rebalance your weightages. Existing progress is preserved.`,
-            link: '/goals',
-          });
-
-          // 4. Audit the auto-reopen
-          await AuditLog.create({
-            entityType: 'GoalSheet', entityId: goalSheet._id,
-            action: 'sheet_auto_reopened', changedBy: session.user.id, changedByName: session.user.name,
-            description: `Auto-reopened approved goal sheet for employee ${empId} due to KPI "${body.title}" assignment`,
-          });
         } else {
-          // Standard notification for non-approved sheets
+          // Standard flow for non-approved sheets
+          const goal = await Goal.create({
+            userId: empId,
+            cycleId: activeCycle._id,
+            cycleName: activeCycle.name,
+            goalSheetId: goalSheet._id,
+            thrustArea: body.thrustArea,
+            title: body.title,
+            description: body.description,
+            uom: body.uom,
+            uomDirection: body.uomDirection || 'Min',
+            target: body.uom === 'Timeline' ? body.target : Number(body.target),
+            weightage: defaultWeightage,
+            status: 'Draft',
+            isShared: true,
+            sharedBy: session.user.id,
+          });
+
+          createdGoals.push(goal);
+
           await Notification.create({
             userId: empId,
             type: 'shared_goal',
@@ -197,12 +270,14 @@ export async function POST(request) {
       }
     }
 
-    // Audit log
-    await AuditLog.create({
-      entityType: 'KPI', entityId: createdGoals[0]?._id || null,
-      action: 'kpi_assigned', changedBy: session.user.id, changedByName: session.user.name,
-      description: `Shared KPI "${body.title}" assigned to ${createdGoals.length} employee(s)`,
-    });
+    // Audit log — only if at least one goal was created
+    if (createdGoals.length > 0) {
+      await AuditLog.create({
+        entityType: 'KPI', entityId: createdGoals[0]._id,
+        action: 'kpi_assigned', changedBy: session.user.id, changedByName: session.user.name,
+        description: `Shared KPI "${body.title}" assigned to ${createdGoals.length} employee(s)`,
+      });
+    }
 
     return NextResponse.json({
       message: `KPI assigned to ${createdGoals.length} employee(s).${errors.length ? ` ${errors.length} skipped.` : ''}`,
@@ -238,7 +313,7 @@ export async function PUT(request) {
     const query = {
       isShared: true, cycleId: activeCycle._id,
       title: body.oldTitle, thrustArea: body.oldThrustArea,
-      status: { $in: ['Draft', 'Submitted', 'Returned'] },
+      status: { $in: ['Draft', 'Submitted', 'Returned', 'Rebalancing'] },
     };
     if (session.user.role === 'Manager') query.sharedBy = session.user.id;
 
@@ -295,54 +370,146 @@ export async function DELETE(request) {
     const activeCycle = await Cycle.findOne({ isActive: true }).lean();
     if (!activeCycle) return NextResponse.json({ error: 'No active cycle found.' }, { status: 400 });
 
+    // ─── Helper: roll back a Rebalancing goal sheet to its previous state ────
+    async function rollbackRebalancing(goalSheet, removedKpiId, kpiTitle, actorId, actorName) {
+      // The state the sheet was in before Rebalancing (Approved, Locked, or Submitted)
+      const restoreSheetStatus = goalSheet.previousStatus || 'Approved';
+
+      // Restore all remaining goals (excluding the KPI being removed)
+      const remainingGoals = await Goal.find({
+        goalSheetId: goalSheet._id,
+        _id: { $ne: removedKpiId },
+      });
+
+      for (const g of remainingGoals) {
+        const restoredWeightage = g.previousWeightage != null ? g.previousWeightage : g.weightage;
+        // Restore each goal to its own previousStatus (could be Submitted or Approved)
+        const restoredStatus = g.previousStatus || restoreSheetStatus;
+        await Goal.findByIdAndUpdate(g._id, {
+          $set: {
+            status: restoredStatus,
+            weightage: restoredWeightage,
+            previousWeightage: null,
+            previousStatus: null,
+          },
+        });
+      }
+
+      const wasSubmitted = restoreSheetStatus === 'Submitted';
+
+      // Restore goal sheet to its previous state + clear previousStatus
+      await GoalSheet.findByIdAndUpdate(goalSheet._id, {
+        $set: { status: restoreSheetStatus, previousStatus: null },
+        $push: {
+          comments: {
+            text: `✅ Goal sheet restored to ${restoreSheetStatus}. KPI "${kpiTitle}" was removed. All previous weightages have been reinstated.${wasSubmitted ? ' The sheet is back under manager review.' : ''}`,
+            byName: 'System',
+            role: 'System',
+            createdAt: new Date(),
+          },
+        },
+      });
+
+      // Notify the employee
+      await Notification.create({
+        userId: goalSheet.userId,
+        type: 'kpi_removed',
+        title: `✅ Goal Sheet Restored${wasSubmitted ? ' — Back Under Review' : ' — KPI Removed'}`,
+        message: `The KPI "${kpiTitle}" has been removed. Your goal sheet has been restored to ${restoreSheetStatus} with your original weightages reinstated.${wasSubmitted ? ' It is back in the manager review queue.' : ''}`,
+        link: '/goals',
+      });
+
+      // Audit
+      await AuditLog.create({
+        entityType: 'GoalSheet', entityId: goalSheet._id,
+        action: 'sheet_restored', changedBy: actorId, changedByName: actorName,
+        description: `Goal sheet restored to "${restoreSheetStatus}" for employee ${goalSheet.userId} after KPI "${kpiTitle}" was removed during Rebalancing.`,
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Single goal removal
     if (body.goalId) {
       const goal = await Goal.findById(body.goalId);
       if (!goal) return NextResponse.json({ error: 'KPI goal not found.' }, { status: 404 });
       if (!goal.isShared) return NextResponse.json({ error: 'This is not a shared KPI.' }, { status: 400 });
-      if (['Approved', 'Locked'].includes(goal.status)) {
+
+      // Block deletion of approved/locked KPIs ONLY when NOT in Rebalancing state
+      const goalSheet = await GoalSheet.findById(goal.goalSheetId);
+      const isRebalancing = goalSheet?.status === 'Rebalancing';
+      if (!isRebalancing && ['Approved', 'Locked'].includes(goal.status)) {
         return NextResponse.json({ error: 'Cannot delete an approved/locked KPI. Unlock it first.' }, { status: 400 });
       }
+
       // Manager can only delete KPIs they assigned
       if (session.user.role === 'Manager' && goal.sharedBy?.toString() !== session.user.id) {
         return NextResponse.json({ error: 'You can only remove KPIs you assigned.' }, { status: 403 });
       }
 
       const userName = (await User.findById(goal.userId).select('name').lean())?.name || 'Unknown';
+
+      // Delete the KPI goal first
       await Goal.findByIdAndDelete(body.goalId);
 
+      // Audit the KPI removal itself
       await AuditLog.create({
         entityType: 'KPI', entityId: goal._id,
         action: 'kpi_removed', changedBy: session.user.id, changedByName: session.user.name,
-        description: `Removed KPI "${goal.title}" from ${userName}`,
+        description: `Removed KPI "${goal.title}" from ${userName}${isRebalancing ? ' (during Rebalancing — sheet will be restored to Approved)' : ''}`,
       });
+
+      // If the sheet was in Rebalancing, roll back to Approved
+      if (isRebalancing && goalSheet) {
+        await rollbackRebalancing(goalSheet, body.goalId, goal.title, session.user.id, session.user.name);
+        return NextResponse.json({
+          message: `KPI removed from ${userName}. Goal sheet has been restored to Approved with original weightages.`,
+          restored: true,
+        });
+      }
 
       return NextResponse.json({ message: `KPI removed from ${userName}.` });
     }
 
-    // Bulk removal by title + thrustArea (all unapproved assignments)
+    // Bulk removal by title + thrustArea (all unapproved + rebalancing assignments)
     if (body.title && body.thrustArea) {
       const query = {
         isShared: true, cycleId: activeCycle._id,
         title: body.title, thrustArea: body.thrustArea,
-        status: { $in: ['Draft', 'Submitted', 'Returned'] },
+        status: { $in: ['Draft', 'Submitted', 'Returned', 'Rebalancing'] },
       };
       if (session.user.role === 'Manager') query.sharedBy = session.user.id;
 
       const toDelete = await Goal.find(query).lean();
       if (toDelete.length === 0) {
-        return NextResponse.json({ error: 'No removable (unapproved) KPI assignments found.' }, { status: 400 });
+        return NextResponse.json({ error: 'No removable (unapproved/rebalancing) KPI assignments found.' }, { status: 400 });
       }
 
-      await Goal.deleteMany({ _id: { $in: toDelete.map(g => g._id) } });
+      let restoredCount = 0;
+
+      for (const kpiGoal of toDelete) {
+        // Check if the employee's sheet is in Rebalancing state
+        const goalSheet = await GoalSheet.findById(kpiGoal.goalSheetId);
+        const isRebalancing = goalSheet?.status === 'Rebalancing';
+
+        await Goal.findByIdAndDelete(kpiGoal._id);
+
+        if (isRebalancing && goalSheet) {
+          await rollbackRebalancing(goalSheet, kpiGoal._id, kpiGoal.title, session.user.id, session.user.name);
+          restoredCount++;
+        }
+      }
 
       await AuditLog.create({
         entityType: 'KPI', entityId: toDelete[0]._id,
         action: 'kpi_bulk_removed', changedBy: session.user.id, changedByName: session.user.name,
-        description: `Bulk removed KPI "${body.title}" from ${toDelete.length} employee(s)`,
+        description: `Bulk removed KPI "${body.title}" from ${toDelete.length} employee(s)${restoredCount > 0 ? `. ${restoredCount} sheet(s) restored to Approved.` : ''}`,
       });
 
-      return NextResponse.json({ message: `Removed ${toDelete.length} unapproved KPI assignment(s).`, deleted: toDelete.length });
+      return NextResponse.json({
+        message: `Removed ${toDelete.length} KPI assignment(s).${restoredCount > 0 ? ` ${restoredCount} goal sheet(s) restored to Approved with original weightages.` : ''}`,
+        deleted: toDelete.length,
+        restored: restoredCount,
+      });
     }
 
     return NextResponse.json({ error: 'Provide goalId or title+thrustArea to delete.' }, { status: 400 });

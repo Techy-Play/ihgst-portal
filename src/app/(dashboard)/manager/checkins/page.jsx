@@ -46,7 +46,10 @@ export default function ManagerCheckinsPage() {
 
   // Build API URL with cycle filter
   const apiUrl = cyclesLoaded
-    ? `/api/manager/team${selectedCycle ? `?cycleId=${selectedCycle}` : ''}`
+    ? `/api/manager/team?${new URLSearchParams({
+        ...(selectedCycle ? { cycleId: selectedCycle } : {}),
+        ...(selectedQuarter && selectedQuarter !== 'all' ? { quarter: selectedQuarter } : {}),
+      }).toString()}`
     : null;
 
   const transform = useCallback(d => d, []);

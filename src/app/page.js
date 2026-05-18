@@ -27,6 +27,7 @@ function LandingContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [highlightBtn, setHighlightBtn] = useState(false);
 
   useEffect(() => {
     if (status === 'authenticated') router.push('/dashboard');
@@ -76,6 +77,13 @@ function LandingContent() {
   const fillCreds = (role) => {
     setEmail(creds[role].email);
     setPassword(creds[role].pass);
+    
+    // Scroll to top (helpful on mobile where right panel is below)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Highlight the submit button briefly
+    setHighlightBtn(true);
+    setTimeout(() => setHighlightBtn(false), 1500);
   };
 
   if (status === 'loading' || status === 'authenticated') {
@@ -149,7 +157,7 @@ function LandingContent() {
                   </div>
                 </div>
                 {error && <div style={{ padding: '10px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5', fontSize: '13px' }}>{error}</div>}
-                <button type="submit" className="btn-glow" disabled={loading} id="login-submit" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', padding: '13px', opacity: loading ? 0.7 : 1, marginTop: '4px' }}>
+                <button type="submit" className="btn-glow" disabled={loading} id="login-submit" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px', padding: '13px', opacity: loading ? 0.7 : 1, marginTop: '4px', transform: highlightBtn ? 'scale(1.02)' : 'scale(1)', outline: highlightBtn ? '2px solid #fff' : '2px solid transparent', outlineOffset: '2px', boxShadow: highlightBtn ? '0 0 25px rgba(99,102,241,0.8)' : undefined, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }}>
                   {loading ? <div className="spinner-sm" /> : <><span>Sign In</span><ArrowRight size={16} /></>}
                 </button>
               </form>

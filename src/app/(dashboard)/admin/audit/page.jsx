@@ -29,11 +29,13 @@ const ACTION_CONFIG = {
   activated:          { color: '#34d399', bg: 'rgba(16,185,129,0.12)', label: 'Activated',      icon: Power },
   deactivated:        { color: '#f87171', bg: 'rgba(239,68,68,0.12)', label: 'Deactivated',    icon: Power },
   login:              { color: '#a78bfa', bg: 'rgba(139,92,246,0.12)', label: 'Login',          icon: LogIn },
+  login_failed:       { color: '#f87171', bg: 'rgba(239,68,68,0.15)',  label: 'Login Failed',   icon: LogIn },
 };
 
 const EVENT_OPTS = [
   { value: 'all', label: 'All Events' },
   { value: 'login', label: 'Login' },
+  { value: 'login_failed', label: 'Login Failed' },
   { value: 'created', label: 'Created' },
   { value: 'updated', label: 'Updated' },
   { value: 'submitted', label: 'Submitted' },
@@ -184,14 +186,18 @@ export default function AuditLogPage() {
   const [showExport, setShowExport] = useState(false);
   const [showGoTop, setShowGoTop] = useState(false);
   const [logs, setLogs] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [oldestDate, setOldestDate] = useState(null);
   const [userNames, setUserNames] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const buildUrl = useCallback((f) => {
-    const p = new URLSearchParams({ limit: '200' });
+  const buildUrl = useCallback((f, pg = page, lim = limit) => {
+    const p = new URLSearchParams({ limit: String(lim), page: String(pg) });
     if (f.action && f.action !== 'all') p.set('action', f.action);
     if (f.role && f.role !== 'all') p.set('role', f.role);
     if (f.module && f.module !== 'all') p.set('module', f.module);
@@ -199,28 +205,42 @@ export default function AuditLogPage() {
     if (f.preset === 'custom') { if (f.dateFrom) p.set('dateFrom', f.dateFrom); if (f.dateTo) p.set('dateTo', f.dateTo); }
     if (f.user) p.set('user', f.user);
     return `/api/admin/audit?${p}`;
-  }, []);
+  }, [page, limit]);
 
-  const fetchLogs = useCallback(async (f = filters) => {
+  const fetchLogs = useCallback(async (f = filters, pg = page, lim = limit) => {
     setLoading(true); setError('');
     try {
-      const res = await fetch(buildUrl(f));
+      const res = await fetch(buildUrl(f, pg, lim));
       if (!res.ok) throw new Error('Failed');
       const d = await res.json();
       setLogs(d.logs || []);
+      setTotal(d.total || 0);
+      setTotalPages(d.totalPages || 1);
       setOldestDate(d.oldestDate || null);
       setUserNames(d.userNames || []);
       setLastUpdated(new Date());
     } catch { setError('Failed to load audit logs'); }
     setLoading(false);
-  }, [buildUrl, filters]);
+  }, [buildUrl, filters, page, limit]);
 
   useEffect(() => { fetchLogs(filters); }, []);
 
   const setFilter = (key, val) => {
     const next = { ...filters, [key]: val };
     setFilters(next);
-    fetchLogs(next);
+    setPage(1);
+    fetchLogs(next, 1, limit);
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
+    fetchLogs(filters, 1, newLimit);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    fetchLogs(filters, newPage, limit);
   };
 
   useEffect(() => {
@@ -236,8 +256,10 @@ export default function AuditLogPage() {
 
   const clearFilters = () => {
     const reset = { action:'all', role:'all', module:'all', preset:'all', dateFrom:'', dateTo:'', user:'' };
-    setFilters(reset); fetchLogs(reset);
+    setFilters(reset); setPage(1); fetchLogs(reset, 1, limit);
   };
+
+  const subtitle = `Unified activity log — ${total} entries${lastUpdated ? ` • Updated ${timeAgo(lastUpdated)}` : ''}`;
 
   const userOpts = [{ value:'', label:'All Users' }, ...userNames.map(n => ({ value:n, label:n }))];
 
@@ -250,8 +272,8 @@ export default function AuditLogPage() {
 
   return (
     <div className="animate-fadeIn">
-      <PageHeader title="Audit Log" subtitle={`Unified activity log — ${logs.length} entries${lastUpdated ? ` • Updated ${timeAgo(lastUpdated)}` : ''}`}
-        onRefresh={() => fetchLogs(filters)} lastUpdated={lastUpdated} loading={loading}>
+      <PageHeader title="Audit Log" subtitle={subtitle}
+        onRefresh={() => fetchLogs(filters, page, limit)} lastUpdated={lastUpdated} loading={loading}>
         <button onClick={() => setShowExport(true)} style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', borderRadius:10, background:'rgba(99,102,241,0.08)', border:'1px solid rgba(99,102,241,0.2)', color:'#818cf8', fontWeight:600, fontSize:13, cursor:'pointer' }}>
           <Download size={14}/> Export Log
         </button>
@@ -271,7 +293,7 @@ export default function AuditLogPage() {
                 <X size={12}/> Clear filters
               </button>
             )}
-            <span style={{ fontSize:12, color:'var(--text-muted)' }}>{logs.length} results</span>
+            <span style={{ fontSize:12, color:'var(--text-muted)' }}>{total} results</span>
           </div>
         </div>
 
@@ -379,11 +401,40 @@ export default function AuditLogPage() {
               </tbody>
             </table>
           </div>
-          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border-color)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontSize:12, color:'var(--text-muted)' }}>Showing {logs.length} entries</span>
-            <button onClick={() => fetchLogs(filters)} style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color:'var(--accent-secondary)', background:'none', border:'none', cursor:'pointer' }}>
-              <RefreshCw size={12}/> Refresh
-            </button>
+          <div style={{ padding:'12px 20px', borderTop:'1px solid var(--border-color)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+            {/* Left: per-page selector */}
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontSize:12, color:'var(--text-muted)' }}>Rows per page:</span>
+              {[10, 50, 100].map(n => (
+                <button key={n} onClick={() => handleLimitChange(n)}
+                  style={{ padding:'3px 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+                    background: limit === n ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)',
+                    border: limit === n ? '1px solid rgba(99,102,241,0.35)' : '1px solid var(--border-color)',
+                    color: limit === n ? '#818cf8' : 'var(--text-muted)' }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            {/* Center: entry count */}
+            <span style={{ fontSize:12, color:'var(--text-muted)' }}>
+              Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total} entries
+            </span>
+            {/* Right: prev / next */}
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}
+                style={{ padding:'4px 12px', borderRadius:8, fontSize:12, fontWeight:600, cursor: page <= 1 ? 'not-allowed' : 'pointer',
+                  background:'rgba(255,255,255,0.03)', border:'1px solid var(--border-color)',
+                  color: page <= 1 ? 'var(--text-muted)' : 'var(--text-primary)', opacity: page <= 1 ? 0.4 : 1 }}>
+                ← Prev
+              </button>
+              <span style={{ fontSize:12, color:'var(--text-secondary)', padding:'0 6px' }}>Page {page} / {totalPages}</span>
+              <button onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages}
+                style={{ padding:'4px 12px', borderRadius:8, fontSize:12, fontWeight:600, cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                  background:'rgba(255,255,255,0.03)', border:'1px solid var(--border-color)',
+                  color: page >= totalPages ? 'var(--text-muted)' : 'var(--text-primary)', opacity: page >= totalPages ? 0.4 : 1 }}>
+                Next →
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -19,7 +19,7 @@ The portal follows a **three-layer architecture**:
 |---|---|---|
 | **Client (Frontend)** | Next.js App Router + React 19 | UI rendering, routing, client-side state |
 | **Application (Backend)** | Next.js API Routes | Business logic, auth, validation, data aggregation |
-| **Data** | MongoDB Atlas + Mongoose | Persistent storage across 8 collections |
+| **Data** | MongoDB Atlas + Mongoose | Persistent storage across 9 collections |
 
 ---
 
@@ -52,11 +52,12 @@ All Manager features, plus:
 
 | Feature | Path | Description |
 |---|---|---|
-| Admin Panel | `/admin` | System overview and configuration hub |
+| Admin Panel | `/admin` | System overview — stats, escalation cards, management hub |
 | User Management | `/admin/users` | Create, edit, deactivate users, assign roles and managers |
 | Cycle Management | `/admin/cycles` | Configure financial year cycles (FY dates, Q1–Q4 windows) |
 | Reports | `/admin/reports` | Export goal data as CSV/Excel, email delivery via Nodemailer |
 | Audit Log | `/admin/audit` | Immutable change history — who modified what and when |
+| **Escalation Dashboard** | **`/admin/escalations`** | **Monitor overdue actions, filter by type/level/status, dismiss, trigger engine manually** |
 | Goal Approvals | `/manager` | Org-wide goal sheet approval (same as Manager view) |
 | Org Analytics | `/analytics` | Organization-wide performance dashboard |
 
@@ -65,14 +66,73 @@ All Manager features, plus:
 ## 🔄 Goal Lifecycle Workflow
 ![Goal Lifecycle Workflow Diagram](./Goal%20Cycle.png)
 
-
-
 1. **Create** → Employee sets goals with thrust area, UoM, target, weightage
 2. **Submit** → Goal sheet sent to Manager for review
 3. **Review** → Manager can Approve, Return (with feedback), or Edit weightage
 4. **Approved** → Goals are locked. Employee begins quarterly check-ins
 5. **Check-in** → Every quarter (Q1–Q4), employee reports actual achievements
 6. **Analytics** → Progress calculated automatically, available to all roles
+
+---
+
+## ⚡ Escalation Engine
+
+The portal includes a **continuous workflow escalation system** that automatically detects overdue actions and notifies the right stakeholders — without any manual intervention.
+
+### How it works
+
+```
+Cycle Active
+      ↓
+Cron Runs Every 6 Hours  (Vercel Cron / manual trigger)
+      ↓
+System Checks Deadlines
+      ↓
+Create Escalation (if not already active)
+      ↓
+Send In-App Notification + Email
+      ↓
+Write Audit Log Entry
+      ↓
+Show in Admin Escalation Dashboard
+      ↓
+Auto-Resolve When Action Completed
+```
+
+### Escalation Types
+
+| Type | Trigger Condition |
+|---|---|
+| `GOAL_SUBMISSION` | Employee's goals still in Draft N days after cycle opens |
+| `GOAL_APPROVAL` | Manager has not approved a Submitted goal sheet within N days |
+| `CHECKIN_PENDING` | Employee has no check-in for the active quarter after N days |
+
+### Severity Levels
+
+| Level | Color | Who is notified |
+|---|---|---|
+| **L1** | 🟡 Yellow | Employee — reminder to take action |
+| **L2** | 🟠 Orange | Manager — action overdue escalation |
+| **L3** | 🔴 Red | HR / Admin — critical threshold exceeded |
+
+### Auto-Resolution
+
+Escalations **automatically resolve** (no admin action needed) when:
+- Employee submits their goals → `GOAL_SUBMISSION` resolved
+- Manager approves goal sheet → `GOAL_APPROVAL` resolved
+- Employee saves a check-in → `CHECKIN_PENDING` resolved
+
+### Duplicate Prevention
+
+A compound index on `{ userId, cycleId, type, level, status }` ensures a new escalation is only created when no `ACTIVE` record for the same condition already exists — preventing notification spam.
+
+### Manual Trigger (Demo)
+
+Admins can trigger the engine on-demand from the Escalation Dashboard without waiting for the 6-hour cron:
+
+```http
+POST /api/admin/escalations/trigger
+```
 
 ---
 
@@ -92,7 +152,7 @@ All Manager features, plus:
 
 ## 🗄️ Database Schema
 
-8 MongoDB collections managed via Mongoose ODM:
+9 MongoDB collections managed via Mongoose ODM:
 
 | Collection | Key Fields | Purpose |
 |---|---|---|
@@ -104,6 +164,7 @@ All Manager features, plus:
 | `auditlogs` | entityType, action, changedBy, description | Immutable change history |
 | `notifications` | userId, type, title, message, read | In-app notification feed |
 | `exportlogs` | userId, format, status | Report export tracking |
+| `escalations` | userId, cycleId, type, level, status, message, triggeredAt, resolvedAt | Workflow escalation records |
 
 ---
 
@@ -142,8 +203,9 @@ src/
 │   │   │   ├── review/[employeeId]  # Individual employee goal review
 │   │   │   ├── kpi/              # Shared KPI management
 │   │   │   └── checkins/         # Team check-in review
-│   │   └── admin/                # User, cycle, report, audit management
-│   ├── api/                      # 15 REST API route handlers
+│   │   └── admin/                # User, cycle, report, audit, escalation management
+│   │       └── escalations/      # Escalation dashboard (filter, severity table, timeline)
+│   ├── api/                      # REST API route handlers
 │   │   ├── auth/                 # NextAuth.js authentication
 │   │   ├── dashboard/            # Dashboard stats + drill-down detail
 │   │   ├── goals/                # Goal CRUD + individual operations
@@ -153,7 +215,10 @@ src/
 │   │   ├── kpi/                  # KPI assignment
 │   │   ├── export/               # CSV/Excel report generation
 │   │   ├── notifications/        # In-app notifications
+│   │   ├── cron/
+│   │   │   └── escalations/      # Scheduled escalation engine (Vercel Cron, every 6h)
 │   │   └── admin/                # Users, cycles, reports, audit
+│   │       └── escalations/      # Escalation list, stats, dismiss, manual trigger
 │   ├── login/                    # Standalone login page
 │   ├── unauthorized/             # 403 — animated access denied
 │   ├── not-found.js              # 404 — animated page not found
@@ -167,10 +232,13 @@ src/
 │   ├── progress.js               # Goal progress calculation engine
 │   ├── mailer.js                 # Nodemailer SMTP config
 │   ├── apiError.js               # Standardized API error responses
+│   ├── resolveEscalations.js     # Auto-resolve helper (called on submit/approve/check-in)
 │   ├── safeFetch.js              # Error-resilient fetch wrapper
 │   └── useDataFetcher.js         # React hook for API data + loading states
-├── models/                       # 8 Mongoose schemas
+├── models/                       # 9 Mongoose schemas
+│   └── Escalation.js             # Escalation schema (type, level, status, audit fields)
 ├── proxy.js                      # Route protection middleware (Next.js 16 convention)
+├── vercel.json                   # Vercel cron schedule configuration
 └── scripts/                      # Database seeding (seed.js, seed-past-year.js, seed-current-year.js)
 ```
 
@@ -204,6 +272,16 @@ cp .env.local.example .env.local
 MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/ihgst
 NEXTAUTH_SECRET=your-secret-key
 NEXTAUTH_URL=http://localhost:3000
+
+# Optional — secures the Vercel cron endpoint
+CRON_SECRET=your-random-cron-secret
+
+# Optional — enables email notifications and escalation alerts
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=IHGST Portal <noreply@ihgst.com>
 ```
 
 ### Database Seeding
@@ -260,16 +338,21 @@ Admin User (HR)
 | `/api/dashboard/detail` | GET | All | Drill-down employee lists for stat popups |
 | `/api/goals` | GET, POST | All | Goal list (filtered by role) and creation |
 | `/api/goals/[id]` | GET, PUT, DELETE | Owner/Admin | Individual goal operations |
+| `/api/goals/submit` | POST | Employee | Submit goal sheet for review (triggers escalation resolve) |
 | `/api/analytics` | GET | All | Aggregated analytics (status, thrust, quarterly) |
-| `/api/checkins` | GET, POST | All | Quarterly check-in read/write |
-| `/api/manager/[employeeId]` | GET, POST | Manager/Admin | Goal sheet review + approval actions |
+| `/api/checkins` | GET, POST | All | Quarterly check-in read/write (triggers escalation resolve) |
+| `/api/manager/review` | POST | Manager/Admin | Goal sheet approve/return (triggers escalation resolve) |
 | `/api/kpi` | GET, POST, PUT | Manager/Admin | Shared KPI management |
 | `/api/export` | POST | Admin | CSV/Excel report generation + email |
-| `/api/notifications` | GET, PUT | All | Notification feed + mark-as-read |
+| `/api/notifications` | GET, PATCH, DELETE | All | Notification feed, mark-as-read, clear |
 | `/api/admin/users` | GET, POST, PUT, DELETE | Admin | User CRUD |
 | `/api/admin/cycles` | GET, POST, PUT | Admin | Cycle/quarter configuration |
 | `/api/admin/reports` | GET | Admin | Reporting dashboard data |
 | `/api/admin/audit` | GET | Admin | Audit log viewer |
+| `/api/admin/escalations` | GET, PATCH | Admin | List escalations (filtered) + dismiss |
+| `/api/admin/escalations/stats` | GET | Admin | Aggregated escalation counts for dashboard cards |
+| `/api/admin/escalations/trigger` | POST | Admin | Manually run the escalation engine |
+| `/api/cron/escalations` | GET | Cron secret | Vercel cron endpoint — runs every 6 hours |
 
 ---
 
@@ -289,10 +372,12 @@ Admin User (HR)
 - **🔗 Shared KPIs** — Organization-wide KPIs pushed by Admin/Manager — locked title, editable weightage
 - **📋 Audit Trail** — Complete change history for accountability
 - **📧 Report Export** — CSV/Excel generation with email delivery
-- **🔔 Notifications** — In-app alerts for approvals, returns, assignments, and discussion replies
+- **🔔 Notifications** — In-app alerts for approvals, returns, assignments, escalations, and discussion replies
 - **📱 Responsive Design** — Desktop sidebar + mobile bottom nav, with proportional grid layouts on ultra-wide screens
 - **🎨 Dark Theme** — Glassmorphism effects, gradient accents, smooth animations
+- **✨ UX Polish & Refinements** — Enhanced pie chart paddings to eliminate overflow, dynamic pulse-highlighted auto-scroll functionality for demo credentials, and fully clickable data rows (with input exclusion) for seamless navigation during manager reviews
 - **🛡️ Role-Based Access** — Route-level protection via proxy middleware + API-level auth checks
+- **🚨 Automated Escalation Engine** — Continuous cron-driven workflow escalation system that detects overdue goal submissions, pending approvals, and missing check-ins — notifies employees, managers, and admins at escalating severity levels (L1→L2→L3), and auto-resolves when the triggering action is completed
 
 ---
 

@@ -4,9 +4,12 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import dbConnect from '@/lib/db';
 import Goal from '@/models/Goal';
 import GoalSheet from '@/models/GoalSheet';
+import Cycle from '@/models/Cycle';
 import AuditLog from '@/models/AuditLog';
 import Notification from '@/models/Notification';
 import { handleApiError, parseBody } from '@/lib/apiError';
+import { resolveEscalations } from '@/lib/resolveEscalations';
+import { createAuditLog } from '@/lib/auditLog';
 
 export async function POST(request) {
   try {
@@ -34,7 +37,7 @@ export async function POST(request) {
           if (edit.weightage !== undefined && edit.weightage !== goal.weightage) { changes.weightage = { old: goal.weightage, new: edit.weightage }; goal.weightage = edit.weightage; }
           if (Object.keys(changes).length > 0) {
             await goal.save();
-            await AuditLog.create({ entityType: 'Goal', entityId: goal._id, action: 'manager_edited', changedBy: session.user.id, changedByName: session.user.name, changes, description: `Manager edited goal "${goal.title}"` });
+            await createAuditLog({ entityType: 'Goal', entityId: goal._id, action: 'manager_edited', changedBy: session.user.id, changedByName: session.user.name, changes, description: `Manager edited goal "${goal.title}"` }, request);
           }
         }
       }
@@ -49,14 +52,21 @@ export async function POST(request) {
       goalSheet.status = 'Approved'; goalSheet.approvedAt = new Date(); goalSheet.approvedBy = session.user.id;
       await goalSheet.save();
       await Goal.updateMany({ goalSheetId: goalSheet._id }, { $set: { status: 'Approved' } });
-      await AuditLog.create({ entityType: 'GoalSheet', entityId: goalSheet._id, action: 'approved', changedBy: session.user.id, changedByName: session.user.name, description: 'Goal sheet approved' });
+      await createAuditLog({ entityType: 'GoalSheet', entityId: goalSheet._id, action: 'approved', changedBy: session.user.id, changedByName: session.user.name, description: 'Goal sheet approved' }, request);
       await Notification.create({ userId: goalSheet.userId, type: 'goal_approved', title: 'Goals Approved', message: `Your goal sheet has been approved by ${session.user.name}.`, link: '/goals' });
+
+      // Auto-resolve GOAL_APPROVAL and GOAL_SUBMISSION escalations for this employee
+      const activeCycle = await Cycle.findOne({ isActive: true }).lean();
+      if (activeCycle) {
+        await resolveEscalations(goalSheet.userId.toString(), activeCycle._id.toString(), 'GOAL_APPROVAL');
+        await resolveEscalations(goalSheet.userId.toString(), activeCycle._id.toString(), 'GOAL_SUBMISSION');
+      }
     } else if (action === 'return') {
       goalSheet.status = 'Returned';
       if (comment) goalSheet.comments.push({ text: comment, by: session.user.id, byName: session.user.name, role: session.user.role });
       await goalSheet.save();
       await Goal.updateMany({ goalSheetId: goalSheet._id }, { $set: { status: 'Returned' } });
-      await AuditLog.create({ entityType: 'GoalSheet', entityId: goalSheet._id, action: 'returned', changedBy: session.user.id, changedByName: session.user.name, description: `Goal sheet returned: ${comment || 'No comment'}` });
+      await createAuditLog({ entityType: 'GoalSheet', entityId: goalSheet._id, action: 'returned', changedBy: session.user.id, changedByName: session.user.name, description: `Goal sheet returned: ${comment || 'No comment'}` }, request);
       await Notification.create({ userId: goalSheet.userId, type: 'goal_returned', title: 'Goals Returned for Rework', message: `Your goal sheet was returned by ${session.user.name}. ${comment || ''}`, link: '/goals' });
     }
 

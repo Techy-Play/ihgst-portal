@@ -24,7 +24,9 @@ export async function GET(request) {
     await dbConnect();
 
     const { searchParams } = new URL(request.url);
-    const limit    = Math.min(parseInt(searchParams.get('limit')) || 200, 500);
+    const limit    = Math.min(parseInt(searchParams.get('limit')) || 50, 500);
+    const page     = Math.max(parseInt(searchParams.get('page')) || 1, 1);
+    const skip     = (page - 1) * limit;
     const action   = searchParams.get('action') || '';
     const user     = searchParams.get('user') || '';
     const role     = searchParams.get('role') || '';
@@ -73,42 +75,51 @@ export async function GET(request) {
                        (action && action !== 'all' && action !== 'login');
 
     const [auditLogs, loginLogs] = await Promise.all([
-      AuditLog.find(auditQuery).sort({ createdAt: -1 }).limit(limit).lean(),
+      AuditLog.find(auditQuery).sort({ createdAt: -1 }).limit(limit * 3).lean(),
       skipLogins ? Promise.resolve([]) :
-        LoginLog.find(loginQuery).sort({ createdAt: -1 }).limit(limit).lean(),
+        LoginLog.find(loginQuery).sort({ createdAt: -1 }).limit(limit * 3).lean(),
     ]);
 
-    // Normalise LoginLog rows into unified shape
+    // Normalise LoginLog rows into unified shape — include both success and failed
     const normalisedLogins = loginLogs.map(l => ({
       _id: l._id,
-      entityType: 'Authentication',
-      action: 'login',
+      entityType: l.status === 'failed' ? 'Authentication' : 'Authentication',
+      action: l.status === 'failed' ? 'login_failed' : 'login',
       changedByName: l.userName,
       changedByRole: l.role,
-      description: `${l.userName} (${l.role}) signed in`,
+      description: l.status === 'failed'
+        ? `⚠️ Failed login attempt for ${l.userEmail}`
+        : `${l.userName} (${l.role}) signed in`,
       ip: l.ip || '',
       browser: l.browser || '',
       device: l.device || '',
       os: l.os || '',
       createdAt: l.createdAt,
       _source: 'login',
+      _status: l.status || 'success',
     }));
 
     // Merge + sort descending
     let merged = [...auditLogs.map(l => ({ ...l, _source: 'audit' })), ...normalisedLogins]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, limit);
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    // Role filter: apply to both login rows and audit rows (audit logs don't store role, so skip for those)
+    // Role filter
     if (role && role !== 'all') {
       merged = merged.filter(l => l._source === 'login' ? l.changedByRole === role : true);
     }
+
+    const total = merged.length;
+    const paginated = merged.slice(skip, skip + limit);
 
     const oldest = await AuditLog.findOne().sort({ createdAt: 1 }).select('createdAt').lean();
     const userNames = await AuditLog.distinct('changedByName');
 
     return NextResponse.json({
-      logs: merged,
+      logs: paginated,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
       oldestDate: oldest?.createdAt || null,
       userNames: userNames.filter(Boolean).sort(),
     });

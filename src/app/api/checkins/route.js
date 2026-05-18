@@ -8,6 +8,8 @@ import AuditLog from '@/models/AuditLog';
 import Cycle from '@/models/Cycle';
 import { handleApiError, parseBody } from '@/lib/apiError';
 import { calculateProgress } from '@/lib/progress';
+import { resolveEscalations } from '@/lib/resolveEscalations';
+import { createAuditLog } from '@/lib/auditLog';
 
 function getActiveQuarter(cycle) {
   if (!cycle?.quarters?.length) return 'Q1';
@@ -114,7 +116,13 @@ export async function POST(request) {
     else goal.achievements.push({ quarter, value: achievement, status: checkinStatus, comment: comment || '', updatedAt: new Date() });
     await goal.save();
 
-    await AuditLog.create({ entityType: 'Goal', entityId: goalId, action: 'checkin_updated', changedBy: session.user.id, changedByName: session.user.name, description: `${quarter} check-in updated for "${goal.title}"` });
+    await createAuditLog({ entityType: 'Goal', entityId: goalId, action: 'checkin_updated', changedBy: session.user.id, changedByName: session.user.name, description: `${quarter} check-in updated for "${goal.title}"` }, request);
+
+    // Auto-resolve any active CHECKIN_PENDING escalations for this quarter
+    if (activeCycle) {
+      await resolveEscalations(session.user.id, activeCycle._id.toString(), 'CHECKIN_PENDING', quarter);
+    }
+
     return NextResponse.json({ checkin, message: 'Check-in saved successfully' });
   } catch (error) {
     return handleApiError(error, 'checkins POST');

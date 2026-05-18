@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2, MessageSquare, Send, Lock } from 'lucide-react';
+import { ArrowLeft, Check, RotateCcw, PieChart as PieChartIcon, BarChart2, MessageSquare, Send, Lock, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/components/ui/Toast';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -113,6 +113,16 @@ export default function ReviewPage({ params }) {
 
   return (
     <div className="animate-fadeIn">
+      <style jsx global>{`
+        .hide-spinners::-webkit-outer-spin-button,
+        .hide-spinners::-webkit-inner-spin-button {
+          -webkit-appearance: none !important;
+          margin: 0 !important;
+        }
+        .hide-spinners {
+          -moz-appearance: textfield !important;
+        }
+      `}</style>
       <a href={`/manager/checkins${cycleIdParam ? `?cycleId=${cycleIdParam}` : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> Back to Team</a>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div><h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '4px' }}>Review: {employee?.name}</h1><p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{employee?.department} • {employee?.email}</p></div>
@@ -188,14 +198,36 @@ export default function ReviewPage({ params }) {
               const isApproved = ['Approved', 'Locked'].includes(goal.status);
               const latestAch = goal.achievements?.length > 0 ? goal.achievements[goal.achievements.length - 1] : null;
               const goalProg = isApproved && latestAch ? calculateProgress(goal, latestAch.value) : 0;
+              const isKPI = goal.isShared === true;
+              const assignerName = goal.sharedBy?.name || null;
+              const assignerRole = goal.sharedBy?.role || null;
               return (
-                <tr key={goal._id}>
+                <tr key={goal._id}
+                    onClick={(e) => {
+                      if (e.target.closest('input') || e.target.closest('button') || e.target.closest('a')) return;
+                      router.push(`/goals/${goal._id}`);
+                    }}
+                    style={{
+                      cursor: 'pointer',
+                      transition: 'background 0.2s',
+                      background: isKPI ? 'linear-gradient(90deg, rgba(139,92,246,0.06) 0%, transparent 100%)' : 'transparent',
+                      borderLeft: isKPI ? '3px solid #8b5cf6' : '3px solid transparent',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = isKPI ? 'rgba(139,92,246,0.1)' : 'rgba(99,102,241,0.05)'}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.background = isKPI ? 'linear-gradient(90deg, rgba(139,92,246,0.06) 0%, transparent 100%)' : 'transparent'; }}
+                >
                   <td>
                     <Link href={`/goals/${goal._id}`} style={{ textDecoration: 'none', color: 'var(--text-primary)', fontWeight: 500, marginBottom: '2px', display: 'block' }}
                       onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-secondary)'}
                       onMouseLeave={e => e.currentTarget.style.color = 'var(--text-primary)'}>
                       {goal.title} ↗
                     </Link>
+                    {isKPI && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '10px', background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)', marginBottom: '4px' }}>
+                        <Share2 size={9} />
+                        Org KPI{assignerName ? ` · Assigned by ${assignerName}${assignerRole ? ` (${assignerRole})` : ''}` : ''}
+                      </span>
+                    )}
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{goal.description?.substring(0, 80)}</p>
                     {goal.uomDirection && (
                       <span style={{ fontSize: '10px', color: goal.uomDirection === 'Min' ? '#34d399' : '#fbbf24', marginTop: '2px', display: 'inline-block' }}>
@@ -206,31 +238,114 @@ export default function ReviewPage({ params }) {
                   <td>{goal.thrustArea}</td>
                   <td>{goal.uom}</td>
                   <td>
-                    {canApprove ? (
+                    {canApprove && !isKPI ? (
                       goal.uom === 'Timeline' ? (
-                        <input className="input-dark" type="date" style={{ width: '140px' }}
-                          defaultValue={goal.target?.split('T')?.[0] || goal.target}
-                          onChange={(e) => handleEdit(goal._id, 'target', e.target.value)} />
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          background: 'var(--surface-muted)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          transition: 'border-color 0.2s',
+                        }}>
+                          <input type="date"
+                            defaultValue={goal.target?.split('T')?.[0] || goal.target}
+                            onChange={(e) => handleEdit(goal._id, 'target', e.target.value)}
+                            style={{
+                              width: '130px',
+                              padding: '6px 10px',
+                              background: 'transparent',
+                              border: 'none',
+                              outline: 'none',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              fontWeight: 500,
+                            }}
+                          />
+                        </div>
                       ) : (
-                        <input className="input-dark" type="number" style={{ width: '100px' }}
-                          defaultValue={goal.target}
-                          onChange={(e) => handleEdit(goal._id, 'target', e.target.value)}
-                          min={0} max={goal.uom === 'Percentage' ? 100 : undefined}
-                          readOnly={goal.uom === 'Zero'} />
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          background: 'var(--surface-muted)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          transition: 'border-color 0.2s',
+                        }}>
+                          <input className="hide-spinners" type="number"
+                            defaultValue={goal.target}
+                            onChange={(e) => handleEdit(goal._id, 'target', e.target.value)}
+                            min={0} max={goal.uom === 'Percentage' ? 100 : undefined}
+                            readOnly={goal.uom === 'Zero'}
+                            style={{
+                              width: '80px',
+                              padding: '6px 10px',
+                              background: 'transparent',
+                              border: 'none',
+                              outline: 'none',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              fontWeight: 600,
+                            }}
+                          />
+                        </div>
                       )
                     ) : (
-                      <span>{formatTarget(goal)}</span>
+                      <span style={isKPI ? { color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '4px' } : {}}>
+                        {formatTarget(goal)}
+                        {isKPI && <Lock size={9} style={{ color: '#8b5cf6', opacity: 0.6 }} title="Org-controlled target" />}
+                      </span>
                     )}
                   </td>
                   <td>
                     {canApprove ? (
-                      <div>
-                        <input className="input-dark" type="number" style={{ width: '80px', borderColor: w < 10 || w > 100 ? '#f87171' : undefined }}
-                          min={10} max={100} defaultValue={goal.weightage}
-                          onChange={(e) => handleEdit(goal._id, 'weightage', e.target.value)} />
-                        {(w < 10 || w > 100) && <p style={{ fontSize: '10px', color: '#f87171', marginTop: '2px' }}>10-100%</p>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          background: 'var(--surface-muted)',
+                          border: `1px solid ${w < 10 || w > 100 ? '#f87171' : isKPI ? 'rgba(139,92,246,0.45)' : 'var(--border-color)'}`,
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          transition: 'border-color 0.2s',
+                        }}>
+                          <input
+                            type="number"
+                            min={10} max={100}
+                            defaultValue={goal.weightage}
+                            onChange={(e) => handleEdit(goal._id, 'weightage', e.target.value)}
+                            style={{
+                              width: '52px',
+                              padding: '5px 6px',
+                              background: 'transparent',
+                              border: 'none',
+                              outline: 'none',
+                              color: 'var(--text-primary)',
+                              fontSize: '13px',
+                              fontWeight: 600,
+                              textAlign: 'center',
+                              MozAppearance: 'textfield',
+                            }}
+                          />
+                          <span style={{
+                            padding: '0 8px',
+                            background: isKPI ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.04)',
+                            borderLeft: `1px solid ${isKPI ? 'rgba(139,92,246,0.3)' : 'var(--border-color)'}`,
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: isKPI ? '#a78bfa' : 'var(--text-muted)',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            userSelect: 'none',
+                          }}>%</span>
+                        </div>
+                        {(w < 10 || w > 100) && <span style={{ fontSize: '10px', color: '#f87171' }}>10–100</span>}
                       </div>
-                    ) : <span>{goal.weightage}%</span>}
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', fontWeight: 600 }}>
+                        {goal.weightage}%
+                      </span>
+                    )}
                   </td>
                   <td>
                     {isApproved ? (

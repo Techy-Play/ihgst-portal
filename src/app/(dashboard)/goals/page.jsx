@@ -54,7 +54,8 @@ export default function GoalsPage() {
   // When data loads for first time, set the default selected cycle
   const effectiveCycle = selectedCycle || data?.selectedCycleId || '';
 
-  const canEdit = !isManager && !isAdmin && isActiveCycle && (!goalSheet || ['Draft', 'Returned'].includes(goalSheet?.status));
+  const isRebalancing = goalSheet?.status === 'Rebalancing';
+  const canEdit = !isManager && !isAdmin && isActiveCycle && (!goalSheet || ['Draft', 'Returned', 'Rebalancing'].includes(goalSheet?.status));
 
   const handleSubmit = async () => {
     if (totalWeightage !== 100) { toast('Total weightage must equal 100%.', 'error'); return; }
@@ -84,8 +85,8 @@ export default function GoalsPage() {
     setSelectedCycle(e.target.value);
   };
 
-  const statusStyles = { Draft: { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af', border: 'rgba(107,114,128,0.25)' }, Submitted: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: 'rgba(59,130,246,0.25)' }, Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', border: 'rgba(16,185,129,0.25)' }, Returned: { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: 'rgba(245,158,11,0.25)' }, Locked: { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: 'rgba(139,92,246,0.25)' } };
-  const statusLabels = { Submitted: 'Pending Review' };
+  const statusStyles = { Draft: { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af', border: 'rgba(107,114,128,0.25)' }, Submitted: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: 'rgba(59,130,246,0.25)' }, Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', border: 'rgba(16,185,129,0.25)' }, Returned: { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: 'rgba(245,158,11,0.25)' }, Locked: { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: 'rgba(139,92,246,0.25)' }, Rebalancing: { bg: 'rgba(234,179,8,0.12)', color: '#facc15', border: 'rgba(234,179,8,0.3)' } };
+  const statusLabels = { Submitted: 'Pending Review', Rebalancing: '⚖️ Rebalancing' };
 
   if (error) return (
     <div className="animate-fadeIn">
@@ -184,7 +185,22 @@ export default function GoalsPage() {
         </div>
       )}
 
-      {/* KPI Rebalance Banner */}
+      {/* Rebalancing Banner */}
+      {isRebalancing && !loading && (
+        <div style={{ padding: '16px 20px', marginBottom: '16px', borderRadius: '14px', background: 'linear-gradient(135deg, rgba(234,179,8,0.08), rgba(139,92,246,0.06))', border: '1px solid rgba(234,179,8,0.3)', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+          <span style={{ fontSize: '24px', lineHeight: 1 }}>⚖️</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontWeight: 700, fontSize: '14px', color: '#facc15', marginBottom: '4px' }}>Rebalancing Required</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              A new organizational KPI has been added to your goals. Your editable goals have been reset to baseline weightages.
+              Adjust your allocations until the total equals <strong style={{ color: '#facc15' }}>exactly 100%</strong>, then resubmit for manager approval.
+              <br /><span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Previously approved values are shown as reference on each goal.</span>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Legacy KPI Returned Banner (for old Returned state with shared goals) */}
       {goalSheet?.status === 'Returned' && goals.some(g => g.isShared) && (
         <div className="glass-card" style={{ padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(245,158,11,0.06))', borderColor: 'rgba(245,158,11,0.25)' }}>
           <Share2 size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
@@ -242,8 +258,14 @@ export default function GoalsPage() {
                   </div>
                 </div>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>{goal.description?.substring(0, 100)}</p>
-                <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                  <span>{goal.thrustArea}</span><span>UoM: {goal.uom}</span><span>Target: {goal.target}</span><span style={{ fontWeight: 600 }}>Weightage: {goal.weightage}%</span>
+                <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span>{goal.thrustArea}</span><span>UoM: {goal.uom}</span><span>Target: {goal.target}</span>
+                  <span style={{ fontWeight: 600 }}>Weightage: {goal.weightage}%</span>
+                  {isRebalancing && goal.previousWeightage != null && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#9ca3af', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '2px 8px' }}>
+                      was {goal.previousWeightage}%
+                    </span>
+                  )}
                   {goal.cycleName && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{goal.cycleName}</span>}
                 </div>
               </Link>

@@ -33,7 +33,7 @@ export async function GET(request, { params }) {
     let goalSheet = null, goals = [];
     if (cycle) {
       goalSheet = await GoalSheet.findOne({ userId: employeeId, cycleId: cycle._id }).lean();
-      if (goalSheet) goals = await Goal.find({ goalSheetId: goalSheet._id }).lean();
+      if (goalSheet) goals = await Goal.find({ goalSheetId: goalSheet._id }).populate('sharedBy', 'name role').lean();
     }
 
     // Return minimal cycle info for the UI to determine if comments are disabled

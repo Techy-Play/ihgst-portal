@@ -590,6 +590,16 @@ input[type="number"].input-dark {
   color-scheme: inherit;
 }
 
+/* Hide browser default spinner buttons on ALL number inputs (they look odd on dark backgrounds) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 .input-dark::-webkit-calendar-picker-indicator {
   filter: invert(0.7) sepia(1) saturate(5) hue-rotate(210deg) brightness(1.2);
   cursor: pointer;
@@ -1989,8 +1999,13 @@ input[type="number"].input-dark {
 /* Responsive */
 @media (max-width: 768px) {
   .landing-hero {
-    padding: 100px 20px 40px;
-    min-height: 70vh;
+    padding: 100px 20px 40px !important;
+    min-height: 70vh !important;
+  }
+
+  .landing-hero-container {
+    border-radius: 24px;
+    overflow: hidden;
   }
 
   .landing-stats-strip {

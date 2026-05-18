@@ -8,6 +8,7 @@ import Cycle from '@/models/Cycle';
 import mongoose from 'mongoose';
 import AuditLog from '@/models/AuditLog';
 import { handleApiError, parseBody } from '@/lib/apiError';
+import { createAuditLog } from '@/lib/auditLog';
 
 export async function GET(request) {
   try {
@@ -127,7 +128,7 @@ export async function POST(request) {
       weightage: body.weightage, status: 'Draft', isShared: false,
     });
 
-    await AuditLog.create({ entityType: 'Goal', entityId: goal._id, action: 'created', changedBy: session.user.id, changedByName: session.user.name, description: `Goal "${goal.title}" created for ${activeCycle.name}` });
+    await createAuditLog({ entityType: 'Goal', entityId: goal._id, action: 'created', changedBy: session.user.id, changedByName: session.user.name, description: `Goal "${goal.title}" created for ${activeCycle.name}` }, request);
 
     return NextResponse.json({ goal, message: 'Goal created successfully' }, { status: 201 });
   } catch (error) {

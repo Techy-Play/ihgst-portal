@@ -5,9 +5,10 @@ const GoalSheetSchema = new mongoose.Schema({
   cycleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cycle', required: true },
   status: {
     type: String,
-    enum: ['Draft', 'Submitted', 'Approved', 'Returned', 'Locked'],
+    enum: ['Draft', 'Submitted', 'Approved', 'Returned', 'Locked', 'Rebalancing'],
     default: 'Draft'
   },
+  previousStatus: { type: String, default: null }, // state before Rebalancing, for rollback
   submittedAt: { type: Date },
   approvedAt: { type: Date },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -23,4 +24,7 @@ const GoalSheetSchema = new mongoose.Schema({
 GoalSheetSchema.index({ userId: 1, cycleId: 1 }, { unique: true });
 GoalSheetSchema.index({ status: 1 });
 
-export default mongoose.models.GoalSheet || mongoose.model('GoalSheet', GoalSheetSchema);
+// Clear cached model so updated enums (including 'Rebalancing') are always used on hot-reload
+if (mongoose.models.GoalSheet) delete mongoose.models.GoalSheet;
+export default mongoose.model('GoalSheet', GoalSheetSchema);
+

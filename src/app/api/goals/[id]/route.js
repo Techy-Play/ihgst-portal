@@ -7,6 +7,7 @@ import GoalSheet from '@/models/GoalSheet';
 import Cycle from '@/models/Cycle';
 import AuditLog from '@/models/AuditLog';
 import { handleApiError, parseBody } from '@/lib/apiError';
+import { createAuditLog } from '@/lib/auditLog';
 
 export async function GET(request, { params }) {
   try {
@@ -40,7 +41,7 @@ export async function PUT(request, { params }) {
     if (parseErr) return parseErr;
     const goal = await Goal.findById(id);
     if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
-    if (!['Draft', 'Returned'].includes(goal.status)) return NextResponse.json({ error: 'Goal is locked and cannot be edited.' }, { status: 400 });
+    if (!['Draft', 'Returned', 'Rebalancing'].includes(goal.status)) return NextResponse.json({ error: 'Goal is locked and cannot be edited.' }, { status: 400 });
 
     // Shared goal guard — employees can only modify weightage
     if (goal.isShared && session.user.role === 'Employee') {
@@ -82,7 +83,9 @@ export async function PUT(request, { params }) {
 
     await goal.save();
     if (Object.keys(changes).length > 0) {
-      await AuditLog.create({ entityType: 'Goal', entityId: goal._id, action: 'updated', changedBy: session.user.id, changedByName: session.user.name, changes, description: `Goal "${goal.title}" updated` });
+      // Make audit log non-blocking as requested
+      createAuditLog({ entityType: 'Goal', entityId: goal._id, action: 'updated', changedBy: session.user.id, changedByName: session.user.name, changes, description: `Goal "${goal.title}" updated` }, request)
+        .catch(err => console.warn('Non-critical audit log failure:', err));
     }
     return NextResponse.json({ goal, message: 'Goal updated' });
   } catch (error) {
@@ -100,7 +103,7 @@ export async function DELETE(request, { params }) {
     if (!goal) return NextResponse.json({ error: 'Goal not found' }, { status: 404 });
     if (!['Draft', 'Returned'].includes(goal.status)) return NextResponse.json({ error: 'Cannot delete locked goal.' }, { status: 400 });
     await Goal.findByIdAndDelete(id);
-    await AuditLog.create({ entityType: 'Goal', entityId: id, action: 'deleted', changedBy: session.user.id, changedByName: session.user.name, description: `Goal "${goal.title}" deleted` });
+    await createAuditLog({ entityType: 'Goal', entityId: id, action: 'deleted', changedBy: session.user.id, changedByName: session.user.name, description: `Goal "${goal.title}" deleted` }, request);
     return NextResponse.json({ message: 'Goal deleted' });
   } catch (error) {
     return handleApiError(error, 'goals/[id] DELETE');

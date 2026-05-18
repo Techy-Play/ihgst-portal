@@ -22,6 +22,7 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const cycleIdParam = searchParams.get('cycleId');
+    const quarterParam = searchParams.get('quarter'); // e.g. 'Q1', 'Q2', 'Q3', 'Q4 / Annual Review' or null/all
 
     // Resolve which cycle to use
     let cycle = null;
@@ -49,8 +50,15 @@ export async function GET(request) {
       if (goals.length > 0) {
         let totalProgress = 0;
         goals.forEach(g => {
-          const latestAch = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
-          if (latestAch) totalProgress += calculateProgress(g, latestAch.value);
+          let ach = null;
+          if (quarterParam && quarterParam !== 'all') {
+            // Find the achievement for the specific quarter
+            ach = g.achievements?.find(a => a.quarter === quarterParam) || null;
+          } else {
+            // No quarter filter — use the latest achievement
+            ach = g.achievements?.length > 0 ? g.achievements[g.achievements.length - 1] : null;
+          }
+          if (ach) totalProgress += calculateProgress(g, ach.value);
         });
         completion = Math.round(totalProgress / goals.length);
       }
