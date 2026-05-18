@@ -124,12 +124,21 @@ export async function runEscalationEngine() {
           if (level === 'LEVEL_2' && employee.managerId) {
             await notify(employee.managerId, 'Escalation: Employee Goals Overdue',
               `${employee.name} has not submitted goals for ${cycle.name} (${Math.floor(daysSinceCycleOpen)} days overdue).`, '/admin/escalations');
+            const manager = await User.findById(employee.managerId).lean();
+            if (manager?.email) {
+              await tryEmail(manager.email, `[IHGST] Escalation: ${employee.name}'s Goals Overdue`,
+                `<p>Hi ${manager.name},</p><p><strong>${employee.name}</strong> has not submitted goals for <strong>${cycle.name}</strong> and is currently ${Math.floor(daysSinceCycleOpen)} days overdue. Please follow up.</p>`);
+            }
           }
 
           if (level === 'LEVEL_3') {
-            for (const adminId of adminIds) {
-              await notify(adminId, '🚨 Critical Escalation: Goals Not Submitted',
+            for (const admin of admins) {
+              await notify(admin._id, '🚨 Critical Escalation: Goals Not Submitted',
                 `${employee.name} has not submitted goals for ${cycle.name} (${Math.floor(daysSinceCycleOpen)} days overdue). Immediate action required.`, '/admin/escalations');
+              if (admin.email) {
+                await tryEmail(admin.email, `[IHGST] Critical Escalation: ${employee.name}'s Goals Not Submitted`,
+                  `<p>Hi ${admin.name},</p><p><strong>${employee.name}</strong> has failed to submit their goals for <strong>${cycle.name}</strong> and is now ${Math.floor(daysSinceCycleOpen)} days overdue. Immediate action is required.</p>`);
+              }
             }
           }
 
@@ -176,9 +185,13 @@ export async function runEscalationEngine() {
           }
 
           if (level === 'LEVEL_2') {
-            for (const adminId of adminIds) {
-              await notify(adminId, 'Escalation: Goal Approval Overdue',
+            for (const admin of admins) {
+              await notify(admin._id, 'Escalation: Goal Approval Overdue',
                 `${employee.name}'s goals for ${cycle.name} have been pending manager approval for ${Math.floor(daysSinceSubmit)} days.`, '/admin/escalations');
+              if (admin.email) {
+                await tryEmail(admin.email, `[IHGST] Escalation: ${employee.name}'s Goal Approval Overdue`,
+                  `<p>Hi ${admin.name},</p><p><strong>${employee.name}'s</strong> goals for <strong>${cycle.name}</strong> have been pending manager approval for ${Math.floor(daysSinceSubmit)} days. Please review the bottleneck.</p>`);
+              }
             }
           }
 
@@ -241,6 +254,11 @@ export async function runEscalationEngine() {
           if (level === 'LEVEL_2' && employee.managerId) {
             await notify(employee.managerId, 'Escalation: Check-in Overdue',
               `${employee.name} has not submitted their ${activeQuarter} check-in for ${cycle.name}.`, '/admin/escalations');
+            const manager = await User.findById(employee.managerId).lean();
+            if (manager?.email) {
+              await tryEmail(manager.email, `[IHGST] Escalation: ${employee.name}'s Check-in Overdue`,
+                `<p>Hi ${manager.name},</p><p><strong>${employee.name}</strong> has not submitted their <strong>${activeQuarter}</strong> check-in for <strong>${cycle.name}</strong>. Please follow up with them.</p>`);
+            }
           }
 
           await AuditLog.create({
