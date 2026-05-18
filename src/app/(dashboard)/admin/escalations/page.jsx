@@ -275,10 +275,11 @@ export default function EscalationsPage() {
       </div>
 
       {/* ── Insights row ─────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '24px', alignItems: 'stretch' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px', marginBottom: '24px', alignItems: 'start' }}>
         <EscalationTimeline />
 
-        {/* Level breakdown */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Level breakdown */}
         {stats.byLevel && (
           <div className="glass-card" style={{ padding: '16px' }}>
             <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px' }}>
@@ -325,8 +326,10 @@ export default function EscalationsPage() {
             })}
           </div>
         )}
+        </div>
 
-        {/* Compliance Rate */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Compliance Rate */}
         {stats.complianceRate !== undefined && (
           <div className="glass-card" style={{ padding: '16px', borderLeft: `3px solid ${stats.complianceRate >= 70 ? '#22c55e' : stats.complianceRate >= 40 ? '#f59e0b' : '#ef4444'}` }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -339,29 +342,28 @@ export default function EscalationsPage() {
         )}
 
         {/* 7-Day Trend & Info */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {stats.trend?.length > 0 && (
-            <div className="glass-card" style={{ padding: '16px', flex: 1 }}>
-              <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <TrendingUp size={12} /> 7-Day Trend
-              </h3>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '50px' }}>
-                {stats.trend.map((d, i) => {
-                  const maxVal = Math.max(...stats.trend.map(t => t.created), 1);
-                  const h = Math.max(4, (d.created / maxVal) * 48);
-                  return (
-                    <div key={d._id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                      <div style={{ width: '100%', height: `${h}px`, borderRadius: '2px', background: d.created > 0 ? 'linear-gradient(to top, rgba(99,102,241,0.3), rgba(99,102,241,0.7))' : 'rgba(255,255,255,0.04)' }} />
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[0]?._id?.slice(5)}</span>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[stats.trend.length-1]?._id?.slice(5)}</span>
-              </div>
+        {stats.trend?.length > 0 && (
+          <div className="glass-card" style={{ padding: '16px', flex: 1 }}>
+            <h3 style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <TrendingUp size={12} /> 7-Day Trend
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '50px' }}>
+              {stats.trend.map((d, i) => {
+                const maxVal = Math.max(...stats.trend.map(t => t.created), 1);
+                const h = Math.max(4, (d.created / maxVal) * 48);
+                return (
+                  <div key={d._id} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                    <div style={{ width: '100%', height: `${h}px`, borderRadius: '2px', background: d.created > 0 ? 'linear-gradient(to top, rgba(99,102,241,0.3), rgba(99,102,241,0.7))' : 'rgba(255,255,255,0.04)' }} />
+                  </div>
+                );
+              })}
             </div>
-          )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[0]?._id?.slice(5)}</span>
+              <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{stats.trend[stats.trend.length-1]?._id?.slice(5)}</span>
+            </div>
+          </div>
+        )}
 
           <div className="glass-card" style={{ padding: '14px', borderLeft: '3px solid var(--accent-primary)' }}>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.6 }}>
