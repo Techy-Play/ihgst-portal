@@ -24,7 +24,5 @@ const GoalSheetSchema = new mongoose.Schema({
 GoalSheetSchema.index({ userId: 1, cycleId: 1 }, { unique: true });
 GoalSheetSchema.index({ status: 1 });
 
-// Clear cached model so updated enums (including 'Rebalancing') are always used on hot-reload
-if (mongoose.models.GoalSheet) delete mongoose.models.GoalSheet;
-export default mongoose.model('GoalSheet', GoalSheetSchema);
+export default mongoose.models.GoalSheet || mongoose.model('GoalSheet', GoalSheetSchema);
 

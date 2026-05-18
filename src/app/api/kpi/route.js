@@ -206,8 +206,10 @@ export async function POST(request) {
           createdGoals.push(goal);
 
           // 7. Transition GoalSheet to Rebalancing state, remembering previous status for rollback
+          // IMPORTANT: preserve the *original* pre-rebalancing status — don't overwrite if already set
+          const preservedPreviousStatus = goalSheet.previousStatus || goalSheet.status;
           await GoalSheet.findByIdAndUpdate(goalSheet._id, {
-            $set: { status: 'Rebalancing', previousStatus: goalSheet.status },
+            $set: { status: 'Rebalancing', previousStatus: preservedPreviousStatus === 'Rebalancing' ? (goalSheet.previousStatus || 'Approved') : preservedPreviousStatus },
             $push: {
               comments: {
                 text: `🔄 Goal sheet entered Rebalancing state. A new organizational KPI "${body.title}" (${kpiWeightage}%) has been assigned. Editable goals have been reset to baseline weightages. Please redistribute until your total equals 100%, then resubmit.`,
@@ -372,8 +374,9 @@ export async function DELETE(request) {
 
     // ─── Helper: roll back a Rebalancing goal sheet to its previous state ────
     async function rollbackRebalancing(goalSheet, removedKpiId, kpiTitle, actorId, actorName) {
-      // The state the sheet was in before Rebalancing (Approved, Locked, or Submitted)
-      const restoreSheetStatus = goalSheet.previousStatus || 'Approved';
+      // The state the sheet was in before Rebalancing — NEVER restore to 'Rebalancing' itself
+      let restoreSheetStatus = goalSheet.previousStatus || 'Approved';
+      if (restoreSheetStatus === 'Rebalancing') restoreSheetStatus = 'Approved';
 
       // Restore all remaining goals (excluding the KPI being removed)
       const remainingGoals = await Goal.find({
@@ -452,17 +455,19 @@ export async function DELETE(request) {
       await Goal.findByIdAndDelete(body.goalId);
 
       // Audit the KPI removal itself
+      const restoreSheetStatus = goalSheet?.previousStatus || 'Approved';
       await AuditLog.create({
         entityType: 'KPI', entityId: goal._id,
         action: 'kpi_removed', changedBy: session.user.id, changedByName: session.user.name,
-        description: `Removed KPI "${goal.title}" from ${userName}${isRebalancing ? ' (during Rebalancing — sheet will be restored to Approved)' : ''}`,
+        description: `Removed KPI "${goal.title}" from ${userName}${isRebalancing ? ` (during Rebalancing — sheet will be restored to ${restoreSheetStatus})` : ''}`,
       });
 
-      // If the sheet was in Rebalancing, roll back to Approved
+      // If the sheet was in Rebalancing, roll back to its previous state
       if (isRebalancing && goalSheet) {
+        const restoreSheetStatus = goalSheet.previousStatus || 'Approved';
         await rollbackRebalancing(goalSheet, body.goalId, goal.title, session.user.id, session.user.name);
         return NextResponse.json({
-          message: `KPI removed from ${userName}. Goal sheet has been restored to Approved with original weightages.`,
+          message: `KPI removed from ${userName}. Goal sheet restored to ${restoreSheetStatus} with original weightages.`,
           restored: true,
         });
       }
@@ -502,11 +507,11 @@ export async function DELETE(request) {
       await AuditLog.create({
         entityType: 'KPI', entityId: toDelete[0]._id,
         action: 'kpi_bulk_removed', changedBy: session.user.id, changedByName: session.user.name,
-        description: `Bulk removed KPI "${body.title}" from ${toDelete.length} employee(s)${restoredCount > 0 ? `. ${restoredCount} sheet(s) restored to Approved.` : ''}`,
+        description: `Bulk removed KPI "${body.title}" from ${toDelete.length} employee(s)${restoredCount > 0 ? `. ${restoredCount} sheet(s) restored to previous state.` : ''}`,
       });
 
       return NextResponse.json({
-        message: `Removed ${toDelete.length} KPI assignment(s).${restoredCount > 0 ? ` ${restoredCount} goal sheet(s) restored to Approved with original weightages.` : ''}`,
+        message: `Removed ${toDelete.length} KPI assignment(s).${restoredCount > 0 ? ` ${restoredCount} goal sheet(s) restored to their previous state with original weightages.` : ''}`,
         deleted: toDelete.length,
         restored: restoredCount,
       });
