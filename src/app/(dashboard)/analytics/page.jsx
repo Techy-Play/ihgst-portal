@@ -292,6 +292,34 @@ export default function AnalyticsPage() {
     </div>
   );
 
+  const qColors = { Q1: '#34d399', Q2: '#60a5fa', Q3: '#fbbf24', Q4: '#f87171' };
+  const allQuarters = ['Q1', 'Q2', 'Q3', 'Q4'].map(q => {
+    const qData = (data?.quarterProgress || []).find(x => x.quarter === q);
+    if (qData && qData.count > 0) {
+      const prog = qData.avgProgress;
+      let status = 'On Track';
+      let statusColor = '#34d399';
+      let bg = 'rgba(52,211,153,0.03)';
+      let border = 'rgba(52,211,153,0.12)';
+      if (prog >= 100) {
+        status = 'Completed';
+        statusColor = '#60a5fa';
+        bg = 'rgba(96,165,250,0.03)';
+        border = 'rgba(96,165,250,0.12)';
+      }
+      return { quarter: q, progress: prog, status, statusColor, bg, border, hasData: true };
+    }
+    return {
+      quarter: q,
+      progress: 0,
+      status: 'Upcoming',
+      statusColor: 'var(--text-muted)',
+      bg: 'rgba(255,255,255,0.01)',
+      border: 'var(--border-color)',
+      hasData: false
+    };
+  });
+
   return (
     <div className="animate-fadeIn">
       <PageHeader title={cfg.title} subtitle={cfg.subtitle} onRefresh={refresh} lastUpdated={lastUpdated} loading={loading}>
@@ -425,10 +453,53 @@ export default function AnalyticsPage() {
               <>{isMounted && <ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer>}<ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
             )}
           </ChartCard>
-          <ChartCard title={scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'} style={{ height: '320px' }} onClick={() => openDetail('Quarterly Progress', data?.quarterProgress, 'bar', ['#8b5cf6'], 'avgProgress', 'quarter')}>
-            {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <>{isMounted && <ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>}<ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
-            )}
+          <ChartCard title={scope === 'personal' ? 'My Quarterly Progress' : 'Quarterly Average Progress'} style={{ height: '320px', cursor: 'default' }} onClick={null}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center', height: '100%', padding: '2px 0' }}>
+              {allQuarters.map((q) => (
+                <div key={q.quarter} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px',
+                  background: q.bg, border: `1px solid ${q.border}`, transition: 'all 0.15s'
+                }}>
+                  {/* Quarter Badge */}
+                  <div style={{
+                    width: '34px', height: '34px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: `linear-gradient(135deg, ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.06)' : q.statusColor + '20'}, ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.02)' : q.statusColor + '10'})`,
+                    border: `1px solid ${q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.1)' : q.statusColor + '35'}`,
+                    color: q.statusColor === 'var(--text-muted)' ? 'var(--text-secondary)' : q.statusColor,
+                    fontWeight: 800, fontSize: '13px', flexShrink: 0
+                  }}>
+                    {q.quarter}
+                  </div>
+
+                  {/* Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {q.quarter} • {q.hasData ? `${q.progress}%` : q.status}
+                      </span>
+                      <span style={{
+                        fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: q.statusColor === 'var(--text-muted)' ? 'var(--text-muted)' : q.statusColor,
+                        background: q.statusColor === 'var(--text-muted)' ? 'rgba(255,255,255,0.04)' : `${q.statusColor}12`,
+                        padding: '1px 6px', borderRadius: '99px'
+                      }}>
+                        {q.status}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar / Subtitle */}
+                    {q.hasData ? (
+                      <div style={{ height: '4px', borderRadius: '2px', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${q.progress}%`, background: q.statusColor, borderRadius: '2px', transition: 'width 0.4s ease' }} />
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                        {q.status === 'Upcoming' ? 'Awaiting activation window' : 'No progress logged yet'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </ChartCard>
         </div>
       )}
