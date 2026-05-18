@@ -51,6 +51,12 @@ export async function PUT(request, { params }) {
       if (isNaN(w) || w < 10 || w > 100) {
         return NextResponse.json({ error: 'Weightage must be between 10% and 100%.' }, { status: 400 });
       }
+      // Check that sum of other goals' weightage + this new weightage <= 100%
+      const otherGoals = await Goal.find({ goalSheetId: goal.goalSheetId, _id: { $ne: goal._id } }).lean();
+      const otherWeightageSum = otherGoals.reduce((sum, g) => sum + (g.weightage || 0), 0);
+      if (otherWeightageSum + w > 100) {
+        return NextResponse.json({ error: `Total weightage would exceed 100%. Only ${100 - otherWeightageSum}% available.` }, { status: 400 });
+      }
       body.weightage = w;
     }
     if (body.target !== undefined && body.target !== '' && goal.uom !== 'Timeline') {

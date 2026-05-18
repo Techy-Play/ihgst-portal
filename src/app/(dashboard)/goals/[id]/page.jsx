@@ -208,7 +208,7 @@ export default function GoalDetailPage({ params }) {
     return Math.min(100, Math.round((currentValue / targetNum) * 100));
   })();
   const progressColor = progress >= 80 ? '#34d399' : progress >= 40 ? '#fbbf24' : '#f87171';
-  const statusColors = { Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', label: '🔒 Approved & Locked' }, Submitted: { bg: 'rgba(99,102,241,0.12)', color: '#818cf8', label: 'Submitted' }, Draft: { bg: 'rgba(156,163,175,0.12)', color: '#9ca3af', label: 'Draft' }, Returned: { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24', label: '⚠️ Returned' } };
+  const statusColors = { Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', label: '🔒 Approved & Locked' }, Submitted: { bg: 'rgba(99,102,241,0.12)', color: '#818cf8', label: '🕐 Pending Review' }, Draft: { bg: 'rgba(156,163,175,0.12)', color: '#9ca3af', label: 'Draft' }, Returned: { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24', label: '⚠️ Returned' } };
   const sc = statusColors[goal?.status] || statusColors.Draft;
   const lastCheckinQuarter = achievements.length > 0 ? achievements[achievements.length - 1].quarter : null;
 

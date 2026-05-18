@@ -46,6 +46,11 @@ function PortalModal({ open, onClose, children }) {
 
 // Detail modal for chart drill-down
 function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, scope, role, dataKey, nameKey }) {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   if (!open || !chartData?.length) return null;
   // Role-aware links
   const goalLink = role === 'Employee' ? '/goals' : '/manager';
@@ -57,15 +62,17 @@ function ChartDetailModal({ open, onClose, title, chartData, chartType, colors, 
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
         </div>
         <div style={{ height: 280, marginBottom: '20px' }}>
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            {chartType === 'pie' ? (
-              <PieChart><Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={100} paddingAngle={4} dataKey={dataKey || 'value'} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{chartData.map((_, i) => <Cell key={i} fill={(colors || COLORS)[i % (colors || COLORS).length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
-            ) : chartType === 'line' ? (
-              <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ stroke: 'var(--border-hover)' }} contentStyle={tooltipStyle} /><Line type="monotone" dataKey={dataKey || 'value'} stroke={(colors || COLORS)[0]} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart>
-            ) : (
-              <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey={dataKey || 'value'} fill={(colors || COLORS)[0]} radius={[4, 4, 0, 0]} /></BarChart>
-            )}
-          </ResponsiveContainer>
+          {isMounted && (
+            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+              {chartType === 'pie' ? (
+                <PieChart><Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={100} paddingAngle={4} dataKey={dataKey || 'value'} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{chartData.map((_, i) => <Cell key={i} fill={(colors || COLORS)[i % (colors || COLORS).length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart>
+              ) : chartType === 'line' ? (
+                <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ stroke: 'var(--border-hover)' }} contentStyle={tooltipStyle} /><Line type="monotone" dataKey={dataKey || 'value'} stroke={(colors || COLORS)[0]} strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart>
+              ) : (
+                <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey={nameKey || 'name'} stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey={dataKey || 'value'} fill={(colors || COLORS)[0]} radius={[4, 4, 0, 0]} /></BarChart>
+              )}
+            </ResponsiveContainer>
+          )}
         </div>
         {/* Data Table */}
         <div style={{ borderRadius: '10px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
@@ -205,6 +212,12 @@ export default function AnalyticsPage() {
   const urlScope = searchParams.get('scope');
   const [selectedCycle, setSelectedCycle] = useState('');
   const [cycles, setCycles] = useState([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const apiUrl = (() => {
     const params = new URLSearchParams();
     if (selectedCycle) params.set('cycleId', selectedCycle);
@@ -321,15 +334,17 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           <ChartCard title="Quarterly Performance" style={{ height: '320px' }} onClick={() => openDetail('Quarterly Performance', data?.quarterProgress, 'line', ['#2563eb'], 'avgProgress', 'quarter')}>
             {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No quarterly data yet</p> : (
-              <ResponsiveContainer width="100%" height={230} minWidth={0}>
-                <LineChart data={data?.quarterProgress || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                  <XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} />
-                  <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} />
-                  <Tooltip cursor={{ stroke: 'var(--border-hover)' }} contentStyle={tooltipStyle} />
-                  <Line type="monotone" dataKey="avgProgress" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              isMounted && (
+                <ResponsiveContainer width="100%" height={230} minWidth={0}>
+                  <LineChart data={data?.quarterProgress || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                    <XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} />
+                    <YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} />
+                    <Tooltip cursor={{ stroke: 'var(--border-hover)' }} contentStyle={tooltipStyle} />
+                    <Line type="monotone" dataKey="avgProgress" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )
             )}
           </ChartCard>
 
@@ -343,14 +358,16 @@ export default function AnalyticsPage() {
               return (
                 <>
                   <div style={{ position: 'relative', height: 180 }}>
-                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                      <PieChart>
-                        <Pie data={riskData} cx="50%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={4} dataKey="value" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} fontSize={10} labelLine={{ stroke: 'var(--text-muted)' }}>
-                          {riskData.map((entry, i) => <Cell key={i} fill={RISK_COLORS[entry.name] || '#6b7280'} stroke="transparent" />)}
-                        </Pie>
-                        <Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [`${value} goal${value !== 1 ? 's' : ''}`, name]} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {isMounted && (
+                      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                        <PieChart>
+                          <Pie data={riskData} cx="50%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={4} dataKey="value" label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`} fontSize={10} labelLine={{ stroke: 'var(--text-muted)' }}>
+                            {riskData.map((entry, i) => <Cell key={i} fill={RISK_COLORS[entry.name] || '#6b7280'} stroke="transparent" />)}
+                          </Pie>
+                          <Tooltip contentStyle={tooltipStyle} formatter={(value, name) => [`${value} goal${value !== 1 ? 's' : ''}`, name]} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', pointerEvents: 'none' }}>
                       <span style={{ fontSize: '22px', fontWeight: 800, lineHeight: 1 }}>{totalRisk}</span>
                       <span style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Active</span>
@@ -387,12 +404,12 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           <ChartCard title="Goal Status Distribution" style={{ height: '320px' }} onClick={() => openDetail('Goal Status Distribution', data?.statusDistribution, 'pie')}>
             {(data?.statusDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
+              <>{isMounted && <ResponsiveContainer width="100%" height={220} minWidth={0}><PieChart><Pie data={data?.statusDistribution || []} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={5} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} fontSize={11}>{(data?.statusDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<ChartLegend items={(data?.statusDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[i % COLORS.length] }))} /></>
             )}
           </ChartCard>
           <ChartCard title="Thrust Area Breakdown" style={{ height: '320px' }} onClick={() => openDetail('Thrust Area Breakdown', data?.thrustAreaDistribution, 'pie', COLORS.slice(2))}>
             {(data?.thrustAreaDistribution || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={200} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={40} outerRadius={72} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer><div style={{ maxHeight: '52px', overflowY: 'auto', flexShrink: 0 }}><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></div></>
+              <>{isMounted && <ResponsiveContainer width="100%" height={200} minWidth={0}><PieChart><Pie data={data?.thrustAreaDistribution || []} cx="50%" cy="50%" innerRadius={40} outerRadius={72} paddingAngle={4} dataKey="value" label={false} labelLine={false}>{(data?.thrustAreaDistribution || []).map((_, i) => <Cell key={i} fill={COLORS[(i + 2) % COLORS.length]} />)}</Pie><Tooltip contentStyle={tooltipStyle} /></PieChart></ResponsiveContainer>}<div style={{ maxHeight: '52px', overflowY: 'auto', flexShrink: 0 }}><ChartLegend items={(data?.thrustAreaDistribution || []).map((e, i) => ({ label: e.name, color: COLORS[(i + 2) % COLORS.length] }))} /></div></>
             )}
           </ChartCard>
         </div>
@@ -405,12 +422,12 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           <ChartCard title="Target vs Actual" style={{ height: '320px' }} onClick={() => openDetail('Target vs Actual', data?.targetVsActual, 'bar', ['#3b82f6'], 'target')}>
             {(data?.targetVsActual || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
+              <>{isMounted && <ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.targetVsActual || []} barGap={2}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="name" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} angle={-15} textAnchor="end" height={40} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="target" name="Target" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={14} /><Bar dataKey="actual" name="Actual" fill="#10b981" radius={[3, 3, 0, 0]} barSize={14} /></BarChart></ResponsiveContainer>}<ChartLegend items={[{ label: 'Target', color: '#3b82f6' }, { label: 'Actual', color: '#10b981' }]} /></>
             )}
           </ChartCard>
           <ChartCard title={scope === 'personal' ? 'My Quarterly Progress (%)' : 'Quarterly Average Progress (%)'} style={{ height: '320px' }} onClick={() => openDetail('Quarterly Progress', data?.quarterProgress, 'bar', ['#8b5cf6'], 'avgProgress', 'quarter')}>
             {(data?.quarterProgress || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
+              <>{isMounted && <ResponsiveContainer width="100%" height={230} minWidth={0}><BarChart data={data?.quarterProgress || []}><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} /><XAxis dataKey="quarter" stroke="var(--text-muted)" axisLine={false} tickLine={false} fontSize={11} /><YAxis stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="avgProgress" name="Progress" fill="#8b5cf6" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer>}<ChartLegend items={[{ label: 'Avg Progress (%)', color: '#8b5cf6' }]} /></>
             )}
           </ChartCard>
         </div>
@@ -421,7 +438,7 @@ export default function AnalyticsPage() {
         <div style={{ marginBottom: '20px' }}>
           <ChartCard title={cfg.chart4Title} style={{ height: '300px' }} onClick={() => openDetail(cfg.chart4Title, data?.completionByDept, 'bar', ['#10b981'], 'rate', 'department')}>
             {(data?.completionByDept || []).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: 13, paddingTop: 40, textAlign: 'center' }}>No data</p> : (
-              <><ResponsiveContainer width="100%" height={200} minWidth={0}><BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false} /><XAxis type="number" stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><YAxis dataKey="department" type="category" stroke="var(--text-muted)" axisLine={false} tickLine={false} width={90} fontSize={11} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer><ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} /></>
+              <>{isMounted && <ResponsiveContainer width="100%" height={200} minWidth={0}><BarChart data={data?.completionByDept || []} layout="vertical"><CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={false} /><XAxis type="number" stroke="var(--text-muted)" axisLine={false} tickLine={false} domain={[0, 100]} fontSize={10} /><YAxis dataKey="department" type="category" stroke="var(--text-muted)" axisLine={false} tickLine={false} width={90} fontSize={11} /><Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} /><Bar dataKey="rate" name="Completion %" fill="#10b981" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer>}<ChartLegend items={[{ label: 'Completion Rate (%)', color: '#10b981' }]} /></>
             )}
           </ChartCard>
         </div>

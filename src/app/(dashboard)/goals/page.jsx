@@ -70,6 +70,7 @@ export default function GoalsPage() {
   };
 
   const statusStyles = { Draft: { bg: 'rgba(107,114,128,0.12)', color: '#9ca3af', border: 'rgba(107,114,128,0.25)' }, Submitted: { bg: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: 'rgba(59,130,246,0.25)' }, Approved: { bg: 'rgba(16,185,129,0.12)', color: '#34d399', border: 'rgba(16,185,129,0.25)' }, Returned: { bg: 'rgba(245,158,11,0.12)', color: '#fbbf24', border: 'rgba(245,158,11,0.25)' }, Locked: { bg: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: 'rgba(139,92,246,0.25)' } };
+  const statusLabels = { Submitted: 'Pending Review' };
 
   if (error) return (
     <div className="animate-fadeIn">
@@ -206,7 +207,7 @@ export default function GoalsPage() {
                         <span style={{ fontSize: '12px', fontWeight: 700, color: goalProgress >= 80 ? '#34d399' : goalProgress >= 40 ? '#fbbf24' : '#f87171', minWidth: '32px', textAlign: 'right' }}>{goalProgress}%</span>
                       </div>
                     )}
-                    <span className="badge" style={{ background: ss.bg, color: ss.color, borderColor: ss.border }}>{goal.status}</span>
+                    <span className="badge" style={{ background: ss.bg, color: ss.color, borderColor: ss.border }}>{statusLabels[goal.status] || goal.status}</span>
                   </div>
                 </div>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>{goal.description?.substring(0, 100)}</p>

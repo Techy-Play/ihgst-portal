@@ -183,7 +183,7 @@ export default function AdminReportsPage() {
             </div>
             <div style={{ width: '180px' }}>
               <CustomDropdown 
-                options={statuses.map(s => ({ value: s, label: s === 'all' ? 'All Statuses' : s }))} 
+                options={statuses.map(s => ({ value: s, label: s === 'all' ? 'All Statuses' : s === 'Submitted' ? 'Pending Review' : s }))} 
                 value={filterStatus} 
                 onChange={v => setFilterStatus(v)} 
                 placeholder="Filter status..." 
@@ -209,7 +209,7 @@ export default function AdminReportsPage() {
                 <tr key={i}>
                   <td style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{d.employeeName}</td>
                   <td>{d.department}</td><td>{d.title}</td><td>{d.target}</td><td>{d.weightage}%</td>
-                  <td><span className="badge" style={getSt(d.status)}>{d.status}</span></td>
+                  <td><span className="badge" style={getSt(d.status)}>{d.status === 'Submitted' ? 'Pending Review' : d.status}</span></td>
                   <td>{d.q1 || '—'}</td><td>{d.q2 || '—'}</td><td>{d.q3 || '—'}</td><td>{d.q4 || '—'}</td>
                 </tr>
               ))}

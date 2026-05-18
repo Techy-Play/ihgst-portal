@@ -20,7 +20,12 @@ export default function ReviewPage({ params }) {
   const [submitting, setSubmitting] = useState(false);
   const [goalComments, setGoalComments] = useState({});
   const [commentSubmitting, setCommentSubmitting] = useState({});
+  const [isMounted, setIsMounted] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     fetch(`/api/manager/review/${employeeId}`)
@@ -96,7 +101,7 @@ export default function ReviewPage({ params }) {
       <Link href="/manager" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px', textDecoration: 'none', marginBottom: '20px' }}><ArrowLeft size={16} /> Back to Team</Link>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
         <div><h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '4px' }}>Review: {employee?.name}</h1><p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>{employee?.department} • {employee?.email}</p></div>
-        <span className="badge" style={getStatusStyle(goalSheet?.status)}>{goalSheet?.status || 'No Sheet'}</span>
+        <span className="badge" style={getStatusStyle(goalSheet?.status)}>{goalSheet?.status === 'Submitted' ? 'Pending Review' : (goalSheet?.status || 'No Sheet')}</span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '24px' }}>
@@ -105,15 +110,17 @@ export default function ReviewPage({ params }) {
           {goals.length > 0 ? (
             <>
               <div style={{ height: '220px', width: '100%', minHeight: '200px' }}>
-                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                  <PieChart>
-                    <Pie data={weightageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4}
-                      label={({ name, value }) => `${value}%`} labelLine={false}>
-                      {weightageData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: 'var(--text-primary)' }} formatter={(v) => [`${v}%`, 'Weightage']} />
-                  </PieChart>
-                </ResponsiveContainer>
+                {isMounted && (
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                    <PieChart>
+                      <Pie data={weightageData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4}
+                        label={({ name, value }) => `${value}%`} labelLine={false}>
+                        {weightageData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: 'var(--text-primary)' }} formatter={(v) => [`${v}%`, 'Weightage']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
                 {weightageData.map((entry, index) => (
@@ -141,15 +148,17 @@ export default function ReviewPage({ params }) {
           <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 size={16} style={{ color: '#10b981' }}/> Goals by Thrust Area</h3>
           {goals.length > 0 ? (
             <div style={{ height: '220px', width: '100%', minHeight: '200px' }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-                <BarChart data={thrustData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.length > 10 ? v.substring(0, 10) + '...' : v} />
-                  <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} itemStyle={{ color: '#10b981' }} />
-                  <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
-                </BarChart>
-              </ResponsiveContainer>
+              {isMounted && (
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+                  <BarChart data={thrustData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.length > 10 ? v.substring(0, 10) + '...' : v} />
+                    <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                    <Tooltip cursor={{ fill: 'var(--surface-muted)' }} contentStyle={tooltipStyle} itemStyle={{ color: '#10b981' }} />
+                    <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </div>
           ) : <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No goals available</p>}
         </div>

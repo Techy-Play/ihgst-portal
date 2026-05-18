@@ -55,7 +55,11 @@ function LandingContent() {
     try {
       const res = await signIn('credentials', { email, password, redirect: false });
       if (res?.error) setError(res.error);
-      else { router.push('/dashboard'); router.refresh(); }
+      else {
+        // Fire login event to capture IP + device info server-side
+        fetch('/api/auth/login-event', { method: 'POST' }).catch(() => {});
+        router.push('/dashboard'); router.refresh();
+      }
     } catch { setError('Something went wrong.'); }
     finally { setLoading(false); }
   };

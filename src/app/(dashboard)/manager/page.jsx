@@ -51,7 +51,7 @@ export default function ManagerPage() {
       Returned: { background: 'rgba(245,158,11,0.12)', color: '#fbbf24', borderColor: 'rgba(245,158,11,0.25)' },
       Draft: { background: 'rgba(107,114,128,0.12)', color: '#9ca3af', borderColor: 'rgba(107,114,128,0.25)' },
     };
-    return <span className="badge" style={s[status] || s.Draft}>{status || 'No Sheet'}</span>;
+    return <span className="badge" style={s[status] || s.Draft}>{status === 'Submitted' ? 'Pending Review' : (status || 'No Sheet')}</span>;
   };
 
   if (error) return (
@@ -69,7 +69,7 @@ export default function ManagerPage() {
       <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
         {['all', 'Submitted', 'Approved', 'Returned', 'Draft'].map(f => (
           <button key={f} className={`tab-btn ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
-            {f === 'all' ? 'All' : f} {f !== 'all' && `(${team.filter(m => m.goalSheet?.status === f).length})`}
+            {f === 'all' ? 'All' : f === 'Submitted' ? 'Pending Review' : f} {f !== 'all' && `(${team.filter(m => m.goalSheet?.status === f).length})`}
           </button>
         ))}
       </div>

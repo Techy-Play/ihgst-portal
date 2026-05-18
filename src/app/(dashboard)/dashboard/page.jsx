@@ -63,7 +63,7 @@ function StatDetailModal({ open, onClose, type, role, quarter }) {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-secondary)' }}>{emp.goalCount} goals</span>
-                    <span className="badge" style={{ background: `${statusColors[emp.sheetStatus] || '#9ca3af'}20`, color: statusColors[emp.sheetStatus] || '#9ca3af', fontSize: '10px' }}>{emp.sheetStatus}</span>
+                    <span className="badge" style={{ background: `${statusColors[emp.sheetStatus] || '#9ca3af'}20`, color: statusColors[emp.sheetStatus] || '#9ca3af', fontSize: '10px' }}>{emp.sheetStatus === 'Submitted' ? 'Pending Review' : emp.sheetStatus}</span>
                     {role !== 'Employee' && <Link href={getLink(emp)} onClick={e => e.stopPropagation()} style={{ color: '#818cf8' }}><ExternalLink size={14} /></Link>}
                   </div>
                 </div>
@@ -74,7 +74,7 @@ function StatDetailModal({ open, onClose, type, role, quarter }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
                           <Target size={12} style={{ color: 'var(--text-muted)' }} />
                           <span style={{ fontWeight: 500 }}>{g.title}</span>
-                          <span className="badge" style={{ fontSize: '9px', background: `${statusColors[g.status] || '#9ca3af'}20`, color: statusColors[g.status] || '#9ca3af' }}>{g.status}</span>
+                          <span className="badge" style={{ fontSize: '9px', background: `${statusColors[g.status] || '#9ca3af'}20`, color: statusColors[g.status] || '#9ca3af' }}>{g.status === 'Submitted' ? 'Pending Review' : g.status}</span>
                         </div>
                         {isQuarter ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'right' }}>

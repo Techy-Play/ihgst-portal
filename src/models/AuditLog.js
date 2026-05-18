@@ -8,6 +8,10 @@ const AuditLogSchema = new mongoose.Schema({
   changedByName: { type: String },
   changes: { type: mongoose.Schema.Types.Mixed },
   description: { type: String },
+  ip: { type: String, default: '' },
+  userAgent: { type: String, default: '' },
+  browser: { type: String, default: '' },
+  device: { type: String, default: '' },
 }, { timestamps: true });
 
 AuditLogSchema.index({ entityType: 1, entityId: 1 });
